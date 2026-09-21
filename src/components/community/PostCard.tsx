@@ -39,7 +39,7 @@ interface PostCardProps {
   onDeletePost?: (postId: string) => void;
   onEditPost?: (post: CommunityPost) => void;
   onViewProfile: (authorId: string, authorName: string, authorEmail: string) => void;
-  onStartMessage: (authorId: string, authorName: string, authorEmail: string) => void;
+  onStartMessage: (authorId: string, authorName: string, authorEmail: string, authorAvatar?: string) => void;
 }
 
 export const PostCard: React.FC<PostCardProps> = ({
@@ -231,7 +231,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                   <button
                     onClick={() => {
                       setShowMenu(false);
-                      onStartMessage(post.authorId, post.authorName, post.authorEmail);
+                      onStartMessage(post.authorId, post.authorName, post.authorEmail, post.authorAvatar);
                     }}
                     className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2 cursor-pointer font-medium"
                   >

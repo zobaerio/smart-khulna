@@ -29,7 +29,7 @@ interface UserProfileModalProps {
   isBlocked: boolean;
   onToggleFollow: (targetUid: string) => void;
   onToggleBlock: (targetUid: string) => void;
-  onStartMessage: (targetUid: string, name: string, email: string) => void;
+  onStartMessage: (targetUid: string, name: string, email: string, avatar?: string) => void;
   onReportUser: (targetUid: string, name: string) => void;
   onSelectPost?: (post: CommunityPost) => void;
 }
@@ -143,7 +143,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <button
                   onClick={() => {
                     onClose();
-                    onStartMessage(user.uid, user.name, user.email);
+                    onStartMessage(user.uid, user.name, user.email, user.avatar);
                   }}
                   className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                 >

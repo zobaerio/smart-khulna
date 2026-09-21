@@ -40,7 +40,7 @@ interface CommunityFeedProps {
   onDeletePost?: (postId: string) => void;
   onEditPost?: (post: CommunityPost) => void;
   onViewProfile: (authorId: string, authorName: string, authorEmail: string) => void;
-  onStartMessage: (authorId: string, authorName: string, authorEmail: string) => void;
+  onStartMessage: (authorId: string, authorName: string, authorEmail: string, authorAvatar?: string) => void;
 }
 
 type FeedFilterType = 'all' | 'my_district' | 'following' | 'popular' | 'recent' | 'saved';

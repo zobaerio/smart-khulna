@@ -165,9 +165,41 @@
         "createdAt": { "type": "string" }
       },
       "required": ["id", "title", "image", "districtId", "isActive"]
+    },
+    "Like": {
+      "title": "Like",
+      "description": "User like on a community post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "post_id": { "type": "string" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "user_id", "post_id", "created_at"]
+    },
+    "Follow": {
+      "title": "Follow",
+      "description": "User follow connection",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "follower_id": { "type": "string" },
+        "following_id": { "type": "string" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "follower_id", "following_id", "created_at"]
     }
   },
   "firestore": {
+    "/likes/{likeId}": {
+      "schema": "Like",
+      "description": "Likes on posts, mapped by userId_postId"
+    },
+    "/follows/{followId}": {
+      "schema": "Follow",
+      "description": "Follow relations between community users, mapped by followerId_followingId"
+    },
     "/banners/{bannerId}": {
       "schema": "DistrictBanner",
       "description": "Promotional and district landmark banners managed by administrators"

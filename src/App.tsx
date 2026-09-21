@@ -88,7 +88,8 @@ import {
   deleteDoc,
   query,
   where,
-  orderBy
+  orderBy,
+  onSnapshot
 } from 'firebase/firestore';
 import {
   initialDistricts,
@@ -236,14 +237,14 @@ export default function App() {
   // Community & Social System States
   const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>(() => getLocalData('community_posts', initialCommunityPosts));
   const [communityComments, setCommunityComments] = useState<{ [postId: string]: PostComment[] }>(() => getLocalData('community_comments', initialCommunityComments));
-  const [conversations, setConversations] = useState<Conversation[]>(() => getLocalData('conversations', initialSampleConversations));
-  const [messagesMap, setMessagesMap] = useState<{ [convId: string]: ChatMessage[] }>(() => getLocalData('messages_map', {}));
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [messagesMap, setMessagesMap] = useState<{ [convId: string]: ChatMessage[] }>({});
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [communityReports, setCommunityReports] = useState<CommunityReport[]>(() => getLocalData('community_reports', []));
   const [communityNotifications, setCommunityNotifications] = useState<CommunityNotification[]>(() => getLocalData('community_notifications', initialSampleNotifications));
-  const [likedCommunityPostIds, setLikedCommunityPostIds] = useState<string[]>(() => getLocalData('liked_community_post_ids', ['post_1', 'post_3']));
-  const [savedCommunityPostIds, setSavedCommunityPostIds] = useState<string[]>(() => getLocalData('saved_community_post_ids', []));
-  const [followingUids, setFollowingUids] = useState<string[]>(() => getLocalData('following_uids', []));
+  const [likedCommunityPostIds, setLikedCommunityPostIds] = useState<string[]>([]);
+  const [savedCommunityPostIds, setSavedCommunityPostIds] = useState<string[]>([]);
+  const [followingUids, setFollowingUids] = useState<string[]>([]);
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>(() => getLocalData('blocked_user_ids', []));
   const [allCommunityUsers, setAllCommunityUsers] = useState<PublicUserProfile[]>(() => getLocalData('community_users', initialSampleUsers));
   const [moderationAuditLogs, setModerationAuditLogs] = useState<ModerationAction[]>(() => getLocalData('moderation_audit_logs', []));
@@ -346,12 +347,16 @@ export default function App() {
   }, [communityComments]);
 
   useEffect(() => {
-    saveLocalData('conversations', conversations);
-  }, [conversations]);
+    if (currentUser) {
+      localStorage.setItem(`conversations_${currentUser.uid}`, JSON.stringify(conversations));
+    }
+  }, [conversations, currentUser]);
 
   useEffect(() => {
-    saveLocalData('messages_map', messagesMap);
-  }, [messagesMap]);
+    if (currentUser) {
+      localStorage.setItem(`messages_map_${currentUser.uid}`, JSON.stringify(messagesMap));
+    }
+  }, [messagesMap, currentUser]);
 
   useEffect(() => {
     saveLocalData('community_notifications', communityNotifications);
@@ -362,16 +367,22 @@ export default function App() {
   }, [communityReports]);
 
   useEffect(() => {
-    saveLocalData('liked_community_post_ids', likedCommunityPostIds);
-  }, [likedCommunityPostIds]);
+    if (currentUser) {
+      localStorage.setItem(`liked_community_post_ids_${currentUser.uid}`, JSON.stringify(likedCommunityPostIds));
+    }
+  }, [likedCommunityPostIds, currentUser]);
 
   useEffect(() => {
-    saveLocalData('saved_community_post_ids', savedCommunityPostIds);
-  }, [savedCommunityPostIds]);
+    if (currentUser) {
+      localStorage.setItem(`saved_community_post_ids_${currentUser.uid}`, JSON.stringify(savedCommunityPostIds));
+    }
+  }, [savedCommunityPostIds, currentUser]);
 
   useEffect(() => {
-    saveLocalData('following_uids', followingUids);
-  }, [followingUids]);
+    if (currentUser) {
+      localStorage.setItem(`following_uids_${currentUser.uid}`, JSON.stringify(followingUids));
+    }
+  }, [followingUids, currentUser]);
 
   useEffect(() => {
     saveLocalData('blocked_user_ids', blockedUserIds);
@@ -637,11 +648,184 @@ export default function App() {
       } else {
         setCurrentUser(null);
         setUserProfile(null);
+        setLikedCommunityPostIds([]);
+        setFollowingUids([]);
+        setSavedCommunityPostIds([]);
+        setConversations([]);
+        setMessagesMap({});
+        setActiveConversationId(null);
       }
     });
 
     return () => unsubscribe();
   }, [selectedDistrict]);
+
+  // Real-time Community Posts Subscription
+  useEffect(() => {
+    const q = query(collection(db, 'posts'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (snapshot.empty) {
+        setCommunityPosts(initialCommunityPosts);
+      } else {
+        const posts: CommunityPost[] = [];
+        snapshot.forEach((doc) => {
+          posts.push({ ...doc.data(), id: doc.id } as CommunityPost);
+        });
+        posts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setCommunityPosts(posts);
+      }
+    }, (error) => {
+      console.warn("Firestore posts subscription error:", error);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Sync and fetch all community user profiles
+  useEffect(() => {
+    const fetchAllUsers = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'profiles'));
+        if (!snap.empty) {
+          const usersList = snap.docs.map(doc => {
+            const data = doc.data();
+            return {
+              uid: doc.id,
+              name: data.name || 'ব্যবহারকারী',
+              email: data.email || '',
+              avatar: data.avatar || '',
+              bio: data.bio || '',
+              phone: data.phone || '',
+              profession: data.profession || '',
+              bloodGroup: data.bloodGroup || '',
+              district: data.district || data.selectedDistrict || '',
+              upazila: data.upazila || '',
+              address: data.address || '',
+              joinedDate: data.joinedDate || new Date().toISOString(),
+              postsCount: data.postsCount || 0,
+              followersCount: data.followersCount || 0,
+              followingCount: data.followingCount || 0,
+              socialLinks: data.socialLinks || {
+                facebook: data.facebook || '',
+                twitter: data.twitter || '',
+                instagram: data.instagram || '',
+                linkedin: data.linkedin || '',
+                website: data.website || ''
+              }
+            } as PublicUserProfile;
+          });
+          setAllCommunityUsers(usersList);
+        }
+      } catch (err) {
+        console.warn("Could not load community users from Firestore:", err);
+      }
+    };
+    fetchAllUsers();
+  }, [currentUser]);
+
+  // User-specific Likes, Follows, Saved Posts and Conversations Loader/Sync
+  useEffect(() => {
+    if (!currentUser) {
+      setLikedCommunityPostIds([]);
+      setFollowingUids([]);
+      setSavedCommunityPostIds([]);
+      setConversations([]);
+      setMessagesMap({});
+      return;
+    }
+
+    // 1. Load cached fallbacks from user-specific local storage keys
+    const cacheLikes = localStorage.getItem(`likes_${currentUser.uid}`);
+    if (cacheLikes) setLikedCommunityPostIds(JSON.parse(cacheLikes));
+
+    const cacheFollows = localStorage.getItem(`follows_${currentUser.uid}`);
+    if (cacheFollows) setFollowingUids(JSON.parse(cacheFollows));
+
+    const cacheSaved = localStorage.getItem(`saved_${currentUser.uid}`);
+    if (cacheSaved) setSavedCommunityPostIds(JSON.parse(cacheSaved));
+
+    const cacheConvs = localStorage.getItem(`conversations_${currentUser.uid}`);
+    if (cacheConvs) setConversations(JSON.parse(cacheConvs));
+
+    const cacheMsgs = localStorage.getItem(`messages_map_${currentUser.uid}`);
+    if (cacheMsgs) setMessagesMap(JSON.parse(cacheMsgs));
+
+    // 2. Set up Firestore Real-Time Subscriptions
+    // Likes Subscription
+    const qLikes = query(collection(db, 'likes'), where('user_id', '==', currentUser.uid));
+    const unsubLikes = onSnapshot(qLikes, (snapshot) => {
+      const likedIds: string[] = [];
+      snapshot.forEach((doc) => {
+        likedIds.push(doc.data().post_id);
+      });
+      setLikedCommunityPostIds(likedIds);
+      localStorage.setItem(`likes_${currentUser.uid}`, JSON.stringify(likedIds));
+    }, (error) => {
+      console.warn("Firestore likes subscription error:", error);
+    });
+
+    // Follows Subscription
+    const qFollows = query(collection(db, 'follows'), where('follower_id', '==', currentUser.uid));
+    const unsubFollows = onSnapshot(qFollows, (snapshot) => {
+      const followedIds: string[] = [];
+      snapshot.forEach((doc) => {
+        followedIds.push(doc.data().following_id);
+      });
+      setFollowingUids(followedIds);
+      localStorage.setItem(`follows_${currentUser.uid}`, JSON.stringify(followedIds));
+    }, (error) => {
+      console.warn("Firestore follows subscription error:", error);
+    });
+
+    // Conversations Subscription
+    const qConvs = query(
+      collection(db, 'conversations'),
+      where('participantIds', 'array-contains', currentUser.uid)
+    );
+    const unsubConvs = onSnapshot(qConvs, (snapshot) => {
+      const convs: Conversation[] = [];
+      snapshot.forEach((doc) => {
+        const cData = doc.data() as Conversation;
+        if (!cData.hiddenForUserIds || !cData.hiddenForUserIds.includes(currentUser.uid)) {
+          convs.push({ ...cData, id: doc.id });
+        }
+      });
+      convs.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      setConversations(convs);
+      localStorage.setItem(`conversations_${currentUser.uid}`, JSON.stringify(convs));
+    }, (error) => {
+      console.warn("Firestore conversations subscription error:", error);
+    });
+
+    return () => {
+      unsubLikes();
+      unsubFollows();
+      unsubConvs();
+    };
+  }, [currentUser]);
+
+  // Messages Subscription for active conversation
+  useEffect(() => {
+    if (!currentUser || !activeConversationId) return;
+    const messagesRef = collection(db, 'conversations', activeConversationId, 'messages');
+    const q = query(messagesRef, orderBy('createdAt', 'asc'));
+    const unsubMessages = onSnapshot(q, (snapshot) => {
+      const msgs: ChatMessage[] = [];
+      snapshot.forEach((doc) => {
+        msgs.push({ id: doc.id, ...doc.data() } as ChatMessage);
+      });
+      setMessagesMap(prev => {
+        const updated = {
+          ...prev,
+          [activeConversationId]: msgs
+        };
+        localStorage.setItem(`messages_map_${currentUser.uid}`, JSON.stringify(updated));
+        return updated;
+      });
+    }, (error) => {
+      console.warn("Firestore messages subscription error:", error);
+    });
+    return () => unsubMessages();
+  }, [currentUser, activeConversationId]);
 
   // Helper: Append Audit Log
   const logAction = async (action: string, target: string, prev = '', nextVal = '') => {
@@ -1364,47 +1548,90 @@ export default function App() {
   const handleToggleLikePost = async (postId: string) => {
     if (!requireAuth('লাইক')) return;
     const isLiked = likedCommunityPostIds.includes(postId);
+    const likeDocId = `${currentUser.uid}_${postId}`;
+    const likeRef = doc(db, 'likes', likeDocId);
+    const postRef = doc(db, 'posts', postId);
+
+    // Get latest likes values from Firestore if possible for accuracy
+    let latestLikesCount = 0;
+    let latestLikedBy: string[] = [];
+    try {
+      const postSnap = await getDoc(postRef);
+      if (postSnap.exists()) {
+        const pData = postSnap.data();
+        latestLikesCount = pData.likesCount || 0;
+        latestLikedBy = pData.likedBy || [];
+      }
+    } catch (e) {
+      console.warn("Could not fetch latest post state for liking:", e);
+    }
+
     if (isLiked) {
+      // Optimistic updates for responsive UI
       setLikedCommunityPostIds(prev => prev.filter(id => id !== postId));
-      setCommunityPosts(prev => prev.map(p => {
-        if (p.id === postId) {
-          return {
-            ...p,
-            likesCount: Math.max(0, (p.likesCount || 0) - 1),
-            likedBy: (p.likedBy || []).filter(uid => uid !== currentUser.uid)
-          };
-        }
-        return p;
-      }));
+      
+      const updatedLikedBy = latestLikedBy.filter(uid => uid !== currentUser.uid);
+      const updatedLikesCount = Math.max(0, latestLikesCount - 1);
+
+      try {
+        await deleteDoc(likeRef);
+        await setDoc(postRef, {
+          likesCount: updatedLikesCount,
+          likedBy: updatedLikedBy
+        }, { merge: true });
+      } catch (e) {
+        console.error("Firestore unlike error:", e);
+        alert('লাইক রিমুভ করতে সমস্যা হয়েছে।');
+      }
     } else {
+      // Optimistic updates
       setLikedCommunityPostIds(prev => [...prev, postId]);
-      setCommunityPosts(prev => prev.map(p => {
-        if (p.id === postId) {
-          if (p.authorId !== currentUser.uid) {
+
+      const updatedLikedBy = latestLikedBy.includes(currentUser.uid)
+        ? latestLikedBy
+        : [...latestLikedBy, currentUser.uid];
+      const updatedLikesCount = latestLikesCount + 1;
+
+      try {
+        await setDoc(likeRef, {
+          id: likeDocId,
+          user_id: currentUser.uid,
+          post_id: postId,
+          created_at: new Date().toISOString()
+        });
+
+        await setDoc(postRef, {
+          likesCount: updatedLikesCount,
+          likedBy: updatedLikedBy
+        }, { merge: true });
+
+        // Fetch author to send notification
+        const postSnap = await getDoc(postRef);
+        if (postSnap.exists()) {
+          const postAuthorId = postSnap.data().authorId;
+          if (postAuthorId && postAuthorId !== currentUser.uid) {
+            const newNotifId = 'notif_' + Date.now();
             const newNotif: CommunityNotification = {
-              id: 'notif_' + Date.now(),
-              recipientUid: p.authorId,
+              id: newNotifId,
+              recipientUid: postAuthorId,
               actorUid: currentUser.uid,
               actorName: currentUser.displayName || 'ব্যবহারকারী',
-              actorAvatar: currentUser.photoURL,
+              actorAvatar: currentUser.photoURL || '',
               type: 'post_like',
               title: 'আপনার পোস্টে লাইক পড়েছে',
               message: `${currentUser.displayName || 'ব্যবহারকারী'} আপনার পোস্টে লাইক দিয়েছেন`,
-              targetId: p.id,
+              targetId: postId,
               targetType: 'post',
               isRead: false,
               createdAt: new Date().toISOString()
             };
-            setCommunityNotifications(n => [newNotif, ...n]);
+            await setDoc(doc(db, 'notifications', newNotifId), newNotif);
           }
-          return {
-            ...p,
-            likesCount: (p.likesCount || 0) + 1,
-            likedBy: [...(p.likedBy || []), currentUser.uid]
-          };
         }
-        return p;
-      }));
+      } catch (e) {
+        console.error("Firestore like error:", e);
+        alert('লাইক দিতে সমস্যা হয়েছে।');
+      }
     }
   };
 
@@ -1425,7 +1652,7 @@ export default function App() {
       authorId: currentUser.uid,
       authorName: currentUser.displayName || 'ব্যবহারকারী',
       authorEmail: currentUser.email || '',
-      authorAvatar: currentUser.photoURL,
+      authorAvatar: currentUser.photoURL || userProfile?.avatar || '',
       content: text,
       likesCount: 0,
       likedBy: [],
@@ -1446,7 +1673,7 @@ export default function App() {
             recipientUid: p.authorId,
             actorUid: currentUser.uid,
             actorName: currentUser.displayName || 'ব্যবহারকারী',
-            actorAvatar: currentUser.photoURL,
+            actorAvatar: currentUser.photoURL || userProfile?.avatar || '',
             type: 'post_comment',
             title: 'নতুন মন্তব্য',
             message: `${currentUser.displayName || 'ব্যবহারকারী'} আপনার পোস্টে মন্তব্য করেছেন: "${text.substring(0, 30)}..."`,
@@ -1471,7 +1698,7 @@ export default function App() {
       authorId: currentUser.uid,
       authorName: currentUser.displayName || 'ব্যবহারকারী',
       authorEmail: currentUser.email || '',
-      authorAvatar: currentUser.photoURL,
+      authorAvatar: currentUser.photoURL || userProfile?.avatar || '',
       content: text,
       likesCount: 0,
       likedBy: [],
@@ -1542,31 +1769,90 @@ export default function App() {
     setShowUserProfileModal(true);
   };
 
-  const handleToggleFollow = (targetUid: string) => {
+  const handleToggleFollow = async (targetUid: string) => {
     if (!requireAuth('Follow')) return;
     if (targetUid === currentUser.uid) return;
     const isFollowing = followingUids.includes(targetUid);
+    const followDocId = `${currentUser.uid}_${targetUid}`;
+    const followRef = doc(db, 'follows', followDocId);
+
+    // References to profiles
+    const currentUserProfileRef = doc(db, 'profiles', currentUser.uid);
+    const targetUserProfileRef = doc(db, 'profiles', targetUid);
+
+    // Get current profiles counts from Firestore for precision
+    let currentFollowingCount = 0;
+    let targetFollowersCount = 0;
+
+    try {
+      const currentProfileSnap = await getDoc(currentUserProfileRef);
+      if (currentProfileSnap.exists()) {
+        currentFollowingCount = currentProfileSnap.data().followingCount || 0;
+      }
+      const targetProfileSnap = await getDoc(targetUserProfileRef);
+      if (targetProfileSnap.exists()) {
+        targetFollowersCount = targetProfileSnap.data().followersCount || 0;
+      }
+    } catch (e) {
+      console.warn("Could not get profiles for follow counts:", e);
+    }
+
     if (isFollowing) {
+      // Optimistic updates
       setFollowingUids(prev => prev.filter(id => id !== targetUid));
+      try {
+        await deleteDoc(followRef);
+        await setDoc(currentUserProfileRef, {
+          followingCount: Math.max(0, currentFollowingCount - 1)
+        }, { merge: true });
+        await setDoc(targetUserProfileRef, {
+          followersCount: Math.max(0, targetFollowersCount - 1)
+        }, { merge: true });
+      } catch (e) {
+        console.error("Firestore unfollow error:", e);
+        alert('ফলো রিমুভ করতে সমস্যা হয়েছে।');
+      }
     } else {
+      // Optimistic updates
       setFollowingUids(prev => [...prev, targetUid]);
-      const newNotif: CommunityNotification = {
-        id: 'notif_' + Date.now(),
-        recipientUid: targetUid,
-        actorUid: currentUser.uid,
-        actorName: currentUser.displayName || 'ব্যবহারকারী',
-        actorAvatar: currentUser.photoURL,
-        type: 'new_follower',
-        title: 'নতুন ফলোয়ার',
-        message: `${currentUser.displayName || 'ব্যবহারকারী'} আপনাকে ফলো করতে শুরু করেছেন`,
-        isRead: false,
-        createdAt: new Date().toISOString()
-      };
-      setCommunityNotifications(n => [newNotif, ...n]);
+      try {
+        await setDoc(followRef, {
+          id: followDocId,
+          follower_id: currentUser.uid,
+          following_id: targetUid,
+          created_at: new Date().toISOString()
+        });
+
+        await setDoc(currentUserProfileRef, {
+          followingCount: currentFollowingCount + 1
+        }, { merge: true });
+        await setDoc(targetUserProfileRef, {
+          followersCount: targetFollowersCount + 1
+        }, { merge: true });
+
+        // Add Notification in Firestore
+        const newNotifId = 'notif_' + Date.now();
+        const newNotif: CommunityNotification = {
+          id: newNotifId,
+          recipientUid: targetUid,
+          actorUid: currentUser.uid,
+          actorName: currentUser.displayName || 'ব্যবহারকারী',
+          actorAvatar: currentUser.photoURL || '',
+          type: 'new_follower',
+          title: 'নতুন ফলোয়ার',
+          message: `${currentUser.displayName || 'ব্যবহারকারী'} আপনাকে ফলো করতে শুরু করেছেন`,
+          isRead: false,
+          createdAt: new Date().toISOString()
+        };
+        await setDoc(doc(db, 'notifications', newNotifId), newNotif);
+      } catch (e) {
+        console.error("Firestore follow error:", e);
+        alert('ফলো করতে সমস্যা হয়েছে।');
+      }
     }
   };
 
-  const handleStartMessage = async (targetUid: string, targetName: string, targetEmail: string) => {
+  const handleStartMessage = async (targetUid: string, targetName: string, targetEmail: string, targetAvatar?: string) => {
     if (!requireAuth('বার্তা পাঠানো')) return;
     if (targetUid === currentUser.uid) {
       alert('নিজের সাথে মেসেজ আদান-প্রদান করা সম্ভব নয়।');
@@ -1579,20 +1865,26 @@ export default function App() {
 
     if (!existing) {
       const newConvId = 'conv_' + [currentUser.uid, targetUid].sort().join('_');
+      const targetUser = allCommunityUsers.find(u => u.uid === targetUid);
+      const resolvedName = targetName || targetUser?.name || 'ব্যবহারকারী';
+      const resolvedEmail = targetEmail || targetUser?.email || '';
+      const resolvedAvatar = targetAvatar || targetUser?.avatar || '';
+
       existing = {
         id: newConvId,
         participantIds: [currentUser.uid, targetUid],
         participants: {
           [currentUser.uid]: {
             uid: currentUser.uid,
-            name: currentUser.displayName || 'ব্যবহারকারী',
-            email: currentUser.email || '',
-            avatar: currentUser.photoURL
+            name: currentUser.displayName || userProfile?.name || 'ব্যবহারকারী',
+            email: currentUser.email || userProfile?.email || '',
+            avatar: currentUser.photoURL || userProfile?.avatar || ''
           },
           [targetUid]: {
             uid: targetUid,
-            name: targetName,
-            email: targetEmail
+            name: resolvedName,
+            email: resolvedEmail,
+            avatar: resolvedAvatar
           }
         },
         unreadCounts: {
@@ -1636,7 +1928,7 @@ export default function App() {
       senderId: currentUser.uid,
       senderName: currentUser.displayName || 'ব্যবহারকারী',
       senderEmail: currentUser.email || '',
-      senderAvatar: currentUser.photoURL,
+      senderAvatar: currentUser.photoURL || userProfile?.avatar || '',
       text,
       attachments,
       isRead: false,
@@ -1646,7 +1938,7 @@ export default function App() {
     // Save to Firestore
     try {
       // 1. Add Message
-      await addDoc(collection(db, 'conversations', conversationId, 'messages'), newMsg);
+      await setDoc(doc(db, 'conversations', conversationId, 'messages', newMsg.id), newMsg);
       
       // 2. Update Conversation
       const convRef = doc(db, 'conversations', conversationId);
@@ -1659,7 +1951,8 @@ export default function App() {
           isRead: false
         },
         updatedAt: new Date().toISOString(),
-        ['unreadCounts.' + otherUid]: (conv.unreadCounts?.[otherUid] || 0) + 1
+        ['unreadCounts.' + otherUid]: (conv.unreadCounts?.[otherUid] || 0) + 1,
+        hiddenForUserIds: []
       });
       
       // 3. Update Local State (as before)
@@ -1705,7 +1998,7 @@ export default function App() {
         recipientUid: otherUid,
         actorUid: currentUser.uid,
         actorName: currentUser.displayName || 'ব্যবহারকারী',
-        actorAvatar: currentUser.photoURL,
+        actorAvatar: currentUser.photoURL || userProfile?.avatar || '',
         type: 'new_message',
         title: 'নতুন ব্যক্তিগত বার্তা',
         message: `${currentUser.displayName || 'ব্যবহারকারী'}: ${summaryText}`,
