@@ -68,7 +68,8 @@ import {
   Globe,
   Linkedin,
   Droplets,
-  Loader2
+  Loader2,
+  Tractor
 } from 'lucide-react';
 import { compressImage } from './lib/imageCompressor';
 import { auth, googleProvider, db } from './firebase';
