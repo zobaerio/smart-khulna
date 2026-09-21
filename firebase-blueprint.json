@@ -148,9 +148,30 @@
         "created_at": { "type": "string" }
       },
       "required": ["id", "name", "phone", "district_id", "status", "created_at"]
+    },
+    "DistrictBanner": {
+      "title": "DistrictBanner",
+      "description": "District-specific or regional promotional and information banner",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "image": { "type": "string" },
+        "districtId": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "priority": { "type": "number" },
+        "link": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "image", "districtId", "isActive"]
     }
   },
   "firestore": {
+    "/banners/{bannerId}": {
+      "schema": "DistrictBanner",
+      "description": "Promotional and district landmark banners managed by administrators"
+    },
     "/profiles/{userId}": {
       "schema": "UserProfile",
       "description": "User profile documents keyed by Firebase Auth UID"

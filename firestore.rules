@@ -134,6 +134,12 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
+    // 11. District Banners: Public read, admin write
+    match /banners/{bannerId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
     // Default deny all other paths
     match /{document=**} {
       allow read, write: if false;

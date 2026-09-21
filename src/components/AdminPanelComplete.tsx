@@ -30,13 +30,15 @@ import {
   Layers,
   Sparkles,
   Award,
-  AlertCircle
+  AlertCircle,
+  Image as ImageIcon
 } from 'lucide-react';
 import { collection, getDocs, doc, updateDoc, deleteDoc, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
-import { District, Category, Service, AuditLog, UserProfile } from '../dbData';
+import { District, Category, Service, AuditLog, UserProfile, Banner } from '../dbData';
 import { CommunityPost, CommunityReport } from '../types/community';
 import { AdminDownloadsCMS } from './AdminDownloadsCMS';
+import { AdminBannersCMS } from './AdminBannersCMS';
 
 interface AdminPanelCompleteProps {
   currentUserRole: 'super_admin' | 'sub_admin';
@@ -50,6 +52,7 @@ interface AdminPanelCompleteProps {
   districts: District[];
   categories: Category[];
   services: Service[];
+  banners?: Banner[];
   posts?: CommunityPost[];
   communityPosts?: CommunityPost[];
   submissions: any[];
@@ -59,6 +62,10 @@ interface AdminPanelCompleteProps {
   emergencyContacts?: any[];
   auditLogs: AuditLog[];
   releaseConfig?: any;
+  onAddBanner?: (banner: Partial<Banner>) => Promise<void> | void;
+  onUpdateBanner?: (banner: Banner) => Promise<void> | void;
+  onDeleteBanner?: (bannerId: string) => Promise<void> | void;
+  onToggleBannerStatus?: (bannerId: string, isActive: boolean) => Promise<void> | void;
   onApproveSubmission: (sub: any) => Promise<void> | void;
   onRejectSubmission: (sub: any) => Promise<void> | void;
   onResolveReport: (reportId: string, note: string) => Promise<void> | void;
@@ -89,6 +96,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
   districts,
   categories,
   services,
+  banners = [],
   posts,
   communityPosts,
   submissions,
@@ -98,6 +106,10 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
   emergencyContacts,
   auditLogs,
   releaseConfig,
+  onAddBanner,
+  onUpdateBanner,
+  onDeleteBanner,
+  onToggleBannerStatus,
   onApproveSubmission,
   onRejectSubmission,
   onResolveReport,
@@ -125,7 +137,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
     if (onRemovePost) return onRemovePost(postId, 'অ্যাডমিন মডারেশন দ্বারা মুছে ফেলা');
   };
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'users' | 'sub_admins' | 'posts' | 'services' | 'submissions' | 'reports' | 'downloads' | 'logs'
+    'dashboard' | 'users' | 'sub_admins' | 'posts' | 'banners' | 'services' | 'submissions' | 'reports' | 'downloads' | 'logs'
   >('dashboard');
 
   const isSuperAdmin = currentUserRole === 'super_admin';
@@ -447,6 +459,17 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
           }`}
         >
           <FileText size={14} /> কমিউনিটি পোস্ট ({effectivePosts.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('banners')}
+          className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+            activeTab === 'banners'
+              ? 'bg-emerald-800 text-white shadow-xs'
+              : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900'
+          }`}
+        >
+          <ImageIcon size={14} /> জেলা ব্যানার CMS ({banners.length})
         </button>
 
         <button
@@ -943,6 +966,21 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
               })
             )}
           </div>
+        </div>
+      )}
+
+      {/* 4.5 DISTRICT BANNERS CMS */}
+      {activeTab === 'banners' && (
+        <div>
+          <AdminBannersCMS
+            banners={banners}
+            districts={districts}
+            onAddBanner={onAddBanner || (() => {})}
+            onUpdateBanner={onUpdateBanner || (() => {})}
+            onDeleteBanner={onDeleteBanner || (() => {})}
+            onToggleBannerStatus={onToggleBannerStatus || (() => {})}
+            onClose={() => setActiveTab('dashboard')}
+          />
         </div>
       )}
 

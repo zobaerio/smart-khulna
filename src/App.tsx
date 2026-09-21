@@ -63,8 +63,14 @@ import {
   MessageSquare,
   MessageCircle,
   AlertOctagon,
-  LayoutGrid
+  LayoutGrid,
+  Camera,
+  Globe,
+  Linkedin,
+  Droplets,
+  Loader2
 } from 'lucide-react';
+import { compressImage } from './lib/imageCompressor';
 import { auth, googleProvider, db } from './firebase';
 import { signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged, updateProfile, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import {
@@ -85,6 +91,7 @@ import {
   initialCategories,
   initialEmergencyContacts,
   initialServices,
+  initialBanners,
   saveLocalData,
   getLocalData,
   defaultReleaseConfig,
@@ -105,6 +112,7 @@ import { SplashScreen } from './components/SplashScreen';
 import { DownloadPage } from './components/DownloadPage';
 import { AdminDownloadsCMS } from './components/AdminDownloadsCMS';
 import { AdminPanelComplete } from './components/AdminPanelComplete';
+import { DistrictBannerCarousel } from './components/DistrictBannerCarousel';
 import { testConnection, handleFirestoreError, OperationType } from './firestoreErrorHandler';
 import {
   CommunityPost,
@@ -198,9 +206,7 @@ export default function App() {
   const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>(() => getLocalData('emergencies', initialEmergencyContacts));
   const [submissions, setSubmissions] = useState<any[]>(() => getLocalData('submissions', []));
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => getLocalData('audit_logs', []));
-  const [banners, setBanners] = useState<Banner[]>(() => getLocalData('banners', [
-    { id: 'b1', title: 'খুলনা বিভাগের সকল ডিজিটাল নাগরিক সেবা এখন এক জায়গায়', image: 'https://images.unsplash.com/photo-1596422846543-75c6fc18a523?w=1000&q=80' }
-  ]));
+  const [banners, setBanners] = useState<Banner[]>(() => getLocalData('banners', initialBanners));
   const [systemNotifications, setSystemNotifications] = useState<Notification[]>(() => getLocalData('notifications', [
     { id: 'n1', title: 'ফ্লাড এলার্ট - খুলনা অঞ্চল', message: 'উপকূলীয় অঞ্চলে জোয়ারের পানি বৃদ্ধি পাওয়ায় সবাইকে সতর্ক থাকার নির্দেশ দেওয়া হয়েছে।', createdAt: new Date().toISOString() }
   ]));
@@ -245,12 +251,21 @@ export default function App() {
   const [filterUpazila, setFilterUpazila] = useState('');
   const [showFiltersModal, setShowFiltersModal] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
   const [editDisplayName, setEditDisplayName] = useState('');
   const [editPhotoURL, setEditPhotoURL] = useState('');
+  const [editPhone, setEditPhone] = useState('');
   const [editBio, setEditBio] = useState('');
+  const [editProfession, setEditProfession] = useState('');
+  const [editBloodGroup, setEditBloodGroup] = useState('');
+  const [editDistrict, setEditDistrict] = useState('khulna');
+  const [editUpazila, setEditUpazila] = useState('');
+  const [editAddress, setEditAddress] = useState('');
   const [editFacebook, setEditFacebook] = useState('');
   const [editTwitter, setEditTwitter] = useState('');
   const [editInstagram, setEditInstagram] = useState('');
+  const [editLinkedin, setEditLinkedin] = useState('');
   const [editWebsite, setEditWebsite] = useState('');
   const [emailAuthMode, setEmailAuthMode] = useState<'login' | 'register'>('login');
   const [authEmail, setAuthEmail] = useState('');
@@ -371,6 +386,23 @@ export default function App() {
     fetchReleaseConfig();
   }, []);
 
+  // Load cloud banners if available
+  useEffect(() => {
+    const fetchBanners = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'banners'));
+        if (!snap.empty) {
+          const cloudBanners = snap.docs.map(d => ({ id: d.id, ...d.data() } as Banner));
+          setBanners(cloudBanners);
+          saveLocalData('banners', cloudBanners);
+        }
+      } catch (err: unknown) {
+        console.warn('Could not load banners from Firestore, using local data:', err);
+      }
+    };
+    fetchBanners();
+  }, []);
+
   // Deep linking and browser navigation support
   useEffect(() => {
     const handleUrlRouting = () => {
@@ -448,13 +480,20 @@ export default function App() {
               email: email,
               name: data.name || localCached?.name || displayName,
               avatar: data.avatar || localCached?.avatar || photoURL || '',
+              phone: data.phone || localCached?.phone || '',
               bio: data.bio || localCached?.bio || '',
+              profession: data.profession || localCached?.profession || '',
+              bloodGroup: data.bloodGroup || localCached?.bloodGroup || '',
+              district: data.district || data.selectedDistrict || localCached?.district || selectedDistrict,
+              selectedDistrict: data.selectedDistrict || data.district || localCached?.selectedDistrict || selectedDistrict,
+              upazila: data.upazila || localCached?.upazila || '',
+              address: data.address || localCached?.address || '',
               facebook: data.facebook || localCached?.facebook || '',
               twitter: data.twitter || localCached?.twitter || '',
               instagram: data.instagram || localCached?.instagram || '',
+              linkedin: data.linkedin || localCached?.linkedin || '',
               website: data.website || localCached?.website || '',
               role: isSuperAdminEmail ? ('super_admin' as const) : (data.role || localCached?.role || 'user'),
-              selectedDistrict: data.selectedDistrict || selectedDistrict,
               savedServices: data.savedServices || localCached?.savedServices || []
             };
             
@@ -472,7 +511,19 @@ export default function App() {
                   name: updatedProfile.name,
                   avatar: updatedProfile.avatar,
                   bio: updatedProfile.bio,
-                  district: selectedDistrict,
+                  phone: updatedProfile.phone,
+                  profession: updatedProfile.profession,
+                  bloodGroup: updatedProfile.bloodGroup,
+                  district: updatedProfile.district || updatedProfile.selectedDistrict,
+                  upazila: updatedProfile.upazila,
+                  address: updatedProfile.address,
+                  socialLinks: {
+                    facebook: updatedProfile.facebook,
+                    twitter: updatedProfile.twitter,
+                    instagram: updatedProfile.instagram,
+                    linkedin: updatedProfile.linkedin,
+                    website: updatedProfile.website
+                  }
                 } : u);
               }
               return [...prev, {
@@ -481,11 +532,23 @@ export default function App() {
                 email: updatedProfile.email,
                 avatar: updatedProfile.avatar,
                 bio: updatedProfile.bio,
-                district: selectedDistrict,
+                phone: updatedProfile.phone,
+                profession: updatedProfile.profession,
+                bloodGroup: updatedProfile.bloodGroup,
+                district: updatedProfile.district || updatedProfile.selectedDistrict,
+                upazila: updatedProfile.upazila,
+                address: updatedProfile.address,
                 joinedDate: new Date().toISOString(),
                 postsCount: 0,
                 followersCount: 0,
                 followingCount: 0,
+                socialLinks: {
+                  facebook: updatedProfile.facebook,
+                  twitter: updatedProfile.twitter,
+                  instagram: updatedProfile.instagram,
+                  linkedin: updatedProfile.linkedin,
+                  website: updatedProfile.website
+                }
               }];
             });
           } else {
@@ -494,14 +557,21 @@ export default function App() {
               uid: firebaseUser.uid,
               name: localCached?.name || displayName,
               email: email,
-              avatar: localCached?.avatar || photoURL,
+              avatar: localCached?.avatar || photoURL || '',
+              phone: localCached?.phone || '',
               bio: localCached?.bio || '',
+              profession: localCached?.profession || '',
+              bloodGroup: localCached?.bloodGroup || '',
+              district: localCached?.district || selectedDistrict,
+              selectedDistrict: localCached?.selectedDistrict || selectedDistrict,
+              upazila: localCached?.upazila || '',
+              address: localCached?.address || '',
               facebook: localCached?.facebook || '',
               twitter: localCached?.twitter || '',
               instagram: localCached?.instagram || '',
+              linkedin: localCached?.linkedin || '',
               website: localCached?.website || '',
               role: isSuperAdminEmail ? 'super_admin' : (localCached?.role || 'user'),
-              selectedDistrict: selectedDistrict,
               savedServices: []
             };
             localStorage.setItem(`smart_khulna_profile_${firebaseUser.uid}`, JSON.stringify(newProfile));
@@ -524,8 +594,20 @@ export default function App() {
             name: displayName,
             email: email,
             avatar: photoURL,
-            role: isSuperAdminEmail ? 'super_admin' : 'user',
+            phone: '',
+            bio: '',
+            profession: '',
+            bloodGroup: '',
+            district: selectedDistrict,
             selectedDistrict: selectedDistrict,
+            upazila: '',
+            address: '',
+            facebook: '',
+            twitter: '',
+            instagram: '',
+            linkedin: '',
+            website: '',
+            role: isSuperAdminEmail ? 'super_admin' : 'user',
             savedServices: JSON.parse(localStorage.getItem(`favs_${firebaseUser.uid}`) || '[]')
           };
           setUserProfile(fallbackProfile);
@@ -583,47 +665,68 @@ export default function App() {
     }
   };
 
-  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        alert('ছবির সাইজ ২ মেগাবাইটের কম হতে হবে।');
+      if (file.size > 8 * 1024 * 1024) {
+        alert('ছবির সাইজ ৮ মেগাবাইটের কম হতে হবে।');
         return;
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setEditPhotoURL(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressedBase64 = await compressImage(file, 360, 360, 0.82);
+        setEditPhotoURL(compressedBase64);
+      } catch (err) {
+        console.error("Image compression error, falling back to direct reader:", err);
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target?.result) {
+            setEditPhotoURL(event.target.result as string);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth.currentUser) return;
+    setIsSavingProfile(true);
     try {
+      const uid = auth.currentUser.uid;
+      const userDocRef = doc(db, 'profiles', uid);
+      const finalName = editDisplayName.trim() || 'ব্যবহারকারী';
+      const finalAvatar = editPhotoURL.trim() || userProfile?.avatar || auth.currentUser.photoURL || '';
+
       // Safely update Firebase Auth state (avoid large base64 crash on photoURL token)
       try {
         await updateProfile(auth.currentUser, {
-          displayName: editDisplayName.trim() || 'ব্যবহারকারী',
-          photoURL: editPhotoURL.startsWith('data:') ? undefined : editPhotoURL
+          displayName: finalName,
+          photoURL: finalAvatar.startsWith('data:') ? undefined : finalAvatar
         });
       } catch (authError) {
         console.warn("Auth updateProfile optional sync fallback:", authError);
       }
 
-      const uid = auth.currentUser.uid;
-      const userDocRef = doc(db, 'profiles', uid);
-      const updatedProfileData = {
-        name: editDisplayName.trim() || 'ব্যবহারকারী',
-        avatar: editPhotoURL,
+      const updatedProfileData: Partial<UserProfile> = {
+        uid,
+        name: finalName,
+        email: auth.currentUser.email || '',
+        avatar: finalAvatar,
+        phone: editPhone.trim(),
         bio: editBio.trim(),
+        profession: editProfession.trim(),
+        bloodGroup: editBloodGroup.trim(),
+        district: editDistrict || selectedDistrict,
+        selectedDistrict: editDistrict || selectedDistrict,
+        upazila: editUpazila.trim(),
+        address: editAddress.trim(),
         facebook: editFacebook.trim(),
         twitter: editTwitter.trim(),
         instagram: editInstagram.trim(),
-        website: editWebsite.trim()
+        linkedin: editLinkedin.trim(),
+        website: editWebsite.trim(),
+        updatedAt: new Date().toISOString()
       };
 
       // 1. Sync Firestore
@@ -635,43 +738,96 @@ export default function App() {
           uid,
           email: auth.currentUser.email || '',
           role: 'user',
-          selectedDistrict,
+          selectedDistrict: editDistrict || selectedDistrict,
           savedServices: []
         }),
         ...updatedProfileData
-      };
+      } as UserProfile;
+
       localStorage.setItem(`smart_khulna_profile_${uid}`, JSON.stringify(fullUpdatedProfile));
 
       // 3. Update active React state
       setUserProfile(fullUpdatedProfile);
 
       // 4. Update community directory user list
-      setAllCommunityUsers(prev => prev.map(u => u.uid === uid ? {
-        ...u,
-        name: fullUpdatedProfile.name,
-        avatar: fullUpdatedProfile.avatar,
-        bio: fullUpdatedProfile.bio,
-        socialLinks: {
-          facebook: fullUpdatedProfile.facebook,
-          twitter: fullUpdatedProfile.twitter,
-          instagram: fullUpdatedProfile.instagram,
-          website: fullUpdatedProfile.website
+      setAllCommunityUsers(prev => {
+        const exists = prev.some(u => u.uid === uid);
+        if (exists) {
+          return prev.map(u => u.uid === uid ? {
+            ...u,
+            name: fullUpdatedProfile.name,
+            avatar: fullUpdatedProfile.avatar,
+            bio: fullUpdatedProfile.bio,
+            phone: fullUpdatedProfile.phone,
+            profession: fullUpdatedProfile.profession,
+            bloodGroup: fullUpdatedProfile.bloodGroup,
+            district: fullUpdatedProfile.district || fullUpdatedProfile.selectedDistrict,
+            upazila: fullUpdatedProfile.upazila,
+            address: fullUpdatedProfile.address,
+            socialLinks: {
+              facebook: fullUpdatedProfile.facebook,
+              twitter: fullUpdatedProfile.twitter,
+              instagram: fullUpdatedProfile.instagram,
+              linkedin: fullUpdatedProfile.linkedin,
+              website: fullUpdatedProfile.website
+            }
+          } : u);
         }
-      } : u));
+        return [...prev, {
+          uid,
+          name: fullUpdatedProfile.name,
+          email: fullUpdatedProfile.email,
+          avatar: fullUpdatedProfile.avatar,
+          bio: fullUpdatedProfile.bio,
+          phone: fullUpdatedProfile.phone,
+          profession: fullUpdatedProfile.profession,
+          bloodGroup: fullUpdatedProfile.bloodGroup,
+          district: fullUpdatedProfile.district || fullUpdatedProfile.selectedDistrict,
+          upazila: fullUpdatedProfile.upazila,
+          address: fullUpdatedProfile.address,
+          joinedDate: fullUpdatedProfile.joinedDate || new Date().toISOString(),
+          postsCount: 0,
+          followersCount: 0,
+          followingCount: 0,
+          socialLinks: {
+            facebook: fullUpdatedProfile.facebook,
+            twitter: fullUpdatedProfile.twitter,
+            instagram: fullUpdatedProfile.instagram,
+            linkedin: fullUpdatedProfile.linkedin,
+            website: fullUpdatedProfile.website
+          }
+        }];
+      });
 
-      // 5. Update community posts author cards for current user
+      // 5. Update community posts & comments author cards for current user
       setCommunityPosts(prev => prev.map(p => p.authorId === uid ? {
         ...p,
         authorName: fullUpdatedProfile.name,
-        authorAvatar: fullUpdatedProfile.avatar
+        authorAvatar: fullUpdatedProfile.avatar,
+        authorDistrict: fullUpdatedProfile.district
       } : p));
 
+      setCommunityComments(prev => {
+        const nextState = { ...prev };
+        Object.keys(nextState).forEach(postId => {
+          nextState[postId] = nextState[postId].map(c => c.authorId === uid ? {
+            ...c,
+            authorName: fullUpdatedProfile.name,
+            authorAvatar: fullUpdatedProfile.avatar
+          } : c);
+        });
+        return nextState;
+      });
+
       setIsEditingProfile(false);
-      await logAction('প্রোফাইল আপডেট', `${auth.currentUser.email} নিজের প্রোফাইল, ছবি ও তথ্য সফলভাবে সংরক্ষণ করেছেন`);
-      alert('প্রোফাইল সফলভাবে আপডেট ও সেইভ করা হয়েছে!');
+      setProfileSaveSuccess(true);
+      setTimeout(() => setProfileSaveSuccess(false), 4000);
+      await logAction('প্রোফাইল আপডেট', `${auth.currentUser.email} নিজের প্রোফাইল ছবি ও তথ্য সফলভাবে সংরক্ষণ করেছেন`);
     } catch (err: any) {
       console.error("Profile save error:", err);
       alert('প্রোফাইল সংরক্ষণ করতে সমস্যা হয়েছে: ' + (err.message || err));
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -714,6 +870,69 @@ export default function App() {
       console.warn('Saved release config locally:', e);
       await logAction('রিলিজ কনফিগারেশন লোকাল আপডেট', `অ্যাপ রিলিজ সংস্করণ ${newConfig.currentVersion} লোকাল স্টোরেজে সংরক্ষিত হয়েছে`);
       alert('অ্যাপ কনফিগারেশন লোকাল স্টোরেজে সফলভাবে সংরক্ষিত হয়েছে!');
+    }
+  };
+
+  // District Banner CMS Handlers
+  const handleAddBanner = async (newBanner: Partial<Banner>) => {
+    const bannerId = newBanner.id || 'banner_' + Date.now();
+    const bannerData: Banner = {
+      id: bannerId,
+      title: newBanner.title || 'ব্যানার শিরোনাম',
+      subtitle: newBanner.subtitle || '',
+      image: newBanner.image || 'https://images.unsplash.com/photo-1596422846543-75c6fc18a523?w=1000&q=80',
+      districtId: newBanner.districtId || 'all',
+      actionText: newBanner.actionText || 'বিস্তারিত দেখুন',
+      actionType: newBanner.actionType || 'internal',
+      actionTarget: newBanner.actionTarget || 'services',
+      isActive: newBanner.isActive !== undefined ? newBanner.isActive : true,
+      priority: newBanner.priority || 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    setBanners(prev => [bannerData, ...prev]);
+    saveLocalData('banners', [bannerData, ...banners]);
+
+    try {
+      await setDoc(doc(db, 'banners', bannerId), bannerData);
+      await logAction('ব্যানার তৈরি', `নতুন জেলা ব্যানার "${bannerData.title}" (${bannerData.districtId}) যোগ করা হয়েছে`);
+    } catch (e) {
+      console.warn("Could not save banner to Firestore, saved locally", e);
+    }
+  };
+
+  const handleUpdateBanner = async (updated: Banner) => {
+    setBanners(prev => prev.map(b => b.id === updated.id ? updated : b));
+    saveLocalData('banners', banners.map(b => b.id === updated.id ? updated : b));
+    try {
+      await setDoc(doc(db, 'banners', updated.id), updated, { merge: true });
+      await logAction('ব্যানার আপডেট', `ব্যানার "${updated.title}" (${updated.districtId}) আপডেট করা হয়েছে`);
+    } catch (e) {
+      console.warn("Could not update banner in Firestore, saved locally", e);
+    }
+  };
+
+  const handleDeleteBanner = async (bannerId: string) => {
+    const bannerToDelete = banners.find(b => b.id === bannerId);
+    setBanners(prev => prev.filter(b => b.id !== bannerId));
+    saveLocalData('banners', banners.filter(b => b.id !== bannerId));
+    try {
+      await deleteDoc(doc(db, 'banners', bannerId));
+      await logAction('ব্যানার অপসারণ', `ব্যানার "${bannerToDelete?.title || bannerId}" মুছে ফেলা হয়েছে`);
+    } catch (e) {
+      console.warn("Could not delete banner from Firestore, removed locally", e);
+    }
+  };
+
+  const handleToggleBannerStatus = async (bannerId: string, isActive: boolean) => {
+    setBanners(prev => prev.map(b => b.id === bannerId ? { ...b, isActive } : b));
+    saveLocalData('banners', banners.map(b => b.id === bannerId ? { ...b, isActive } : b));
+    try {
+      await updateDoc(doc(db, 'banners', bannerId), { isActive, updatedAt: new Date().toISOString() });
+      await logAction('ব্যানার স্ট্যাটাস পরিবর্তন', `ব্যানার ID ${bannerId} ${isActive ? 'সক্রিয়' : 'নিষ্ক্রিয়'} করা হয়েছে`);
+    } catch (e) {
+      console.warn("Could not update banner status in Firestore, updated locally", e);
     }
   };
 
@@ -1892,23 +2111,22 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 2. HERO LANDMARK BANNER */}
-                <div className="relative h-40 rounded-2xl overflow-hidden shadow-md">
-                  <img
-                    src={banners[0].image}
-                    alt="Khulna Banner"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-emerald-950 via-emerald-900/60 to-transparent flex flex-col justify-end p-4">
-                    <span className="text-[10px] text-lime-300 font-bold uppercase tracking-wider">তথ্য ও সেবা হাব</span>
-                    <h2 className="text-base md:text-lg font-bold text-white tracking-wide leading-tight font-serif">
-                      স্মার্ট {initialDistricts.find(d => d.id === selectedDistrict)?.name} পোর্টালে আপনাকে স্বাগতম
-                    </h2>
-                    <p className="text-[11px] text-emerald-100/90 truncate mt-1">
-                      {initialDistricts.find(d => d.id === selectedDistrict)?.nameEn} জেলা এবং খুলনা বিভাগের অনলাইন সেবা নির্দেশিকা
-                    </p>
-                  </div>
-                </div>
+                {/* 2. DYNAMIC DISTRICT HERO BANNER CAROUSEL */}
+                <DistrictBannerCarousel
+                  banners={banners}
+                  selectedDistrict={selectedDistrict}
+                  districts={initialDistricts}
+                  onNavigateToServices={(dId, catId) => {
+                    setSelectedDistrict(dId);
+                    if (catId) setFilterCategory(catId);
+                    setActiveTab('services');
+                  }}
+                  onSelectCategory={(catId) => {
+                    setFilterCategory(catId);
+                    setActiveTab('services');
+                  }}
+                  onOpenDownload={() => setActiveTab('download')}
+                />
 
                 {/* 3. CORE GLOBAL SEARCH ( Bangla & English ) */}
                 <div className="space-y-2">
@@ -2854,140 +3072,573 @@ export default function App() {
                     <p className="text-[10px] text-slate-400 text-center">আমরা আপনার তথ্যের গোপনীয়তা ও সুরক্ষা নিশ্চিত করি।</p>
                   </div>
                 ) : (
-                  <div className="bg-gradient-to-br from-slate-900 to-emerald-950 text-white rounded-2xl p-5 shadow-md flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {currentUser.photoURL ? (
-                        <img src={currentUser.photoURL} alt="Avatar" className="w-12 h-12 rounded-full border-2 border-lime-400 shrink-0" />
-                      ) : (
-                        <div className="w-12 h-12 bg-emerald-800 rounded-full flex items-center justify-center font-bold text-white uppercase shrink-0">
-                          {currentUser.displayName?.substring(0, 2) || 'US'}
-                        </div>
-                      )}
-                      <div>
-                        <h3 className="text-sm font-bold text-white">{currentUser.displayName || 'সম্মানিত ব্যবহারকারী'}</h3>
-                        <p className="text-[11px] text-slate-300">{currentUser.email}</p>
-                        <span className="inline-block bg-lime-400 text-emerald-950 font-bold px-2 py-0.5 rounded text-[9px] mt-1 uppercase">
-                          {userProfile?.role || 'user'}
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleLogout}
-                      className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl transition"
-                      title="লগআউট"
-                    >
-                      <LogOut size={16} />
-                    </button>
-                  </div>
-                )}
-
-                {currentUser && (
-                  <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold text-slate-800">প্রোফাইল তথ্য, ছবি ও সোশ্যাল লিংক পরিবর্তন</h4>
-                      <button
-                        onClick={() => {
-                          setIsEditingProfile(!isEditingProfile);
-                          if (!isEditingProfile && currentUser) {
-                            setEditDisplayName(currentUser.displayName || userProfile?.name || '');
-                            setEditPhotoURL(currentUser.photoURL || userProfile?.avatar || '');
-                            setEditBio(userProfile?.bio || '');
-                            setEditFacebook(userProfile?.facebook || '');
-                            setEditTwitter(userProfile?.twitter || '');
-                            setEditInstagram(userProfile?.instagram || '');
-                            setEditWebsite(userProfile?.website || '');
-                          }
-                        }}
-                        className="text-xs text-emerald-700 font-bold hover:underline cursor-pointer"
-                      >
-                        {isEditingProfile ? 'বাতিল' : 'সম্পাদনা করুন'}
-                      </button>
-                    </div>
-
-                    {isEditingProfile && (
-                      <form onSubmit={handleUpdateProfile} className="space-y-3 pt-2 border-t border-slate-100">
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">আপনার নাম</label>
-                          <input
-                            type="text"
-                            value={editDisplayName}
-                            onChange={(e) => setEditDisplayName(e.target.value)}
-                            required
-                            className="w-full border border-slate-200 p-2 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700"
-                            placeholder="আপনার নাম লিখুন"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">প্রোফাইল ছবি আপলোড করুন</label>
-                          <div className="flex items-center gap-3">
-                            {editPhotoURL && (
-                              <img src={editPhotoURL} alt="Preview" className="w-10 h-10 rounded-full object-cover border border-slate-300" />
+                  <div className="space-y-4">
+                    {/* PROFILE HEADER CARD */}
+                    <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950 text-white rounded-2xl p-5 sm:p-6 shadow-md border border-emerald-900/40 relative overflow-hidden">
+                      <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+                      
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+                        <div className="flex items-start sm:items-center gap-3.5">
+                          <div className="relative group">
+                            {userProfile?.avatar || currentUser.photoURL ? (
+                              <img
+                                src={userProfile?.avatar || currentUser.photoURL}
+                                alt="Profile Avatar"
+                                className="w-16 h-16 rounded-full object-cover border-2 border-emerald-400/80 shadow-md shrink-0 bg-slate-800"
+                              />
+                            ) : (
+                              <div className="w-16 h-16 bg-emerald-800 border-2 border-emerald-400/50 rounded-full flex items-center justify-center font-bold text-white text-xl uppercase shrink-0 shadow-inner">
+                                {(userProfile?.name || currentUser.displayName || 'U').substring(0, 2)}
+                              </div>
                             )}
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handleAvatarFileChange}
-                              className="w-full border border-slate-200 p-1.5 rounded-lg text-xs bg-white text-slate-600 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer"
-                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsEditingProfile(true);
+                                setEditDisplayName(userProfile?.name || currentUser.displayName || '');
+                                setEditPhotoURL(userProfile?.avatar || currentUser.photoURL || '');
+                                setEditPhone(userProfile?.phone || '');
+                                setEditBio(userProfile?.bio || '');
+                                setEditProfession(userProfile?.profession || '');
+                                setEditBloodGroup(userProfile?.bloodGroup || '');
+                                setEditDistrict(userProfile?.district || userProfile?.selectedDistrict || selectedDistrict);
+                                setEditUpazila(userProfile?.upazila || '');
+                                setEditAddress(userProfile?.address || '');
+                                setEditFacebook(userProfile?.facebook || '');
+                                setEditTwitter(userProfile?.twitter || '');
+                                setEditInstagram(userProfile?.instagram || '');
+                                setEditLinkedin(userProfile?.linkedin || '');
+                                setEditWebsite(userProfile?.website || '');
+                              }}
+                              className="absolute bottom-0 right-0 p-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full shadow-md transition cursor-pointer"
+                              title="ছবি পরিবর্তন করুন"
+                            >
+                              <Camera size={12} />
+                            </button>
+                          </div>
+
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="text-base sm:text-lg font-bold text-white font-serif">
+                                {userProfile?.name || currentUser.displayName || 'সম্মানিত নাগরিক'}
+                              </h3>
+                              <span className="inline-block bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-bold px-2 py-0.5 rounded text-[10px] uppercase">
+                                {userProfile?.role === 'super_admin' ? 'সুপার এডমিন' : userProfile?.role === 'sub_admin' ? 'সাব-এডমিন' : userProfile?.role === 'moderator' ? 'মডারেটর' : 'নাগরিক'}
+                              </span>
+                            </div>
+
+                            <p className="text-xs text-slate-300 flex items-center gap-1.5">
+                              <span>{currentUser.email}</span>
+                              {userProfile?.phone && (
+                                <>
+                                  <span className="text-slate-500">•</span>
+                                  <span className="text-emerald-300 font-medium">{userProfile.phone}</span>
+                                </>
+                              )}
+                            </p>
+
+                            <div className="flex items-center gap-2 flex-wrap pt-0.5 text-[11px]">
+                              {(userProfile?.district || userProfile?.selectedDistrict) && (
+                                <span className="bg-white/10 text-slate-200 px-2 py-0.5 rounded flex items-center gap-1">
+                                  <MapPin size={11} className="text-emerald-400" />
+                                  {initialDistricts.find(d => d.id === (userProfile?.district || userProfile?.selectedDistrict))?.name || userProfile?.district || selectedDistrict}
+                                  {userProfile?.upazila ? ` • ${userProfile.upazila}` : ''}
+                                </span>
+                              )}
+                              {userProfile?.profession && (
+                                <span className="bg-emerald-500/20 text-emerald-200 border border-emerald-500/30 px-2 py-0.5 rounded flex items-center gap-1 font-medium">
+                                  <Briefcase size={11} />
+                                  {userProfile.profession}
+                                </span>
+                              )}
+                              {userProfile?.bloodGroup && (
+                                <span className="bg-rose-500/20 text-rose-200 border border-rose-500/30 px-2 py-0.5 rounded flex items-center gap-1 font-bold">
+                                  <Droplets size={11} className="text-rose-400" />
+                                  {userProfile.bloodGroup}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">বায়ো / নিজের সম্পর্কে (Bio)</label>
-                          <textarea
-                            value={editBio}
-                            onChange={(e) => setEditBio(e.target.value)}
-                            rows={2}
-                            className="w-full border border-slate-200 p-2 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700 resize-none"
-                            placeholder="নিজের সম্পর্কে কিছু লিখুন..."
-                          />
+
+                        <div className="flex items-center gap-2 self-end sm:self-center">
+                          <button
+                            onClick={() => {
+                              const willEdit = !isEditingProfile;
+                              setIsEditingProfile(willEdit);
+                              if (willEdit) {
+                                setEditDisplayName(userProfile?.name || currentUser.displayName || '');
+                                setEditPhotoURL(userProfile?.avatar || currentUser.photoURL || '');
+                                setEditPhone(userProfile?.phone || '');
+                                setEditBio(userProfile?.bio || '');
+                                setEditProfession(userProfile?.profession || '');
+                                setEditBloodGroup(userProfile?.bloodGroup || '');
+                                setEditDistrict(userProfile?.district || userProfile?.selectedDistrict || selectedDistrict);
+                                setEditUpazila(userProfile?.upazila || '');
+                                setEditAddress(userProfile?.address || '');
+                                setEditFacebook(userProfile?.facebook || '');
+                                setEditTwitter(userProfile?.twitter || '');
+                                setEditInstagram(userProfile?.instagram || '');
+                                setEditLinkedin(userProfile?.linkedin || '');
+                                setEditWebsite(userProfile?.website || '');
+                              }
+                            }}
+                            className="px-3.5 py-2 bg-emerald-600/80 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs border border-emerald-500/40"
+                          >
+                            <Edit2 size={13} />
+                            <span>{isEditingProfile ? 'সম্পাদনা বন্ধ' : 'প্রোফাইল পরিবর্তন'}</span>
+                          </button>
+                          <button
+                            onClick={handleLogout}
+                            className="p-2 bg-white/10 hover:bg-rose-600/80 text-white rounded-xl transition cursor-pointer"
+                            title="লগআউট"
+                          >
+                            <LogOut size={16} />
+                          </button>
                         </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">ফেসবুক প্রোফাইল/পেইজ লিংক</label>
-                          <input
-                            type="url"
-                            value={editFacebook}
-                            onChange={(e) => setEditFacebook(e.target.value)}
-                            className="w-full border border-slate-200 p-2 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700"
-                            placeholder="https://facebook.com/username"
-                          />
+                      </div>
+                    </div>
+
+                    {/* SAVE SUCCESS NOTIFICATION */}
+                    {profileSaveSuccess && (
+                      <div className="p-3.5 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs animate-in fade-in">
+                        <CheckCircle size={16} className="text-emerald-700 shrink-0" />
+                        <span>আপনার প্রোফাইল ছবি, নাম ও যাবতীয় তথ্য ডাটাবেজে সফলভাবে সংরক্ষণ করা হয়েছে!</span>
+                      </div>
+                    )}
+
+                    {/* PROFILE DETAILS OVERVIEW (READ-ONLY) */}
+                    {!isEditingProfile && (
+                      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                          <h4 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                            <User size={15} className="text-emerald-700" />
+                            নাগরিক প্রোফাইল তথ্যাবলী
+                          </h4>
+                          <span className="text-[11px] text-slate-400">সর্বশেষ আপডেট: {userProfile?.updatedAt ? new Date(userProfile.updatedAt).toLocaleDateString('bn-BD') : 'আজ'}</span>
                         </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">টুইটার / এক্স (Twitter/X) লিংক</label>
-                          <input
-                            type="url"
-                            value={editTwitter}
-                            onChange={(e) => setEditTwitter(e.target.value)}
-                            className="w-full border border-slate-200 p-2 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700"
-                            placeholder="https://twitter.com/username"
-                          />
+
+                        {/* Grid details */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
+                            <span className="text-[11px] font-bold text-slate-400 block uppercase">পূর্ণ নাম</span>
+                            <span className="font-bold text-slate-900 text-sm">{userProfile?.name || currentUser.displayName || 'নাম প্রদান করা হয়নি'}</span>
+                          </div>
+
+                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
+                            <span className="text-[11px] font-bold text-slate-400 block uppercase">মোবাইল ফোন নম্বর</span>
+                            <span className="font-bold text-emerald-800 text-sm">
+                              {userProfile?.phone ? userProfile.phone : <span className="text-slate-400 font-normal italic">নম্বর যোগ করা হয়নি</span>}
+                            </span>
+                          </div>
+
+                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
+                            <span className="text-[11px] font-bold text-slate-400 block uppercase">পেশা / পদবী</span>
+                            <span className="font-semibold text-slate-800">
+                              {userProfile?.profession ? userProfile.profession : <span className="text-slate-400 font-normal italic">পেশা উল্লেখ নেই</span>}
+                            </span>
+                          </div>
+
+                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
+                            <span className="text-[11px] font-bold text-slate-400 block uppercase">রক্তের গ্রুপ</span>
+                            <span className="font-bold text-rose-700">
+                              {userProfile?.bloodGroup ? (
+                                <span className="bg-rose-50 px-2 py-0.5 rounded border border-rose-200">🩸 {userProfile.bloodGroup}</span>
+                              ) : (
+                                <span className="text-slate-400 font-normal italic">রক্তের গ্রুপ দেওয়া নেই</span>
+                              )}
+                            </span>
+                          </div>
+
+                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
+                            <span className="text-[11px] font-bold text-slate-400 block uppercase">জেলা ও উপজেলা</span>
+                            <span className="font-semibold text-slate-800">
+                              {initialDistricts.find(d => d.id === (userProfile?.district || userProfile?.selectedDistrict))?.name || userProfile?.district || 'খুলনা'}
+                              {userProfile?.upazila ? ` • ${userProfile.upazila}` : ''}
+                            </span>
+                          </div>
+
+                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
+                            <span className="text-[11px] font-bold text-slate-400 block uppercase">ঠিকানা</span>
+                            <span className="text-slate-700">
+                              {userProfile?.address || <span className="text-slate-400 italic">ঠিকানা দেওয়া হয়নি</span>}
+                            </span>
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">ইনস্টাগ্রাম (Instagram) লিংক</label>
-                          <input
-                            type="url"
-                            value={editInstagram}
-                            onChange={(e) => setEditInstagram(e.target.value)}
-                            className="w-full border border-slate-200 p-2 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700"
-                            placeholder="https://instagram.com/username"
-                          />
+
+                        {/* Bio */}
+                        {userProfile?.bio && (
+                          <div className="p-3.5 bg-emerald-50/50 border border-emerald-100 rounded-xl text-xs space-y-1">
+                            <span className="text-[11px] font-bold text-emerald-900 block">নিজের সম্পর্কে (Bio):</span>
+                            <p className="text-slate-700 leading-relaxed whitespace-pre-line">{userProfile.bio}</p>
+                          </div>
+                        )}
+
+                        {/* Social profiles if available */}
+                        {(userProfile?.facebook || userProfile?.twitter || userProfile?.instagram || userProfile?.linkedin || userProfile?.website) && (
+                          <div className="pt-2 border-t border-slate-100">
+                            <span className="text-[11px] font-bold text-slate-500 block mb-2">সংযুক্ত সামাজিক যোগাযোগ মাধ্যম:</span>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {userProfile.facebook && (
+                                <a
+                                  href={userProfile.facebook}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold flex items-center gap-1 transition"
+                                >
+                                  <span>Facebook</span>
+                                  <ExternalLink size={11} />
+                                </a>
+                              )}
+                              {userProfile.twitter && (
+                                <a
+                                  href={userProfile.twitter}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg text-xs font-bold flex items-center gap-1 transition"
+                                >
+                                  <span>Twitter / X</span>
+                                  <ExternalLink size={11} />
+                                </a>
+                              )}
+                              {userProfile.instagram && (
+                                <a
+                                  href={userProfile.instagram}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-3 py-1.5 bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 rounded-lg text-xs font-bold flex items-center gap-1 transition"
+                                >
+                                  <span>Instagram</span>
+                                  <ExternalLink size={11} />
+                                </a>
+                              )}
+                              {userProfile.linkedin && (
+                                <a
+                                  href={userProfile.linkedin}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-xs font-bold flex items-center gap-1 transition"
+                                >
+                                  <span>LinkedIn</span>
+                                  <ExternalLink size={11} />
+                                </a>
+                              )}
+                              {userProfile.website && (
+                                <a
+                                  href={userProfile.website}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-bold flex items-center gap-1 transition"
+                                >
+                                  <Globe size={12} />
+                                  <span>Website</span>
+                                  <ExternalLink size={11} />
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* EDIT PROFILE FORM */}
+                    {isEditingProfile && (
+                      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                          <div>
+                            <h4 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                              <Edit2 size={15} className="text-emerald-700" />
+                              প্রোফাইল তথ্য ও ছবি সম্পাদনা
+                            </h4>
+                            <p className="text-[11px] text-slate-500">আপনার ছবি, নাম এবং অন্যান্য ঐচ্ছিক তথ্য পূরণ করে সংরক্ষণ করুন।</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingProfile(false)}
+                            className="text-xs text-slate-400 hover:text-slate-700 font-bold cursor-pointer"
+                          >
+                            বাতিল
+                          </button>
                         </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">ব্যক্তিগত ওয়েবসাইট বা পোর্টফোলিও</label>
-                          <input
-                            type="url"
-                            value={editWebsite}
-                            onChange={(e) => setEditWebsite(e.target.value)}
-                            className="w-full border border-slate-200 p-2 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700"
-                            placeholder="https://example.com"
-                          />
-                        </div>
-                        <button
-                          type="submit"
-                          className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2 px-4 rounded-xl text-xs transition cursor-pointer"
-                        >
-                          পরিবর্তন সংরক্ষণ করুন
-                        </button>
-                      </form>
+
+                        <form onSubmit={handleUpdateProfile} className="space-y-4">
+                          {/* 1. PHOTO & NAME SECTION */}
+                          <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3">
+                            <span className="text-[11px] font-bold text-emerald-950 uppercase block tracking-wider">
+                              ১. ছবি ও মৌলিক পরিচিতি
+                            </span>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 mb-1.5">
+                                  প্রোফাইল ছবি (ফাইল আপলোড)
+                                </label>
+                                <div className="flex items-center gap-3">
+                                  <div className="w-14 h-14 rounded-full border-2 border-emerald-500 bg-white overflow-hidden shrink-0 flex items-center justify-center shadow-xs">
+                                    {editPhotoURL ? (
+                                      <img src={editPhotoURL} alt="Preview" className="w-full h-full object-cover" />
+                                    ) : (
+                                      <User size={24} className="text-slate-400" />
+                                    )}
+                                  </div>
+                                  <div className="flex-1">
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={handleAvatarFileChange}
+                                      className="w-full text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-700 file:text-white hover:file:bg-emerald-800 cursor-pointer"
+                                    />
+                                    <p className="text-[10px] text-slate-400 mt-1">অটো-কম্প্রেশন সক্ষম (ম্যাক্সিমাম ৮ MB)</p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                  অথবা ছবির সরাসরি URL
+                                </label>
+                                <input
+                                  type="url"
+                                  value={editPhotoURL.startsWith('data:') ? '' : editPhotoURL}
+                                  onChange={(e) => setEditPhotoURL(e.target.value)}
+                                  placeholder="https://example.com/avatar.jpg"
+                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                  পূর্ণ নাম <span className="text-rose-500">*</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editDisplayName}
+                                  onChange={(e) => setEditDisplayName(e.target.value)}
+                                  required
+                                  placeholder="যেমন: মোঃ জুবায়ের হাসান"
+                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                  মোবাইল ফোন নম্বর
+                                </label>
+                                <input
+                                  type="tel"
+                                  value={editPhone}
+                                  onChange={(e) => setEditPhone(e.target.value)}
+                                  placeholder="যেমন: 017XXXXXXXX"
+                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 2. PROFESSION & BLOOD GROUP */}
+                          <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3">
+                            <span className="text-[11px] font-bold text-emerald-950 uppercase block tracking-wider">
+                              ২. পেশা ও রক্তের গ্রুপ
+                            </span>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                  পেশা / পদবী
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editProfession}
+                                  onChange={(e) => setEditProfession(e.target.value)}
+                                  placeholder="যেমন: শিক্ষক, ডাক্তার, সফটওয়্যার ইঞ্জিনিয়ার, ছাত্র"
+                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                  রক্তের গ্রুপ
+                                </label>
+                                <select
+                                  value={editBloodGroup}
+                                  onChange={(e) => setEditBloodGroup(e.target.value)}
+                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none cursor-pointer"
+                                >
+                                  <option value="">-- রক্তের গ্রুপ নির্বাচন করুন --</option>
+                                  <option value="A+">A+ (এ পজিটিভ)</option>
+                                  <option value="A-">A- (এ নেগেটিভ)</option>
+                                  <option value="B+">B+ (বি পজিটিভ)</option>
+                                  <option value="B-">B- (বি নেগেটিভ)</option>
+                                  <option value="O+">O+ (ও পজিটিভ)</option>
+                                  <option value="O-">O- (ও নেগেটিভ)</option>
+                                  <option value="AB+">AB+ (এবি পজিটিভ)</option>
+                                  <option value="AB-">AB- (এবি নেগেটিভ)</option>
+                                </select>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 3. LOCATION & ADDRESS */}
+                          <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3">
+                            <span className="text-[11px] font-bold text-emerald-950 uppercase block tracking-wider">
+                              ৩. জেলা ও স্থায়ী/বর্তমান ঠিকানা
+                            </span>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                  আপনার জেলা (খুলনা বিভাগ)
+                                </label>
+                                <select
+                                  value={editDistrict}
+                                  onChange={(e) => setEditDistrict(e.target.value)}
+                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none cursor-pointer"
+                                >
+                                  {initialDistricts.map(d => (
+                                    <option key={d.id} value={d.id}>
+                                      {d.name} ({d.nameEn})
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                  উপজেলা / থানা
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editUpazila}
+                                  onChange={(e) => setEditUpazila(e.target.value)}
+                                  placeholder="যেমন: সোনাডাঙ্গা, ডুমুরিয়া, সদর"
+                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                পূর্ণ ঠিকানা (গ্রাম/মহল্লা, সড়ক)
+                              </label>
+                              <input
+                                type="text"
+                                value={editAddress}
+                                onChange={(e) => setEditAddress(e.target.value)}
+                                placeholder="যেমন: বাড়ি নং ১২, রোড নং ৩, বয়রা, খুলনা"
+                                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
+                              />
+                            </div>
+                          </div>
+
+                          {/* 4. BIO SECTION */}
+                          <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-2">
+                            <span className="text-[11px] font-bold text-emerald-950 uppercase block tracking-wider">
+                              ৪. পরিচিতি / নিজের সম্পর্কে (Bio)
+                            </span>
+                            <textarea
+                              value={editBio}
+                              onChange={(e) => setEditBio(e.target.value)}
+                              rows={3}
+                              className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none resize-none"
+                              placeholder="নিজের সম্পর্কে সংক্ষেপে কিছু লিখুন যা কমিউনিটি ব্যবহারকারীরা দেখতে পাবেন..."
+                            />
+                          </div>
+
+                          {/* 5. SOCIAL MEDIA & WEB LINKS */}
+                          <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3">
+                            <span className="text-[11px] font-bold text-emerald-950 uppercase block tracking-wider">
+                              ৫. সামাজিক যোগাযোগ মাধ্যম ও পোর্টফোলিও লিংক
+                            </span>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 mb-1">ফেসবুক লিংক</label>
+                                <input
+                                  type="url"
+                                  value={editFacebook}
+                                  onChange={(e) => setEditFacebook(e.target.value)}
+                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
+                                  placeholder="https://facebook.com/username"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 mb-1">টুইটার / এক্স (Twitter/X)</label>
+                                <input
+                                  type="url"
+                                  value={editTwitter}
+                                  onChange={(e) => setEditTwitter(e.target.value)}
+                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
+                                  placeholder="https://x.com/username"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 mb-1">ইনস্টাগ্রাম (Instagram)</label>
+                                <input
+                                  type="url"
+                                  value={editInstagram}
+                                  onChange={(e) => setEditInstagram(e.target.value)}
+                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
+                                  placeholder="https://instagram.com/username"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 mb-1">লিঙ্কডইন (LinkedIn)</label>
+                                <input
+                                  type="url"
+                                  value={editLinkedin}
+                                  onChange={(e) => setEditLinkedin(e.target.value)}
+                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
+                                  placeholder="https://linkedin.com/in/username"
+                                />
+                              </div>
+
+                              <div className="sm:col-span-2">
+                                <label className="block text-[11px] font-bold text-slate-700 mb-1">ব্যক্তিগত ওয়েবসাইট / পোর্টফোলিও</label>
+                                <input
+                                  type="url"
+                                  value={editWebsite}
+                                  onChange={(e) => setEditWebsite(e.target.value)}
+                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
+                                  placeholder="https://yourwebsite.com"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* SUBMIT BUTTONS */}
+                          <div className="flex items-center gap-3 pt-2">
+                            <button
+                              type="submit"
+                              disabled={isSavingProfile}
+                              className="flex-1 bg-emerald-700 hover:bg-emerald-800 disabled:bg-emerald-400 text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm"
+                            >
+                              {isSavingProfile ? (
+                                <>
+                                  <Loader2 size={16} className="animate-spin" />
+                                  <span>তথ্য ডাটাবেজে সংরক্ষণ হচ্ছে...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle size={16} />
+                                  <span>সকল তথ্য ও ছবি সংরক্ষণ করুন</span>
+                                </>
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setIsEditingProfile(false)}
+                              className="px-5 py-3 border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer"
+                            >
+                              বাতিল
+                            </button>
+                          </div>
+                        </form>
+                      </div>
                     )}
                   </div>
                 )}
@@ -3082,6 +3733,11 @@ export default function App() {
                     communityUsers={allCommunityUsers}
                     auditLogs={auditLogs}
                     releaseConfig={releaseConfig}
+                    banners={banners}
+                    onAddBanner={handleAddBanner}
+                    onUpdateBanner={handleUpdateBanner}
+                    onDeleteBanner={handleDeleteBanner}
+                    onToggleBannerStatus={handleToggleBannerStatus}
                     onApproveSubmission={handleApproveSubmission}
                     onRejectSubmission={handleRejectSubmission}
                     onAddService={handleAddServiceFromAdmin}

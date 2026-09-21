@@ -203,7 +203,19 @@ export interface PublicUserProfile {
   email: string;
   avatar?: string;
   bio?: string;
+  phone?: string;
+  profession?: string;
+  bloodGroup?: string;
   district?: string;
+  upazila?: string;
+  address?: string;
+  socialLinks?: {
+    facebook?: string;
+    twitter?: string;
+    instagram?: string;
+    linkedin?: string;
+    website?: string;
+  };
   joinedDate: string;
   badge?: VerifiedBadgeType;
   isBanned?: boolean;

@@ -69,14 +69,21 @@ export interface UserProfile {
   phone?: string;
   avatar?: string;
   bio?: string;
+  profession?: string;
+  bloodGroup?: string;
+  district?: string;
+  upazila?: string;
+  address?: string;
   facebook?: string;
   twitter?: string;
   instagram?: string;
+  linkedin?: string;
   website?: string;
   role: 'super_admin' | 'sub_admin' | 'moderator' | 'user';
   status?: 'ACTIVE' | 'BANNED' | 'active' | 'suspended';
   isBanned?: boolean;
   joinedDate?: string;
+  updatedAt?: string;
   selectedDistrict?: string;
   savedServices?: string[];
   subAdminScope?: {
@@ -90,7 +97,176 @@ export interface Banner {
   title: string;
   image: string;
   link?: string;
+  districtId: string; // 'all' | 'khulna' | 'bagerhat' | 'satkhira' | 'jashore' | 'jhenaidah' | 'magura' | 'narail' | 'kushtia' | 'chuadanga' | 'meherpur'
+  subtitle?: string;
+  actionText?: string;
+  actionType?: 'internal' | 'external' | 'category' | 'emergency' | 'download';
+  actionTarget?: string;
+  isActive: boolean;
+  priority?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
+
+export const landmarkImagePresets = [
+  { name: 'খুলনা রূপসা সেতু ও শহর', url: 'https://images.unsplash.com/photo-1596422846543-75c6fc18a523?w=1200&q=80', districtId: 'khulna' },
+  { name: 'সুন্দরবন ম্যানগ্রোভ বন', url: 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=1200&q=80', districtId: 'satkhira' },
+  { name: 'বাগেরহাট ষাট গম্বুজ মসজিদ', url: 'https://images.unsplash.com/photo-1626014303757-6ea640d57f84?w=1200&q=80', districtId: 'bagerhat' },
+  { name: 'যশোর আইটি পার্ক ও শহর', url: 'https://images.unsplash.com/photo-1585123334904-845d60e97b29?w=1200&q=80', districtId: 'jashore' },
+  { name: 'কুষ্টিয়া লালন শাহ ও গড়াই নদী', url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&q=80', districtId: 'kushtia' },
+  { name: 'মেহেরপুর মুজিবনগর স্মৃতিসৌধ', url: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1200&q=80', districtId: 'meherpur' },
+  { name: 'ঝিনাইদহ নবগঙ্গা ও ঐতিহ্য', url: 'https://images.unsplash.com/photo-1628155930542-3c7a64e2c833?w=1200&q=80', districtId: 'jhenaidah' },
+  { name: 'মাগুরা ঐতিহাসিক স্থান ও শহর', url: 'https://images.unsplash.com/photo-1579684389782-64d84b5e901a?w=1200&q=80', districtId: 'magura' },
+  { name: 'নড়াইল চিত্রা নদী ও প্রকৃতি', url: 'https://images.unsplash.com/photo-1518173946687-a4c8a383392c?w=1200&q=80', districtId: 'narail' },
+  { name: 'চুয়াডাঙ্গা মাথাভাঙ্গা নদী ও কৃষি', url: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200&q=80', districtId: 'chuadanga' },
+  { name: 'ডিজিটাল বাংলাদেশ নাগরিক সেবা', url: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=1200&q=80', districtId: 'all' },
+];
+
+export const initialBanners: Banner[] = [
+  {
+    id: 'banner_all_1',
+    title: 'খুলনা বিভাগের সকল ডিজিটাল নাগরিক সেবা এখন এক জায়গায়',
+    subtitle: '১০টি জেলার হাসপাতাল, অ্যাম্বুলেন্স, পুলিশ, পরিবহন ও স্থানীয় জরুরি সেবা এক ক্লিকে খুঁজুন',
+    image: 'https://images.unsplash.com/photo-1596422846543-75c6fc18a523?w=1200&q=80',
+    districtId: 'all',
+    actionText: 'সব সেবা দেখুন',
+    actionType: 'internal',
+    actionTarget: 'services',
+    isActive: true,
+    priority: 1,
+    createdAt: '2026-09-20T10:00:00Z'
+  },
+  {
+    id: 'banner_khulna_1',
+    title: 'স্মার্ট খুলনা জেলা পোর্টাল — ডিজিটাল নাগরিক সেবার নতুন ঠিকানা',
+    subtitle: 'খুলনা সদর, রূপসা ও ফুলতলা সহ সকল উপজেলার বিশ্বস্ত তথ্য ও জরুরি হেল্পলাইন',
+    image: 'https://images.unsplash.com/photo-1596422846543-75c6fc18a523?w=1200&q=80',
+    districtId: 'khulna',
+    actionText: 'খুলনার সেবা নির্দেশিকা',
+    actionType: 'internal',
+    actionTarget: 'services',
+    isActive: true,
+    priority: 1,
+    createdAt: '2026-09-20T10:00:00Z'
+  },
+  {
+    id: 'banner_bagerhat_1',
+    title: 'বিশ্ব ঐতিহ্য ষাট গম্বুজ ও সুন্দরবনের প্রবেশদ্বার বাগেরহাট',
+    subtitle: 'বাগেরহাট জেলার স্বাস্থ্যসেবা, পর্যটন স্থান, থানা ও জরুরি কন্টাক্ট নম্বরসমূহ',
+    image: 'https://images.unsplash.com/photo-1626014303757-6ea640d57f84?w=1200&q=80',
+    districtId: 'bagerhat',
+    actionText: 'বাগেরহাট সেবা তালিকা',
+    actionType: 'internal',
+    actionTarget: 'services',
+    isActive: true,
+    priority: 1,
+    createdAt: '2026-09-20T10:00:00Z'
+  },
+  {
+    id: 'banner_satkhira_1',
+    title: 'উপকূলীয় রত্ন সাতক্ষীরা জেলা ডিজিটাল প্ল্যাটফর্ম',
+    subtitle: 'সুন্দরবনের কোলঘেঁষা সাতক্ষীরার হাসপাতাল, ইকো-রিসোর্ট ও সরকারি তথ্য পোর্টাল',
+    image: 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=1200&q=80',
+    districtId: 'satkhira',
+    actionText: 'সাতক্ষীরার জরুরি সেবা',
+    actionType: 'internal',
+    actionTarget: 'services',
+    isActive: true,
+    priority: 1,
+    createdAt: '2026-09-20T10:00:00Z'
+  },
+  {
+    id: 'banner_jashore_1',
+    title: 'প্রথম ডিজিটাল জেলা যশোর — তথ্য ও প্রযুক্তির স্বর্ণদুয়ার',
+    subtitle: 'শেখ হাসিনা সফটওয়্যার টেকনোলজি পার্ক ও যশোরের সকল নাগরিক সুযোগ সুবিধা',
+    image: 'https://images.unsplash.com/photo-1585123334904-845d60e97b29?w=1200&q=80',
+    districtId: 'jashore',
+    actionText: 'যশোরের সেবা দেখুন',
+    actionType: 'internal',
+    actionTarget: 'services',
+    isActive: true,
+    priority: 1,
+    createdAt: '2026-09-20T10:00:00Z'
+  },
+  {
+    id: 'banner_jhenaidah_1',
+    title: 'ঝিনাইদহ জেলা ডিজিটাল সেবা ও তথ্য ভাণ্ডার',
+    subtitle: 'শিক্ষা, স্বাস্থ্য, কৃষি ও প্রশাসনিক সেবাসমূহ সহজে জানুন',
+    image: 'https://images.unsplash.com/photo-1628155930542-3c7a64e2c833?w=1200&q=80',
+    districtId: 'jhenaidah',
+    actionText: 'ঝিনাইদহের তথ্য নির্দেশিকা',
+    actionType: 'internal',
+    actionTarget: 'services',
+    isActive: true,
+    priority: 1,
+    createdAt: '2026-09-20T10:00:00Z'
+  },
+  {
+    id: 'banner_magura_1',
+    title: 'ঐতিহ্যবাহী মাগুরা জেলা অনলাইন তথ্য হাব',
+    subtitle: 'মাগুরা সদর, শ্রীপুর, মহম্মদপুর ও শালিখার জরুরি নম্বর ও সেবা',
+    image: 'https://images.unsplash.com/photo-1579684389782-64d84b5e901a?w=1200&q=80',
+    districtId: 'magura',
+    actionText: 'মাগুরার সেবা দেখুন',
+    actionType: 'internal',
+    actionTarget: 'services',
+    isActive: true,
+    priority: 1,
+    createdAt: '2026-09-20T10:00:00Z'
+  },
+  {
+    id: 'banner_narail_1',
+    title: 'চিত্রা নদীর স্মৃতিধন্য নড়াইল জেলা নাগরিক সেবা',
+    subtitle: 'চিত্রশিল্পী এস এম সুলতানের নড়াইল জেলার সকল সেবাকেন্দ্র ও যোগাযোগের ঠিকানা',
+    image: 'https://images.unsplash.com/photo-1518173946687-a4c8a383392c?w=1200&q=80',
+    districtId: 'narail',
+    actionText: 'নড়াইলের সেবা নির্দেশিকা',
+    actionType: 'internal',
+    actionTarget: 'services',
+    isActive: true,
+    priority: 1,
+    createdAt: '2026-09-20T10:00:00Z'
+  },
+  {
+    id: 'banner_kushtia_1',
+    title: 'সাংস্কৃতিক রাজধানী কুষ্টিয়া জেলা সমন্বিত সেবা পোর্টাল',
+    subtitle: 'লালন শাহ মাজার, শিলাইদহ কুঠিবাড়ি ও কুষ্টিয়া শহরের প্রধান সেবা তথ্য',
+    image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&q=80',
+    districtId: 'kushtia',
+    actionText: 'কুষ্টিয়ার সেবা তালিকা',
+    actionType: 'internal',
+    actionTarget: 'services',
+    isActive: true,
+    priority: 1,
+    createdAt: '2026-09-20T10:00:00Z'
+  },
+  {
+    id: 'banner_chuadanga_1',
+    title: 'চুয়াডাঙ্গা জেলা অনলাইন নাগরিক প্ল্যাটফর্ম',
+    subtitle: 'মাথাভাঙ্গা নদীর তীরবর্তী চুয়াডাঙ্গার পরিবহন, কৃষি ও জরুরি কন্টাক্ট তথ্য',
+    image: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200&q=80',
+    districtId: 'chuadanga',
+    actionText: 'চুয়াডাঙ্গার সেবা জানুন',
+    actionType: 'internal',
+    actionTarget: 'services',
+    isActive: true,
+    priority: 1,
+    createdAt: '2026-09-20T10:00:00Z'
+  },
+  {
+    id: 'banner_meherpur_1',
+    title: 'ঐতিহাসিক মুজিবনগর ও মেহেরপুর জেলা ডিজিটাল হাব',
+    subtitle: 'স্বাধীন বাংলাদেশের প্রথম রাজধানী মেহেরপুরের সকল সরকারি ও জরুরি সহায়তা',
+    image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1200&q=80',
+    districtId: 'meherpur',
+    actionText: 'মেহেরপুরের সেবা তালিকা',
+    actionType: 'internal',
+    actionTarget: 'services',
+    isActive: true,
+    priority: 1,
+    createdAt: '2026-09-20T10:00:00Z'
+  }
+];
 
 export interface Notification {
   id: string;

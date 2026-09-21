@@ -182,6 +182,22 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               {renderBadge(user.badge)}
             </div>
 
+            {/* Profession & Blood Group tags */}
+            {(user.profession || user.bloodGroup) && (
+              <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                {user.profession && (
+                  <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                    {user.profession}
+                  </span>
+                )}
+                {user.bloodGroup && (
+                  <span className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                    🩸 রক্তের গ্রুপ: {user.bloodGroup}
+                  </span>
+                )}
+              </div>
+            )}
+
             {user.bio && (
               <p className="text-xs text-slate-600 leading-relaxed mb-2.5 max-w-md">
                 {user.bio}
@@ -190,15 +206,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
             {/* METADATA (DISTRICT, JOIN DATE) */}
             <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
-              {districtObj && (
+              {(districtObj || user.district) && (
                 <span className="flex items-center gap-1 text-emerald-800 font-medium bg-emerald-50 px-2 py-0.5 rounded-md">
                   <MapPin size={12} className="text-emerald-600" />
-                  {districtObj.name} জেলা
+                  {districtObj?.name || user.district} {user.upazila ? `(${user.upazila})` : 'জেলা'}
                 </span>
               )}
               <span className="flex items-center gap-1">
                 <Calendar size={12} />
-                যুক্ত হয়েছেন: {user.joinedDate || '২০২৪'}
+                যুক্ত হয়েছেন: {user.joinedDate ? new Date(user.joinedDate).toLocaleDateString('bn-BD', { year: 'numeric', month: 'short' }) : '২০২৪'}
               </span>
             </div>
 
@@ -275,31 +291,107 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           {activeTab === 'about' && (
             <div className="space-y-3 text-xs text-slate-700 leading-relaxed">
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <span className="font-bold block text-slate-900 mb-1">কমিউনিটি পরিচিতি</span>
-                <p>{user.bio || 'কোনো বায়ো যোগ করা হয়নি।'}</p>
+                <span className="font-bold block text-slate-900 mb-1">কমিউনিটি পরিচিতি / Bio</span>
+                <p className="whitespace-pre-line">{user.bio || 'কোনো বায়ো যোগ করা হয়নি।'}</p>
               </div>
 
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-                <span className="font-bold block text-slate-900 mb-1">যাচাইকরণ বিবরণ</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-500">স্ট্যাটাস:</span>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <span className="font-bold block text-slate-900 mb-1">ব্যক্তিগত ও যোগাযোগ তথ্য</span>
+                {user.phone && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">মোবাইল ফোন:</span>
+                    <a href={`tel:${user.phone}`} className="font-bold text-emerald-700 hover:underline">
+                      {user.phone}
+                    </a>
+                  </div>
+                )}
+                {user.profession && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">পেশা / পদবী:</span>
+                    <span className="font-medium text-slate-900">{user.profession}</span>
+                  </div>
+                )}
+                {user.bloodGroup && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">রক্তের গ্রুপ:</span>
+                    <span className="font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                      {user.bloodGroup}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">জেলা ও অবস্থান:</span>
                   <span className="font-medium text-slate-800">
-                    {user.badge === 'admin'
-                      ? 'স্মার্ট খুলনা প্ল্যাটফর্ম এডমিনিস্ট্রেটর'
-                      : user.badge === 'govt_official'
-                      ? 'খুলনা বিভাগীয় সরকারি কর্মকর্তা'
-                      : user.badge === 'emergency_service'
-                      ? 'জরুরি সেবা প্রতিনিধি'
-                      : 'সাধারণ নিবন্ধিত নাগরিক'}
+                    {districtObj ? `${districtObj.name} (${districtObj.nameEn})` : user.district || 'খুলনা'}
+                    {user.upazila ? ` • ${user.upazila}` : ''}
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-500">জেলা:</span>
-                  <span className="font-medium text-slate-800">
-                    {districtObj ? `${districtObj.name} (${districtObj.nameEn})` : 'খুলনা'}
-                  </span>
-                </div>
+                {user.address && (
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-slate-500 shrink-0">ঠিকানা:</span>
+                    <span className="font-medium text-slate-800 text-right">{user.address}</span>
+                  </div>
+                )}
               </div>
+
+              {/* Social Links if present */}
+              {user.socialLinks && Object.values(user.socialLinks).some(Boolean) && (
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                  <span className="font-bold block text-slate-900 mb-1">সোশ্যাল মিডিয়া ও লিংক</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {user.socialLinks.facebook && (
+                      <a
+                        href={user.socialLinks.facebook}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg font-bold text-[11px] border border-blue-200 transition"
+                      >
+                        Facebook
+                      </a>
+                    )}
+                    {user.socialLinks.twitter && (
+                      <a
+                        href={user.socialLinks.twitter}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-bold text-[11px] border border-slate-300 transition"
+                      >
+                        Twitter/X
+                      </a>
+                    )}
+                    {user.socialLinks.instagram && (
+                      <a
+                        href={user.socialLinks.instagram}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-2.5 py-1 bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-lg font-bold text-[11px] border border-pink-200 transition"
+                      >
+                        Instagram
+                      </a>
+                    )}
+                    {user.socialLinks.linkedin && (
+                      <a
+                        href={user.socialLinks.linkedin}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-lg font-bold text-[11px] border border-sky-200 transition"
+                      >
+                        LinkedIn
+                      </a>
+                    )}
+                    {user.socialLinks.website && (
+                      <a
+                        href={user.socialLinks.website}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg font-bold text-[11px] border border-emerald-200 transition"
+                      >
+                        Website
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
