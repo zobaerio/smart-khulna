@@ -12,10 +12,12 @@ import {
   Trash2,
   FileEdit,
   AlertCircle,
-  ShieldCheck
+  ShieldCheck,
+  Loader2
 } from 'lucide-react';
 import { CommunityPost, PostImage, PostType } from '../../types/community';
 import { District, Category } from '../../dbData';
+import { compressImage } from '../../lib/imageCompressor';
 
 interface CreatePostModalProps {
   isOpen: boolean;
@@ -51,6 +53,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
   const [newImageUrl, setNewImageUrl] = useState('');
   const [showImageInput, setShowImageInput] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
 
   useEffect(() => {
     if (initialPostToEdit) {
@@ -93,27 +96,37 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
     setShowImageInput(false);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    // Convert file to object URL or base64 reader
-    Array.from(files).forEach((file, index) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setImages(prev => [
-            ...prev,
-            {
-              id: 'file_' + Date.now() + '_' + index,
-              url: reader.result as string,
-              caption: file.name
-            }
-          ]);
+    setIsUploadingImages(true);
+    try {
+      const fileList = Array.from(files);
+      const newImages: PostImage[] = [];
+
+      for (let i = 0; i < fileList.length; i++) {
+        const file = fileList[i];
+        try {
+          const compressedDataUrl = await compressImage(file, 960, 960, 0.82);
+          newImages.push({
+            id: 'file_' + Date.now() + '_' + i + Math.random().toString(36).slice(2, 5),
+            url: compressedDataUrl,
+            caption: file.name
+          });
+        } catch (err) {
+          console.warn('Image compression fallback for', file.name, err);
         }
-      };
-      reader.readAsDataURL(file);
-    });
+      }
+
+      if (newImages.length > 0) {
+        setImages(prev => [...prev, ...newImages]);
+      }
+    } finally {
+      setIsUploadingImages(false);
+      // Reset input value
+      e.target.value = '';
+    }
   };
 
   const removeImage = (id: string) => {
@@ -319,12 +332,18 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
                 <ImageIcon size={14} className="text-emerald-700" /> ছবি সংযুক্ত করুন ({images.length})
               </label>
               <div className="flex items-center gap-2">
-                <label className="cursor-pointer text-[11px] text-emerald-700 hover:text-emerald-900 font-bold flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                  <UploadCloud size={12} /> ডিভাইস থেকে আপলোড
+                <label className={`cursor-pointer text-[11px] text-emerald-700 hover:text-emerald-900 font-bold flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 transition ${isUploadingImages ? 'opacity-60 pointer-events-none' : ''}`}>
+                  {isUploadingImages ? (
+                    <Loader2 size={12} className="animate-spin text-emerald-700" />
+                  ) : (
+                    <UploadCloud size={12} />
+                  )}
+                  {isUploadingImages ? 'অপ্টিমাইজ হচ্ছে...' : 'ডিভাইস থেকে আপলোড'}
                   <input
                     type="file"
                     accept="image/*"
                     multiple
+                    disabled={isUploadingImages}
                     onChange={handleFileUpload}
                     className="hidden"
                   />
@@ -332,7 +351,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowImageInput(!showImageInput)}
-                  className="text-[11px] text-slate-600 hover:text-slate-900 font-medium bg-slate-100 px-2 py-1 rounded-lg"
+                  className="text-[11px] text-slate-600 hover:text-slate-900 font-medium bg-slate-100 px-2 py-1 rounded-lg cursor-pointer"
                 >
                   লিংক যোগ করুন
                 </button>
