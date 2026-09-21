@@ -73,7 +73,10 @@ export interface UserProfile {
   twitter?: string;
   instagram?: string;
   website?: string;
-  role: 'super_admin' | 'sub_admin' | 'user';
+  role: 'super_admin' | 'sub_admin' | 'moderator' | 'user';
+  status?: 'ACTIVE' | 'BANNED' | 'active' | 'suspended';
+  isBanned?: boolean;
+  joinedDate?: string;
   selectedDistrict?: string;
   savedServices?: string[];
   subAdminScope?: {

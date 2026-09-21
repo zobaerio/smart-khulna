@@ -75,6 +75,7 @@ import {
   getDocs,
   addDoc,
   updateDoc,
+  deleteDoc,
   query,
   where,
   orderBy
@@ -103,6 +104,7 @@ import { InstallPromptBanner } from './components/InstallPromptBanner';
 import { SplashScreen } from './components/SplashScreen';
 import { DownloadPage } from './components/DownloadPage';
 import { AdminDownloadsCMS } from './components/AdminDownloadsCMS';
+import { AdminPanelComplete } from './components/AdminPanelComplete';
 import { testConnection, handleFirestoreError, OperationType } from './firestoreErrorHandler';
 import {
   CommunityPost,
@@ -423,6 +425,17 @@ export default function App() {
         const cleanEmail = email.trim().toLowerCase();
         const isSuperAdminEmail = ['zobaerhasan431@gmail.com', 'zobaerio24@gmail.com'].includes(cleanEmail);
         
+        // Check local cache first
+        const localCachedStr = localStorage.getItem(`smart_khulna_profile_${firebaseUser.uid}`);
+        let localCached: UserProfile | null = null;
+        if (localCachedStr) {
+          try {
+            localCached = JSON.parse(localCachedStr);
+          } catch (e) {
+            console.warn("Local profile parse error", e);
+          }
+        }
+
         // Try to fetch from Firestore
         const userDocRef = doc(db, 'profiles', firebaseUser.uid);
         try {
@@ -431,25 +444,68 @@ export default function App() {
             const data = docSnap.data() as UserProfile;
             const updatedProfile: UserProfile = {
               ...data,
-              name: displayName !== 'ব্যবহারকারী' ? displayName : (data.name || displayName),
-              avatar: photoURL || data.avatar || '',
-              role: isSuperAdminEmail ? ('super_admin' as const) : (data.role || 'user')
+              uid: firebaseUser.uid,
+              email: email,
+              name: data.name || localCached?.name || displayName,
+              avatar: data.avatar || localCached?.avatar || photoURL || '',
+              bio: data.bio || localCached?.bio || '',
+              facebook: data.facebook || localCached?.facebook || '',
+              twitter: data.twitter || localCached?.twitter || '',
+              instagram: data.instagram || localCached?.instagram || '',
+              website: data.website || localCached?.website || '',
+              role: isSuperAdminEmail ? ('super_admin' as const) : (data.role || localCached?.role || 'user'),
+              selectedDistrict: data.selectedDistrict || selectedDistrict,
+              savedServices: data.savedServices || localCached?.savedServices || []
             };
-            // Always sync latest Google profile info (name, avatar, super_admin role)
+            
+            // Sync with local cache and Firestore
+            localStorage.setItem(`smart_khulna_profile_${firebaseUser.uid}`, JSON.stringify(updatedProfile));
             await setDoc(userDocRef, updatedProfile, { merge: true });
             setUserProfile(updatedProfile);
+
+            // Update in community directory
+            setAllCommunityUsers(prev => {
+              const exists = prev.some(u => u.uid === firebaseUser.uid);
+              if (exists) {
+                return prev.map(u => u.uid === firebaseUser.uid ? {
+                  ...u,
+                  name: updatedProfile.name,
+                  avatar: updatedProfile.avatar,
+                  bio: updatedProfile.bio,
+                  district: selectedDistrict,
+                } : u);
+              }
+              return [...prev, {
+                uid: firebaseUser.uid,
+                name: updatedProfile.name,
+                email: updatedProfile.email,
+                avatar: updatedProfile.avatar,
+                bio: updatedProfile.bio,
+                district: selectedDistrict,
+                joinedDate: new Date().toISOString(),
+                postsCount: 0,
+                followersCount: 0,
+                followingCount: 0,
+              }];
+            });
           } else {
             // Document does not exist, create it
             const newProfile: UserProfile = {
               uid: firebaseUser.uid,
-              name: displayName,
+              name: localCached?.name || displayName,
               email: email,
-              avatar: photoURL,
-              role: isSuperAdminEmail ? 'super_admin' : 'user',
+              avatar: localCached?.avatar || photoURL,
+              bio: localCached?.bio || '',
+              facebook: localCached?.facebook || '',
+              twitter: localCached?.twitter || '',
+              instagram: localCached?.instagram || '',
+              website: localCached?.website || '',
+              role: isSuperAdminEmail ? 'super_admin' : (localCached?.role || 'user'),
               selectedDistrict: selectedDistrict,
               savedServices: []
             };
-            await setDoc(userDocRef, newProfile);
+            localStorage.setItem(`smart_khulna_profile_${firebaseUser.uid}`, JSON.stringify(newProfile));
+            await setDoc(userDocRef, newProfile, { merge: true });
             setUserProfile(newProfile);
           }
         } catch (e: unknown) {
@@ -463,7 +519,7 @@ export default function App() {
             }
           }
           // Fallback Offline Profile
-          setUserProfile({
+          const fallbackProfile: UserProfile = localCached || {
             uid: firebaseUser.uid,
             name: displayName,
             email: email,
@@ -471,7 +527,8 @@ export default function App() {
             role: isSuperAdminEmail ? 'super_admin' : 'user',
             selectedDistrict: selectedDistrict,
             savedServices: JSON.parse(localStorage.getItem(`favs_${firebaseUser.uid}`) || '[]')
-          });
+          };
+          setUserProfile(fallbackProfile);
         }
       } else {
         setCurrentUser(null);
@@ -547,29 +604,74 @@ export default function App() {
     e.preventDefault();
     if (!auth.currentUser) return;
     try {
-      await updateProfile(auth.currentUser, {
-        displayName: editDisplayName,
-        photoURL: editPhotoURL
-      });
+      // Safely update Firebase Auth state (avoid large base64 crash on photoURL token)
+      try {
+        await updateProfile(auth.currentUser, {
+          displayName: editDisplayName.trim() || 'ব্যবহারকারী',
+          photoURL: editPhotoURL.startsWith('data:') ? undefined : editPhotoURL
+        });
+      } catch (authError) {
+        console.warn("Auth updateProfile optional sync fallback:", authError);
+      }
 
-      const userDocRef = doc(db, 'profiles', auth.currentUser.uid);
+      const uid = auth.currentUser.uid;
+      const userDocRef = doc(db, 'profiles', uid);
       const updatedProfileData = {
-        name: editDisplayName,
+        name: editDisplayName.trim() || 'ব্যবহারকারী',
         avatar: editPhotoURL,
-        bio: editBio,
-        facebook: editFacebook,
-        twitter: editTwitter,
-        instagram: editInstagram,
-        website: editWebsite
+        bio: editBio.trim(),
+        facebook: editFacebook.trim(),
+        twitter: editTwitter.trim(),
+        instagram: editInstagram.trim(),
+        website: editWebsite.trim()
       };
+
+      // 1. Sync Firestore
       await setDoc(userDocRef, updatedProfileData, { merge: true });
 
-      setUserProfile(prev => prev ? { ...prev, ...updatedProfileData } : null);
+      // 2. Sync Local Cache
+      const fullUpdatedProfile: UserProfile = {
+        ...(userProfile || {
+          uid,
+          email: auth.currentUser.email || '',
+          role: 'user',
+          selectedDistrict,
+          savedServices: []
+        }),
+        ...updatedProfileData
+      };
+      localStorage.setItem(`smart_khulna_profile_${uid}`, JSON.stringify(fullUpdatedProfile));
+
+      // 3. Update active React state
+      setUserProfile(fullUpdatedProfile);
+
+      // 4. Update community directory user list
+      setAllCommunityUsers(prev => prev.map(u => u.uid === uid ? {
+        ...u,
+        name: fullUpdatedProfile.name,
+        avatar: fullUpdatedProfile.avatar,
+        bio: fullUpdatedProfile.bio,
+        socialLinks: {
+          facebook: fullUpdatedProfile.facebook,
+          twitter: fullUpdatedProfile.twitter,
+          instagram: fullUpdatedProfile.instagram,
+          website: fullUpdatedProfile.website
+        }
+      } : u));
+
+      // 5. Update community posts author cards for current user
+      setCommunityPosts(prev => prev.map(p => p.authorId === uid ? {
+        ...p,
+        authorName: fullUpdatedProfile.name,
+        authorAvatar: fullUpdatedProfile.avatar
+      } : p));
+
       setIsEditingProfile(false);
-      await logAction('প্রোফাইল আপডেট', `${auth.currentUser.email} নিজের প্রোফাইল, বায়ো ও সোশ্যাল মিডিয়া লিংক আপডেট করেছেন`);
-      alert('প্রোফাইল সফলভাবে আপডেট করা হয়েছে!');
+      await logAction('প্রোফাইল আপডেট', `${auth.currentUser.email} নিজের প্রোফাইল, ছবি ও তথ্য সফলভাবে সংরক্ষণ করেছেন`);
+      alert('প্রোফাইল সফলভাবে আপডেট ও সেইভ করা হয়েছে!');
     } catch (err: any) {
-      alert('প্রোফাইল আপডেট করতে সমস্যা হয়েছে: ' + (err.message || err));
+      console.error("Profile save error:", err);
+      alert('প্রোফাইল সংরক্ষণ করতে সমস্যা হয়েছে: ' + (err.message || err));
     }
   };
 
@@ -844,6 +946,92 @@ export default function App() {
     };
     setEmergencyContacts(prev => [...prev, newContact]);
     await logAction('জরুরি নম্বর যুক্ত', `জরুরি নম্বর "${name}" (${phone}) জেলা: ${districtId} এর জন্য যুক্ত করা হয়েছে`);
+  };
+
+  const handleDeleteEmergency = async (id: string) => {
+    const item = emergencyContacts.find(e => e.id === id);
+    setEmergencyContacts(prev => prev.filter(e => e.id !== id));
+    await logAction('জরুরি নম্বর ডিলিট', `জরুরি নম্বর "${item?.name || id}" মুছে ফেলা হয়েছে`);
+  };
+
+  // User Management Handlers for Admin
+  const handleUpdateUserRole = async (targetUid: string, role: 'super_admin' | 'sub_admin' | 'moderator' | 'user') => {
+    setAllCommunityUsers(prev => prev.map(u => u.uid === targetUid ? { ...u, role } : u));
+    try {
+      await setDoc(doc(db, 'profiles', targetUid), { role }, { merge: true });
+    } catch (e) {
+      console.warn("Firestore role sync fallback:", e);
+    }
+    await logAction('ইউজার রোল পরিবর্তন', `অ্যাডমিন ব্যবহারকারী ${targetUid} এর রোল পরিবর্তন করে "${role}" করেছেন`);
+    alert('ব্যবহারকারীর রোল সফলভাবে আপডেট করা হয়েছে!');
+  };
+
+  const handleDeleteUser = async (targetUid: string) => {
+    if (!window.confirm('আপনি কি নিশ্চিত যে এই ব্যবহারকারীকে মুছে ফেলতে চান?')) return;
+    setAllCommunityUsers(prev => prev.filter(u => u.uid !== targetUid));
+    try {
+      await deleteDoc(doc(db, 'profiles', targetUid));
+    } catch (e) {
+      console.warn("Firestore delete user fallback:", e);
+    }
+    await logAction('ইউজার মুছে ফেলা', `অ্যাডমিন ব্যবহারকারী ${targetUid} এর অ্যাকাউন্ট মুছে ফেলেছেন`);
+    alert('ব্যবহারকারীকে সফলভাবে মুছে ফেলা হয়েছে!');
+  };
+
+  // Service Management Handlers for Admin CMS
+  const handleAddServiceFromAdmin = async (newSvc: Partial<Service>) => {
+    const fullSvc: Service = {
+      id: newSvc.id || 'ser_' + Date.now(),
+      name: newSvc.name || '',
+      slug: (newSvc.name || '').toLowerCase().replace(/[^a-zA-Z0-9]/g, '-'),
+      description: newSvc.description || 'স্থানীয় সেবা প্রতিষ্ঠান।',
+      category_id: newSvc.category_id || 'health',
+      district_id: newSvc.district_id || selectedDistrict,
+      upazila_id: newSvc.upazila_id || 'সদর',
+      address: newSvc.address || '',
+      phone: newSvc.phone || '',
+      website: newSvc.website || '',
+      facebook: newSvc.facebook || '',
+      latitude: newSvc.latitude || 22.82,
+      longitude: newSvc.longitude || 89.54,
+      opening_hours: newSvc.opening_hours || 'সকাল ৯:০০ - রাত ৮:০০',
+      is_verified: newSvc.is_verified ?? true,
+      status: 'PUBLISHED',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    setServices(prev => [fullSvc, ...prev]);
+    try {
+      await setDoc(doc(db, 'services', fullSvc.id), fullSvc);
+    } catch (e) {
+      console.warn("Firestore service add fallback:", e);
+    }
+    await logAction('নতুন সেবা সংযোজন', `অ্যাডমিন "${fullSvc.name}" সেবাটি ডেটাবেসে যুক্ত করেছেন`);
+    alert('নতুন সেবা সফলভাবে যুক্ত ও প্রকাশিত হয়েছে!');
+  };
+
+  const handleUpdateServiceFromAdmin = async (updatedService: Service) => {
+    setServices(prev => prev.map(s => s.id === updatedService.id ? updatedService : s));
+    try {
+      await setDoc(doc(db, 'services', updatedService.id), updatedService, { merge: true });
+    } catch (e) {
+      console.warn("Firestore service update fallback:", e);
+    }
+    await logAction('সেবা তথ্য হালনাগাদ', `অ্যাডমিন "${updatedService.name}" এর তথ্য আপডেট করেছেন`);
+    alert('সেবার তথ্য সফলভাবে আপডেট হয়েছে!');
+  };
+
+  const handleDeleteServiceFromAdmin = async (serviceId: string) => {
+    if (!window.confirm('আপনি কি নিশ্চিত যে এই সেবাটি মুছে ফেলতে চান?')) return;
+    const s = services.find(x => x.id === serviceId);
+    setServices(prev => prev.filter(x => x.id !== serviceId));
+    try {
+      await deleteDoc(doc(db, 'services', serviceId));
+    } catch (e) {
+      console.warn("Firestore delete service fallback:", e);
+    }
+    await logAction('সেবা মুছে ফেলা', `অ্যাডমিন "${s?.name || serviceId}" মুছে ফেলেছেন`);
+    alert('সেবাটি সফলভাবে মুছে ফেলা হয়েছে!');
   };
 
   // Community & Social System Handlers
@@ -2823,300 +3011,95 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* 2. ADMIN SYSTEM - RESTRICTED PANELS FOR SUPER ADMIN & SUB ADMIN */}
-                {currentUser && userProfile && (userProfile.role === 'super_admin' || userProfile.role === 'sub_admin') && (
-                  <div className="bg-white border-2 border-emerald-100 rounded-2xl p-5 shadow-sm space-y-4">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                      <div className="flex items-center gap-1.5">
-                        <Shield className="text-emerald-700" size={18} />
-                        <h3 className="text-sm font-bold text-slate-900 font-serif">প্রশাসনিক কাজের প্যানেল ({userProfile.role === 'super_admin' ? 'সুপার অ্যাডমিন' : 'সাব অ্যাডমিন'})</h3>
+                {/* MY POSTS MANAGER INSIDE PROFILE */}
+                {currentUser && (
+                  <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="text-emerald-700" size={16} />
+                        <h4 className="text-xs font-bold text-slate-900">আমার কমিউনিটি পোস্টসমূহ ({communityPosts.filter(p => p.authorId === currentUser.uid).length})</h4>
                       </div>
-                      <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
-                        সক্রিয়
-                      </span>
+                      <button
+                        onClick={() => setActiveTab('community')}
+                        className="text-[11px] text-emerald-700 font-bold hover:underline cursor-pointer"
+                      >
+                        কমিউনিটি ফিড দেখুন
+                      </button>
                     </div>
 
-                    {/* Admin Specific Action Tabs */}
-                    <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                      <button
-                        onClick={() => setAdminView(adminView === 'dashboard' ? null : 'dashboard')}
-                        className={`p-3 rounded-xl border font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                          adminView === 'dashboard'
-                            ? 'bg-slate-900 text-white border-transparent'
-                            : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
-                        }`}
-                      >
-                        <BarChart2 size={14} />
-                        পরিসংখ্যান ড্যাশবোর্ড
-                      </button>
-                      <button
-                        onClick={() => setAdminView(adminView === 'submissions' ? null : 'submissions')}
-                        className={`p-3 rounded-xl border font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                          adminView === 'submissions'
-                            ? 'bg-slate-900 text-white border-transparent'
-                            : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
-                        }`}
-                      >
-                        <FileText size={14} />
-                        অনুমোদন কেন্দ্র ({submissions.filter(s => s.status === 'PENDING').length})
-                      </button>
-                      <button
-                        onClick={() => setAdminView(adminView === 'emergencies' ? null : 'emergencies')}
-                        className={`p-3 rounded-xl border font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                          adminView === 'emergencies'
-                            ? 'bg-slate-900 text-white border-transparent'
-                            : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
-                        }`}
-                      >
-                        <PhoneCall size={14} />
-                        জরুরি সেবা নম্বর
-                      </button>
-                      <button
-                        onClick={() => setAdminView(adminView === 'logs' ? null : 'logs')}
-                        className={`p-3 rounded-xl border font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                          adminView === 'logs'
-                            ? 'bg-slate-900 text-white border-transparent'
-                            : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
-                        }`}
-                      >
-                        <FileSpreadsheet size={14} />
-                        অডিট লগ (Audit Logs)
-                      </button>
-
-                      {/* Community Social Moderation for Super Admin & Sub Admin */}
-                      <button
-                        onClick={() => setAdminView(adminView === 'community_moderation' ? null : 'community_moderation')}
-                        className={`col-span-2 p-3 rounded-xl border font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                          adminView === 'community_moderation'
-                            ? 'bg-amber-900 text-white border-transparent shadow-sm'
-                            : 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-900'
-                        }`}
-                      >
-                        <ShieldAlert size={14} className="text-amber-600" />
-                        কমিউনিটি সোশ্যাল মডারেশন ও রিপোর্ট ({communityReports.filter(r => r.status === 'pending').length})
-                      </button>
-
-                      {/* Download System CMS for Super Admin */}
-                      {userProfile.role === 'super_admin' && (
-                        <button
-                          onClick={() => setAdminView(adminView === 'downloads' ? null : 'downloads')}
-                          className={`col-span-2 p-3 rounded-xl border font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                            adminView === 'downloads'
-                              ? 'bg-emerald-800 text-white border-transparent shadow-sm'
-                              : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-900'
-                          }`}
-                        >
-                          <Smartphone size={14} />
-                          ক্রস-প্ল্যাটফর্ম অ্যাপ ও ডাউনলোড ব্যবস্থাপনা (CMS)
-                        </button>
-                      )}
-                    </div>
-
-                    {/* SUB-VIEW: ADMIN STATS & CHARTS */}
-                    {adminView === 'dashboard' && (
-                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
-                        <div className="flex justify-between items-center border-b border-slate-200 pb-2">
-                          <h4 className="text-xs font-bold text-slate-900">ড্যাশবোর্ড ওভারভিউ ও তথ্য চার্ট</h4>
-                          <span className="text-[10px] text-slate-500">রিয়েল-টাইম তথ্য বিশ্লেষণ</span>
-                        </div>
-
-                        {/* Stats Overview */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                          <div className="bg-white p-2.5 rounded border border-slate-100">
-                            <span className="text-[10px] text-slate-500 block">মোট ডিস্ট্রিক্ট</span>
-                            <span className="text-base font-black text-slate-900">১০টি</span>
-                          </div>
-                          <div className="bg-white p-2.5 rounded border border-slate-100">
-                            <span className="text-[10px] text-slate-500 block">মোট সেবা</span>
-                            <span className="text-base font-black text-emerald-800">{stats.totalServices}</span>
-                          </div>
-                          <div className="bg-white p-2.5 rounded border border-slate-100">
-                            <span className="text-[10px] text-slate-500 block">অনুমোদনের অপেক্ষায়</span>
-                            <span className="text-base font-black text-red-600">{stats.pendingSubmissions}</span>
-                          </div>
-                          <div className="bg-white p-2.5 rounded border border-slate-100">
-                            <span className="text-[10px] text-slate-500 block">ভেরিফাইড সেবা</span>
-                            <span className="text-base font-black text-blue-600">{stats.verifiedServices}</span>
-                          </div>
-                        </div>
-
-                        {/* Lightweight services count by district distribution block */}
-                        <div className="space-y-2 bg-white p-4 rounded border border-slate-100">
-                          <h5 className="text-[11px] font-bold text-slate-700">জেলা ভিত্তিক সেবা বণ্টন চিত্র</h5>
-                          <div className="space-y-2">
-                            {initialDistricts.map(d => {
-                              const cnt = getServiceCountForDistrict(d.id);
-                              const pct = Math.min(100, Math.max(8, (cnt / (services.length || 1)) * 100));
-                              return (
-                                <div key={d.id} className="text-[10px]">
-                                  <div className="flex justify-between font-semibold text-slate-600">
-                                    <span>{d.name} জেলা</span>
-                                    <span>{cnt}টি সেবা</span>
-                                  </div>
-                                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-1">
-                                    <div className="bg-emerald-600 h-full rounded-full" style={{ width: `${pct}%` }}></div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* SUB-VIEW: PENDING SUBMISSIONS & REVIEW WORKFLOW (Main Admin Only) */}
-                    {adminView === 'submissions' && (
-                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                        <h4 className="text-xs font-bold text-slate-900 border-b border-slate-200 pb-2">নতুন তথ্য পর্যালোচনা ও অনুমোদন করুন</h4>
-                        
-                        {submissions.filter(s => s.status === 'PENDING').length === 0 ? (
-                          <p className="text-[11px] text-slate-500 text-center py-4">বর্তমানে কোনো নতুন সেবা অনুমোদনের অপেক্ষায় নেই।</p>
-                        ) : (
-                          <div className="space-y-3">
-                            {submissions.filter(s => s.status === 'PENDING').map(sub => (
-                              <div key={sub.id} className="bg-white p-3.5 rounded-xl border border-slate-100 space-y-2 text-xs">
-                                <div className="flex justify-between">
-                                  <span className="font-bold text-slate-900">{sub.name}</span>
-                                  <span className="bg-red-50 text-red-700 font-bold px-1.5 py-0.5 rounded text-[9px]">PENDING REVIEW</span>
-                                </div>
-                                <p className="text-[10px] text-slate-500">ঠিকানা: {sub.address}</p>
-                                <p className="text-[10px] text-slate-500">ফোন: {sub.phone}</p>
-                                <p className="text-[11px] text-slate-700 italic">"{sub.description || 'কোনো বর্ণনা নেই।'}"</p>
-                                <p className="text-[9px] text-slate-400">দাখিলকারী: {sub.submitted_by}</p>
-                                
-                                <div className="flex gap-2 pt-2 border-t border-slate-100">
-                                  <button
-                                    onClick={() => handleApproveSubmission(sub)}
-                                    className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-1 px-3 rounded text-[10px]"
-                                  >
-                                    অনুমোদন ও প্রকাশ
-                                  </button>
-                                  <button
-                                    onClick={() => handleRejectSubmission(sub)}
-                                    className="bg-red-50 hover:bg-red-100 text-red-600 font-bold py-1 px-3 rounded text-[10px]"
-                                  >
-                                    প্রত্যাখ্যান করুন
-                                  </button>
-                                </div>
+                    {communityPosts.filter(p => p.authorId === currentUser.uid).length === 0 ? (
+                      <p className="text-xs text-slate-500 text-center py-3">আপনি এখনো কোনো পোস্ট করেননি। উপরের বোতামে ক্লিক করে নতুন পোস্ট করুন।</p>
+                    ) : (
+                      <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                        {communityPosts.filter(p => p.authorId === currentUser.uid).map(post => (
+                          <div key={post.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-xs text-slate-900 line-clamp-2 font-medium">{post.content}</p>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  onClick={() => {
+                                    setEditingPost(post);
+                                    setShowCreatePostModal(true);
+                                  }}
+                                  className="p-1 text-slate-500 hover:text-emerald-700 hover:bg-white rounded transition cursor-pointer"
+                                  title="সম্পাদনা করুন"
+                                >
+                                  <Edit2 size={13} />
+                                </button>
+                                <button
+                                  onClick={() => handleRemovePost(post.id, 'ব্যবহারকারী দ্বারা পোস্ট মুছে ফেলা')}
+                                  className="p-1 text-slate-500 hover:text-red-600 hover:bg-white rounded transition cursor-pointer"
+                                  title="মুছে ফেলুন"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
                               </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* SUB-VIEW: EMERGENCY CONTACTS CMS */}
-                    {adminView === 'emergencies' && (
-                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                        <h4 className="text-xs font-bold text-slate-900 border-b border-slate-200 pb-2">জরুরি সেবা কন্টাক্ট ডেটা ম্যানেজমেন্ট</h4>
-                        
-                        {/* Simple add inline form */}
-                        <div className="space-y-2">
-                          <p className="text-[10px] font-bold text-slate-500">নতুন জরুরি নম্বর যোগ করুন:</p>
-                          <div className="grid grid-cols-2 gap-2">
-                            <input id="add-em-name" type="text" placeholder="সেবার নাম" className="bg-white p-2 border border-slate-200 rounded text-[11px]" />
-                            <input id="add-em-phone" type="text" placeholder="ফোন নম্বর" className="bg-white p-2 border border-slate-200 rounded text-[11px]" />
-                          </div>
-                          <button
-                            onClick={() => {
-                              const nameInput = document.getElementById('add-em-name') as HTMLInputElement;
-                              const phoneInput = document.getElementById('add-em-phone') as HTMLInputElement;
-                              if (nameInput?.value && phoneInput?.value) {
-                                handleAddEmergency(nameInput.value, phoneInput.value, selectedDistrict);
-                                nameInput.value = '';
-                                phoneInput.value = '';
-                              }
-                            }}
-                            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-1.5 px-3 rounded text-[10px] w-full"
-                          >
-                            যোগ করুন
-                          </button>
-                        </div>
-
-                        {/* List editable items */}
-                        <div className="space-y-1.5 pt-3">
-                          <p className="text-[10px] font-bold text-slate-500">বিদ্যমান নম্বরের তালিকা:</p>
-                          {emergencyContacts.filter(e => e.districtId === selectedDistrict).map(em => (
-                            <div key={em.id} className="bg-white p-2.5 rounded border border-slate-100 flex justify-between items-center text-[11px]">
-                              <span>{em.name} ({em.phone})</span>
-                              <button
-                                onClick={() => {
-                                  setEmergencyContacts(prev => prev.filter(p => p.id !== em.id));
-                                  logAction('জরুরি নম্বর ডিলিট', `জরুরি নম্বর "${em.name}" মুছে ফেলা হয়েছে`);
-                                }}
-                                className="text-red-500 hover:bg-red-50 p-1 rounded"
-                              >
-                                <Trash2 size={13} />
-                              </button>
                             </div>
-                          ))}
-                        </div>
+                            <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-150">
+                              <span>লাইক: {post.likesCount} • মন্তব্য: {post.commentsCount}</span>
+                              <span>{new Date(post.createdAt).toLocaleDateString('bn-BD')}</span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
-
-                    {/* SUB-VIEW: AUDIT LOG SYSTEM (Requires transparency) */}
-                    {adminView === 'logs' && (
-                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
-                        <div className="flex justify-between items-center border-b border-slate-200 pb-2">
-                          <h4 className="text-xs font-bold text-slate-900">অডিট লগ সিস্টেম (Audit Log)</h4>
-                          <button
-                            onClick={() => setAuditLogs([])}
-                            className="text-[9px] text-red-600 font-bold"
-                          >
-                            ক্লিয়ার লগ
-                          </button>
-                        </div>
-                        <div className="max-h-60 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
-                          {auditLogs.length === 0 ? (
-                            <p className="text-[10px] text-slate-400 text-center py-4">বর্তমানে কোনো কাজের লগ সংরক্ষিত নেই।</p>
-                          ) : (
-                            auditLogs.map(log => (
-                              <div key={log.id} className="bg-white p-2.5 rounded border border-slate-150 text-[10px] space-y-1">
-                                <div className="flex justify-between font-bold text-slate-600">
-                                  <span>{log.user} ({log.role})</span>
-                                  <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
-                                </div>
-                                <p className="text-slate-800 font-semibold">{log.action}</p>
-                                <p className="text-slate-500 text-[9px]">{log.target}</p>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* SUB-VIEW: CROSS-PLATFORM DOWNLOADS & PWA CMS */}
-                    {adminView === 'downloads' && userProfile.role === 'super_admin' && (
-                      <AdminDownloadsCMS
-                        initialConfig={releaseConfig}
-                        onSave={handleSaveReleaseConfig}
-                        onClose={() => setAdminView(null)}
-                      />
-                    )}
-
-                    {/* SUB-VIEW: COMMUNITY MODERATION DASHBOARD */}
-                    {adminView === 'community_moderation' && (
-                      <CommunityModerationDashboard
-                        currentUserRole={userProfile.role === 'super_admin' ? 'super_admin' : 'sub_admin'}
-                        subAdminScope={userProfile.role === 'sub_admin' ? { districtId: userProfile.selectedDistrict } : undefined}
-                        reports={communityReports}
-                        posts={communityPosts}
-                        users={allCommunityUsers}
-                        districts={initialDistricts}
-                        categories={initialCategories}
-                        onResolveReport={handleResolveReport}
-                        onDismissReport={handleDismissReport}
-                        onHidePost={handleHidePost}
-                        onRestorePost={handleRestorePost}
-                        onRemovePost={handleRemovePost}
-                        onBanUser={handleBanUser}
-                        onDeleteComment={handleDeleteComment}
-                        auditLogs={moderationAuditLogs}
-                        onClose={() => setAdminView(null)}
-                      />
-                    )}
-
                   </div>
+                )}
+
+                {/* 2. COMPREHENSIVE ADMIN & SUB-ADMIN MANAGEMENT HUB */}
+                {currentUser && userProfile && (userProfile.role === 'super_admin' || userProfile.role === 'sub_admin') && (
+                  <AdminPanelComplete
+                    currentUserRole={userProfile.role === 'super_admin' ? 'super_admin' : 'sub_admin'}
+                    currentUserEmail={currentUser.email || ''}
+                    subAdminScopeDistrict={userProfile.role === 'sub_admin' ? userProfile.selectedDistrict : undefined}
+                    districts={initialDistricts}
+                    categories={initialCategories}
+                    services={services}
+                    submissions={submissions}
+                    emergencyContacts={emergencyContacts}
+                    communityPosts={communityPosts}
+                    communityReports={communityReports}
+                    communityUsers={allCommunityUsers}
+                    auditLogs={auditLogs}
+                    releaseConfig={releaseConfig}
+                    onApproveSubmission={handleApproveSubmission}
+                    onRejectSubmission={handleRejectSubmission}
+                    onAddService={handleAddServiceFromAdmin}
+                    onUpdateService={handleUpdateServiceFromAdmin}
+                    onDeleteService={handleDeleteServiceFromAdmin}
+                    onAddEmergency={handleAddEmergency}
+                    onDeleteEmergency={handleDeleteEmergency}
+                    onSaveReleaseConfig={handleSaveReleaseConfig}
+                    onHidePost={handleHidePost}
+                    onRestorePost={handleRestorePost}
+                    onRemovePost={handleRemovePost}
+                    onBanUser={handleBanUser}
+                    onUpdateUserRole={handleUpdateUserRole}
+                    onDeleteUser={handleDeleteUser}
+                    onResolveReport={handleResolveReport}
+                    onDismissReport={handleDismissReport}
+                    onClearLogs={() => setAuditLogs([])}
+                  />
                 )}
 
                 {/* QUICK APP DOWNLOAD & PWA INSTALL CARD FOR USERS */}

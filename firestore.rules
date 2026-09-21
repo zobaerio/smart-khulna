@@ -122,6 +122,18 @@ service cloud.firestore {
       allow update, delete: if isSuperAdmin();
     }
 
+    // 9. Services Directory: Public read, admin write
+    match /services/{serviceId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    // 10. Emergency Contacts: Public read, admin write
+    match /emergency_contacts/{contactId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
     // Default deny all other paths
     match /{document=**} {
       allow read, write: if false;

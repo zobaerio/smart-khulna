@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Heart,
   MessageCircle,
@@ -14,7 +14,11 @@ import {
   Trash2,
   CornerDownRight,
   Edit2,
-  CheckCircle2
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Maximize2
 } from 'lucide-react';
 import { CommunityPost, PostComment, VerifiedBadgeType } from '../../types/community';
 import { District } from '../../dbData';
@@ -66,9 +70,45 @@ export const PostCard: React.FC<PostCardProps> = ({
   const [replyInput, setReplyInput] = useState('');
   const [showMenu, setShowMenu] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [carouselIndex, setCarouselIndex] = useState(0);
 
   const districtObj = districts.find(d => d.id === post.districtId);
   const isAuthor = Boolean(currentUserId && post.authorId === currentUserId);
+
+  // Determine if post text exceeds 4 lines or ~220 characters
+  const rawLines = (post.content || '').split('\n');
+  const isLongContent = rawLines.length > 4 || (post.content && post.content.length > 220);
+
+  const getTruncatedContent = () => {
+    if (!isLongContent || isExpanded) return post.content;
+    if (rawLines.length > 4) {
+      return rawLines.slice(0, 4).join('\n');
+    }
+    return post.content.slice(0, 200) + '...';
+  };
+
+  // Lightbox keyboard navigation
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (activeImageIndex === null || !post.images || post.images.length === 0) return;
+      if (e.key === 'Escape') {
+        setActiveImageIndex(null);
+      } else if (e.key === 'ArrowRight') {
+        setActiveImageIndex(prev => (prev !== null ? (prev + 1) % post.images.length : null));
+      } else if (e.key === 'ArrowLeft') {
+        setActiveImageIndex(prev => (prev !== null ? (prev - 1 + post.images.length) % post.images.length : null));
+      }
+    },
+    [activeImageIndex, post.images]
+  );
+
+  useEffect(() => {
+    if (activeImageIndex !== null) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [activeImageIndex, handleKeyDown]);
 
   const handleCommentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -249,16 +289,24 @@ export const PostCard: React.FC<PostCardProps> = ({
         </div>
       </div>
 
-      {/* POST TITLE & CONTENT */}
+      {/* POST TITLE & CONTENT (WITH SEE MORE / SEE LESS TOGGLE) */}
       <div className="px-4 pb-3">
         {post.title && (
           <h3 className="font-bold text-slate-900 text-sm font-serif mb-1 leading-snug">
             {post.title}
           </h3>
         )}
-        <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">
-          {post.content}
-        </p>
+        <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">
+          {getTruncatedContent()}
+          {isLongContent && (
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="inline-block ml-1.5 text-emerald-700 font-bold hover:text-emerald-800 hover:underline cursor-pointer focus:outline-none"
+            >
+              {isExpanded ? '...কম দেখুন (See less)' : '...আরও দেখুন (See more)'}
+            </button>
+          )}
+        </div>
 
         {/* HASHTAGS & LOCATION */}
         {(post.hashtags?.length || post.locationName) && (
@@ -278,70 +326,228 @@ export const PostCard: React.FC<PostCardProps> = ({
         )}
       </div>
 
-      {/* POST IMAGES (GALLERY GRID) */}
+      {/* POST IMAGES (GALLERY GRID & SCROLLABLE / SWIPEABLE CAROUSEL) */}
       {post.images && post.images.length > 0 && (
-        <div className="border-t border-b border-slate-100 bg-slate-50">
-          {post.images.length === 1 ? (
+        <div className="border-t border-b border-slate-100 bg-slate-900/5 relative select-none">
+          {/* If 1 Image */}
+          {post.images.length === 1 && (
             <div
-              className="max-h-96 overflow-hidden cursor-pointer bg-slate-900/5 flex items-center justify-center"
+              className="max-h-[420px] overflow-hidden cursor-pointer bg-slate-900/5 flex items-center justify-center relative group"
               onClick={() => setActiveImageIndex(0)}
             >
               <img
                 src={post.images[0].url}
                 alt={post.images[0].caption || 'Post image'}
-                className="w-full object-cover max-h-96 hover:opacity-95 transition"
+                className="w-full object-cover max-h-[420px] group-hover:scale-[1.01] transition duration-300"
                 loading="lazy"
                 referrerPolicy="no-referrer"
               />
+              <div className="absolute top-2.5 right-2.5 bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition backdrop-blur-xs">
+                <Maximize2 size={14} />
+              </div>
             </div>
-          ) : post.images.length === 2 ? (
+          )}
+
+          {/* If 2 Images */}
+          {post.images.length === 2 && (
             <div className="grid grid-cols-2 gap-1 max-h-80 overflow-hidden">
               {post.images.map((img, idx) => (
-                <img
+                <div
                   key={img.id || idx}
-                  src={img.url}
-                  alt={img.caption || 'Post image'}
-                  className="w-full h-64 object-cover cursor-pointer hover:opacity-95 transition"
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
+                  className="relative h-64 cursor-pointer group overflow-hidden bg-slate-100"
                   onClick={() => setActiveImageIndex(idx)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-1 max-h-72 overflow-hidden">
-              {post.images.slice(0, 3).map((img, idx) => (
-                <div key={img.id || idx} className="relative h-48 cursor-pointer" onClick={() => setActiveImageIndex(idx)}>
+                >
                   <img
                     src={img.url}
                     alt={img.caption || 'Post image'}
-                    className="w-full h-full object-cover hover:opacity-95 transition"
+                    className="w-full h-full object-cover group-hover:scale-[1.02] transition duration-300"
                     loading="lazy"
                     referrerPolicy="no-referrer"
                   />
-                  {idx === 2 && post.images.length > 3 && (
-                    <div className="absolute inset-0 bg-black/60 text-white font-bold text-sm flex items-center justify-center">
-                      +{post.images.length - 3}
-                    </div>
-                  )}
+                  <div className="absolute top-2 right-2 bg-black/40 text-white p-1 rounded-md opacity-0 group-hover:opacity-100 transition backdrop-blur-xs">
+                    <Maximize2 size={12} />
+                  </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* If 3 or more Images: Carousel / Gallery with Snap Scroll and Indicators */}
+          {post.images.length >= 3 && (
+            <div className="relative">
+              {/* Horizontal Scroll / Carousel Container */}
+              <div className="relative overflow-hidden group">
+                <div
+                  className="flex transition-transform duration-300 ease-out h-72 sm:h-80"
+                  style={{ transform: `translateX(-${carouselIndex * 100}%)` }}
+                >
+                  {post.images.map((img, idx) => (
+                    <div
+                      key={img.id || idx}
+                      className="min-w-full h-full flex-shrink-0 cursor-pointer relative bg-slate-900/10"
+                      onClick={() => setActiveImageIndex(idx)}
+                    >
+                      <img
+                        src={img.url}
+                        alt={img.caption || `Post image ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                      />
+                      {img.caption && (
+                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-3 text-white text-xs">
+                          {img.caption}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Left / Right Carousel Controls */}
+                {carouselIndex > 0 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCarouselIndex(prev => Math.max(0, prev - 1));
+                    }}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition cursor-pointer backdrop-blur-xs shadow-md z-10"
+                    aria-label="Previous image"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                )}
+
+                {carouselIndex < post.images.length - 1 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCarouselIndex(prev => Math.min(post.images.length - 1, prev + 1));
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition cursor-pointer backdrop-blur-xs shadow-md z-10"
+                    aria-label="Next image"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                )}
+
+                {/* Image Count Pill Badge */}
+                <div className="absolute top-3 right-3 bg-black/65 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full backdrop-blur-xs shadow-xs z-10">
+                  {carouselIndex + 1} / {post.images.length}
+                </div>
+
+                {/* Bottom Dots Indicator */}
+                <div className="absolute bottom-2.5 inset-x-0 flex justify-center gap-1.5 z-10">
+                  {post.images.map((_, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCarouselIndex(idx);
+                      }}
+                      className={`h-1.5 rounded-full transition-all duration-200 cursor-pointer ${
+                        carouselIndex === idx ? 'w-5 bg-emerald-400' : 'w-1.5 bg-white/70 hover:bg-white'
+                      }`}
+                      aria-label={`Go to slide ${idx + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
       )}
 
-      {/* LIGHTBOX MODAL */}
-      {activeImageIndex !== null && post.images && (
+      {/* FULL LIGHTBOX MODAL WITH PREV/NEXT/COUNTER */}
+      {activeImageIndex !== null && post.images && post.images.length > 0 && (
         <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-between p-3 sm:p-6 select-none animate-in fade-in duration-200"
           onClick={() => setActiveImageIndex(null)}
         >
-          <img
-            src={post.images[activeImageIndex].url}
-            alt="Expanded view"
-            className="max-w-full max-h-[90vh] object-contain rounded-lg"
-          />
+          {/* Lightbox Header */}
+          <div
+            className="w-full max-w-5xl flex items-center justify-between text-white z-20"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2">
+              <span className="bg-white/15 px-3 py-1 rounded-full text-xs font-bold tracking-wide">
+                ছবি {activeImageIndex + 1} / {post.images.length}
+              </span>
+              {post.images[activeImageIndex].caption && (
+                <span className="text-xs text-slate-300 max-w-xs sm:max-w-md truncate">
+                  {post.images[activeImageIndex].caption}
+                </span>
+              )}
+            </div>
+
+            <button
+              onClick={() => setActiveImageIndex(null)}
+              className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition cursor-pointer"
+              title="বন্ধ করুন (Esc)"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Main Expanded Image & Navigation Arrows */}
+          <div
+            className="relative w-full max-w-5xl flex-1 flex items-center justify-center my-2"
+            onClick={e => e.stopPropagation()}
+          >
+            {post.images.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveImageIndex(prev => (prev !== null ? (prev - 1 + post.images.length) % post.images.length : 0));
+                }}
+                className="absolute left-2 sm:left-4 p-3 bg-black/60 hover:bg-black/90 text-white rounded-full transition cursor-pointer backdrop-blur-xs border border-white/10 z-20"
+                title="পূর্ববর্তী ছবি"
+              >
+                <ChevronLeft size={24} />
+              </button>
+            )}
+
+            <img
+              src={post.images[activeImageIndex].url}
+              alt={post.images[activeImageIndex].caption || 'Expanded view'}
+              className="max-w-full max-h-[78vh] object-contain rounded-xl shadow-2xl transition-all"
+            />
+
+            {post.images.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveImageIndex(prev => (prev !== null ? (prev + 1) % post.images.length : 0));
+                }}
+                className="absolute right-2 sm:right-4 p-3 bg-black/60 hover:bg-black/90 text-white rounded-full transition cursor-pointer backdrop-blur-xs border border-white/10 z-20"
+                title="পরবর্তী ছবি"
+              >
+                <ChevronRight size={24} />
+              </button>
+            )}
+          </div>
+
+          {/* Lightbox Thumbnail Strip */}
+          {post.images.length > 1 && (
+            <div
+              className="w-full max-w-2xl flex items-center justify-center gap-2 overflow-x-auto py-2 z-20"
+              onClick={e => e.stopPropagation()}
+            >
+              {post.images.map((img, idx) => (
+                <button
+                  key={img.id || idx}
+                  onClick={() => setActiveImageIndex(idx)}
+                  className={`w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 transition border-2 cursor-pointer ${
+                    activeImageIndex === idx ? 'border-emerald-500 scale-105' : 'border-transparent opacity-60 hover:opacity-100'
+                  }`}
+                >
+                  <img src={img.url} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -520,3 +726,4 @@ export const PostCard: React.FC<PostCardProps> = ({
     </article>
   );
 };
+
