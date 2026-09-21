@@ -1947,7 +1947,6 @@ export default function App() {
                 src="/file_0000000078dc81fabee4e5a0d47f7348.png"
                 alt="Smart Khulna Logo"
                 className="w-10 h-10 object-contain rounded-2xl shrink-0 shadow-lg"
-                referrerPolicy="no-referrer"
               />
               <div>
                 <h2 className="text-base font-bold tracking-tight text-white font-serif">স্মার্ট খুলনা</h2>
@@ -2095,7 +2094,6 @@ export default function App() {
                   src="/file_0000000078dc81fabee4e5a0d47f7348.png"
                   alt="Smart Khulna Logo"
                   className="w-11 h-11 object-contain rounded-2xl shadow-lg"
-                  referrerPolicy="no-referrer"
                 />
                 <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-lime-400 rounded-full animate-ping"></span>
               </div>
@@ -2248,7 +2246,6 @@ export default function App() {
                   src="/file_0000000078dc81fabee4e5a0d47f7348.png"
                   alt="Smart Khulna Logo"
                   className="w-9 h-9 object-contain rounded-xl shrink-0 shadow-sm border border-slate-100 dark:border-slate-800"
-                  referrerPolicy="no-referrer"
                 />
               <div>
                 <div className="flex items-center gap-1">

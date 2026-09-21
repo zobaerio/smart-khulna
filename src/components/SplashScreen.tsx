@@ -38,7 +38,6 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
             src="/file_0000000078dc81fabee4e5a0d47f7348.png" 
             alt="Smart Khulna" 
             className="w-full h-full object-contain relative z-10 rounded-2xl" 
-            referrerPolicy="no-referrer"
           />
         </div>
 

@@ -147,6 +147,12 @@ async function startServer() {
     res.json({ status: 'ok' });
   });
 
+  // Explicitly return 404 for /file_* requests inside the container so that
+  // the platform's reverse proxy can intercept them rather than receiving index.html (SPA fallback)
+  app.get('/file_*', (req, res) => {
+    res.status(404).send('Not Found');
+  });
+
   const isProd = process.env.NODE_ENV === 'production';
   const port = 3000;
 

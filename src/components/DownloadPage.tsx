@@ -128,7 +128,6 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
               src="/file_0000000078dc81fabee4e5a0d47f7348.png" 
               alt="Smart Khulna Logo" 
               className="w-full h-full object-contain rounded-xl" 
-              referrerPolicy="no-referrer"
             />
           </div>
 
