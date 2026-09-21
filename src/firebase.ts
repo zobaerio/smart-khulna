@@ -6,10 +6,12 @@ import firebaseConfig from '../firebase-applet-config.json';
 const app = initializeApp({
   apiKey: firebaseConfig.apiKey,
   authDomain: firebaseConfig.authDomain,
+  databaseURL: firebaseConfig.databaseURL,
   projectId: firebaseConfig.projectId,
   storageBucket: firebaseConfig.storageBucket,
   messagingSenderId: firebaseConfig.messagingSenderId,
-  appId: firebaseConfig.appId
+  appId: firebaseConfig.appId,
+  measurementId: firebaseConfig.measurementId
 });
 
 // Initialize Firestore with default or custom database

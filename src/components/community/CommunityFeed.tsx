@@ -142,8 +142,8 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* TOP BANNER & CREATE POST TRIGGER */}
-      <div className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-800 rounded-3xl p-4 sm:p-6 text-white shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* TOP BANNER */}
+      <div className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-800 rounded-3xl p-4 sm:p-6 text-white shadow-sm">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2.5 py-0.5 bg-emerald-600/60 rounded-full text-[11px] font-bold border border-emerald-400/30 flex items-center gap-1">
@@ -157,14 +157,6 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
             ১০ জেলার নাগরিক সেবা, জরুরি আপডেট, স্থানীয় তথ্য ও অভিজ্ঞতা সরাসরি শেয়ার করুন।
           </p>
         </div>
-
-        <button
-          onClick={onOpenCreatePost}
-          className="px-5 py-3 bg-white text-emerald-800 hover:bg-emerald-50 rounded-2xl font-bold text-xs shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer flex-shrink-0"
-        >
-          <Plus size={18} className="text-emerald-700" />
-          <span>+ পোস্ট করুন</span>
-        </button>
       </div>
 
       {/* DISTRICT COMMUNITY TABS (ALL 10 DISTRICTS) */}

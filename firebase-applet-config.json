@@ -1,10 +1,11 @@
 {
   "projectId": "smart-khulna",
-  "appId": "1:728229923162:web:325cc0f7a1c93bcec04b63",
+  "appId": "1:728229923162:web:c7be0a5087db0e84c04b63",
   "apiKey": "AIzaSyC6C2wYhHlL0k78DEA7MYDfdn7FvCXFNRs",
   "authDomain": "smart-khulna.firebaseapp.com",
+  "databaseURL": "https://smart-khulna-default-rtdb.firebaseio.com",
   "firestoreDatabaseId": "(default)",
   "storageBucket": "smart-khulna.firebasestorage.app",
   "messagingSenderId": "728229923162",
-  "measurementId": "G-RQSK4R4PBW"
+  "measurementId": "G-MT06S68695"
 }

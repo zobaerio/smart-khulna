@@ -66,7 +66,7 @@ import {
   LayoutGrid
 } from 'lucide-react';
 import { auth, googleProvider, db } from './firebase';
-import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged, updateProfile } from 'firebase/auth';
 import {
   collection,
   doc,
@@ -242,6 +242,9 @@ export default function App() {
   const [filterVerifiedOnly, setFilterVerifiedOnly] = useState(false);
   const [filterUpazila, setFilterUpazila] = useState('');
   const [showFiltersModal, setShowFiltersModal] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editDisplayName, setEditDisplayName] = useState('');
+  const [editPhotoURL, setEditPhotoURL] = useState('');
 
   // Gemini AI Grounding States
   const [isGroundingLoading, setIsGroundingLoading] = useState(false);
@@ -485,21 +488,42 @@ export default function App() {
     }
   };
 
-  // Google Login / Logout
+  // Google Login / Logout & Profile Update
   const handleGoogleLogin = async () => {
     try {
       const res = await signInWithPopup(auth, googleProvider);
-      await logAction('ব্যবহারকারী লগইন', `${res.user.email} সিস্টেমে লগইন করেছেন`);
+      await logAction('ব্যবহারকারী লগইন', `${res.user.email} সফলভাবে লগইন করেছেন`);
     } catch (error: any) {
       if (
         error?.code === 'auth/popup-closed-by-user' ||
         error?.code === 'auth/cancelled-popup-request' ||
         error?.code === 'auth/user-cancelled'
       ) {
-        // User closed or dismissed the Google popup dialog without signing in
         return;
       }
-      console.warn("Google login notification:", error?.message || error);
+      console.warn("Google popup login error, trying redirect:", error);
+      try {
+        await signInWithRedirect(auth, googleProvider);
+      } catch (redirectError: any) {
+        alert(`গুগল লগইন করতে সমস্যা হয়েছে। কারণ: ${error?.message || redirectError?.message || 'Popup blocked'}\n\nপরামর্শ: ব্রাউজারের পপআপ ব্লকার বন্ধ রাখুন অথবা নতুন ট্যাবে অ্যাপটি ওপেন করুন।`);
+      }
+    }
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!auth.currentUser) return;
+    try {
+      await updateProfile(auth.currentUser, {
+        displayName: editDisplayName,
+        photoURL: editPhotoURL
+      });
+      setUserProfile(prev => prev ? { ...prev, name: editDisplayName, avatar: editPhotoURL } : null);
+      setIsEditingProfile(false);
+      await logAction('প্রোফাইল আপডেট', `${auth.currentUser.email} নিজের নাম ও প্রোফাইল ছবি আপডেট করেছেন`);
+      alert('প্রোফাইল সফলভাবে আপডেট করা হয়েছে!');
+    } catch (err: any) {
+      alert('প্রোফাইল আপডেট করতে সমস্যা হয়েছে: ' + (err.message || err));
     }
   };
 
@@ -2167,31 +2191,45 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Sub-Header Horizontal Category Tabs */}
-                <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+                {/* Category Grid Filter matching Home page style */}
+                <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
                   <button
                     onClick={() => setFilterCategory('all')}
-                    className={`px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition cursor-pointer ${
+                    className={`p-2 rounded-2xl flex flex-col items-center justify-center text-center transition cursor-pointer aspect-square min-h-[76px] group ${
                       filterCategory === 'all'
-                        ? 'bg-emerald-700 text-white shadow-sm'
-                        : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
+                        ? 'bg-emerald-700 text-white shadow-md border border-emerald-800'
+                        : 'bg-white hover:bg-emerald-50/30 text-slate-800 border border-slate-100 hover:border-emerald-200'
                     }`}
                   >
-                    সব ক্যাটাগরি
+                    <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl ${filterCategory === 'all' ? 'bg-emerald-800 text-white' : 'bg-emerald-50 text-emerald-700'} flex items-center justify-center mb-1 transition shrink-0`}>
+                      <Grid size={18} />
+                    </div>
+                    <span className="text-[10px] sm:text-[11px] font-bold text-center leading-tight line-clamp-2 w-full px-0.5">
+                      সব ক্যাটাগরি
+                    </span>
                   </button>
-                  {initialCategories.map(cat => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setFilterCategory(cat.id)}
-                      className={`px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition cursor-pointer ${
-                        filterCategory === cat.id
-                          ? 'bg-emerald-700 text-white shadow-sm'
-                          : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
-                      }`}
-                    >
-                      {cat.name}
-                    </button>
-                  ))}
+                  {initialCategories.map(cat => {
+                    const style = getCategoryStyle(cat.id);
+                    const isSelected = filterCategory === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => setFilterCategory(cat.id)}
+                        className={`p-2 rounded-2xl flex flex-col items-center justify-center text-center transition cursor-pointer aspect-square min-h-[76px] group ${
+                          isSelected
+                            ? 'bg-emerald-700 text-white shadow-md border border-emerald-800'
+                            : 'bg-white hover:bg-emerald-50/30 text-slate-800 border border-slate-100 hover:border-emerald-200'
+                        }`}
+                      >
+                        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl ${isSelected ? 'bg-emerald-800 text-white' : `${style.bg} ${style.text}`} flex items-center justify-center mb-1 group-hover:scale-105 transition shrink-0 shadow-2xs`}>
+                          <IconComponent name={cat.iconName} className={isSelected ? 'text-white' : style.text} />
+                        </div>
+                        <span className={`text-[10px] sm:text-[11px] font-bold text-center leading-tight line-clamp-2 w-full px-0.5 ${isSelected ? 'text-white' : 'text-slate-800'}`}>
+                          {cat.name}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* Services List Display */}
@@ -2518,6 +2556,77 @@ export default function App() {
                     </button>
                   </div>
                 )}
+
+                {currentUser && (
+                  <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-slate-800">প্রোফাইল তথ্য পরিবর্তন (নাম ও ছবি)</h4>
+                      <button
+                        onClick={() => {
+                          setIsEditingProfile(!isEditingProfile);
+                          if (!isEditingProfile && currentUser) {
+                            setEditDisplayName(currentUser.displayName || '');
+                            setEditPhotoURL(currentUser.photoURL || '');
+                          }
+                        }}
+                        className="text-xs text-emerald-700 font-bold hover:underline cursor-pointer"
+                      >
+                        {isEditingProfile ? 'বাতিল' : 'সম্পাদনা করুন'}
+                      </button>
+                    </div>
+
+                    {isEditingProfile && (
+                      <form onSubmit={handleUpdateProfile} className="space-y-3 pt-2 border-t border-slate-100">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">আপনার নাম</label>
+                          <input
+                            type="text"
+                            value={editDisplayName}
+                            onChange={(e) => setEditDisplayName(e.target.value)}
+                            required
+                            className="w-full border border-slate-200 p-2 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700"
+                            placeholder="আপনার নাম লিখুন"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">প্রোফাইল ছবির লিংক (Image URL)</label>
+                          <input
+                            type="url"
+                            value={editPhotoURL}
+                            onChange={(e) => setEditPhotoURL(e.target.value)}
+                            className="w-full border border-slate-200 p-2 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700"
+                            placeholder="https://example.com/avatar.jpg"
+                          />
+                        </div>
+                        <button
+                          type="submit"
+                          className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2 px-4 rounded-xl text-xs transition cursor-pointer"
+                        >
+                          পরিবর্তন সংরক্ষণ করুন
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                )}
+
+                {/* Quick Community Posting Card inside Profile */}
+                <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-4 flex items-center justify-between shadow-xs">
+                  <div>
+                    <h4 className="text-xs font-bold text-emerald-950">কমিউনিটি পোস্ট তৈরি করুন</h4>
+                    <p className="text-[11px] text-slate-600 mt-0.5">আপনার সেবা, অভিজ্ঞতা বা প্রশ্ন সরাসরি ফিডে শেয়ার করুন।</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (!requireAuth('পোস্ট তৈরি')) return;
+                      setEditingPost(null);
+                      setShowCreatePostModal(true);
+                    }}
+                    className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2 px-3 rounded-xl text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer shrink-0"
+                  >
+                    <Plus size={14} />
+                    <span>পোস্ট করুন</span>
+                  </button>
+                </div>
 
                 {/* 2. ADMIN SYSTEM - RESTRICTED PANELS FOR SUPER ADMIN & SUB ADMIN */}
                 {currentUser && userProfile && (userProfile.role === 'super_admin' || userProfile.role === 'sub_admin') && (
@@ -2949,21 +3058,7 @@ export default function App() {
 
           </main>
 
-          {/* Floating "+ পোস্ট করুন" Action Button inside Community tab */}
-          {activeTab === 'community' && (
-            <button
-              onClick={() => {
-                if (!requireAuth('পোস্ট তৈরি')) return;
-                setEditingPost(null);
-                setShowCreatePostModal(true);
-              }}
-              className="fixed bottom-20 right-5 md:bottom-8 md:right-8 bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 px-4 rounded-full shadow-2xl flex items-center gap-2 z-20 cursor-pointer border-2 border-white transition transform hover:scale-105"
-              title="নতুন পোস্ট লিখুন"
-            >
-              <Plus size={18} />
-              <span className="text-xs font-serif font-bold">পোস্ট করুন</span>
-            </button>
-          )}
+
 
           {/* PERSISTENT BOTTOM NAVIGATION (5 Tab structure: Home, Services, Community, Messages, Profile) */}
           <nav className="fixed bottom-0 left-0 right-0 md:absolute md:bottom-0 bg-white border-t border-slate-200 py-2 px-3 flex justify-around items-center z-10 shadow-lg">
