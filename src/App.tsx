@@ -1364,16 +1364,7 @@ export default function App() {
       />
       <InstallPromptBanner />
 
-      {/* Dynamic Desktop Header Frame / Notification Alert Banner */}
-      <div className="w-full bg-emerald-900 text-white py-1 px-4 text-xs text-center flex justify-center items-center gap-2 overflow-hidden shadow-sm">
-        <Sparkles size={14} className="text-lime-300 animate-pulse shrink-0" />
-        <span className="truncate"><strong>ঘোষণা:</strong> {systemNotifications[0]?.title} - {systemNotifications[0]?.message}</span>
-        {userProfile?.role && (
-          <span className="bg-lime-400 text-emerald-950 font-bold px-2 py-0.5 rounded ml-2 uppercase text-[10px]">
-            {userProfile.role === 'super_admin' ? 'Super Admin' : 'Sub Admin'}
-          </span>
-        )}
-      </div>
+
 
       {/* Main Responsive Layout Wrapper */}
       <div className="w-full max-w-5xl flex-1 bg-white shadow-xl flex flex-col md:flex-row relative">
@@ -1905,39 +1896,49 @@ export default function App() {
                       <ThumbsUp size={18} className="text-emerald-700" />
                       স্পেশাল ও ভেরিফাইড সেবা
                     </h2>
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                       {services
                         .filter(s => s.isFeatured && s.status === 'PUBLISHED' && s.district_id === selectedDistrict)
-                        .map(service => (
-                          <div
-                            key={service.id}
-                            onClick={() => setSelectedService(service)}
-                            className="bg-gradient-to-r from-emerald-50/60 to-white hover:from-emerald-50 border border-emerald-100 hover:border-emerald-200 p-4 rounded-xl shadow-sm flex items-center gap-3 transition cursor-pointer"
-                          >
-                            {service.photos && service.photos[0] ? (
-                              <img src={service.photos[0]} alt={service.name} className="w-16 h-16 rounded-lg object-cover shrink-0 border border-slate-200" />
-                            ) : (
-                              <div className="w-16 h-16 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 shrink-0 border border-slate-200">
-                                <Building2 size={24} />
+                        .map(service => {
+                          const cat = initialCategories.find(c => c.id === service.category_id);
+                          const style = getCategoryStyle(service.category_id);
+                          return (
+                            <div
+                              key={service.id}
+                              onClick={() => setSelectedService(service)}
+                              className="bg-white hover:bg-emerald-50/20 border border-emerald-100 hover:border-emerald-200 p-3 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-sm transition cursor-pointer group"
+                            >
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className={`w-10 h-10 rounded-xl ${style.bg} ${style.text} flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition`}>
+                                    {service.photos && service.photos[0] ? (
+                                      <img src={service.photos[0]} alt={service.name} className="w-full h-full object-cover rounded-xl" />
+                                    ) : (
+                                      <IconComponent name={cat?.iconName || 'Grid'} className={style.text} />
+                                    )}
+                                  </div>
+                                  <span className="bg-lime-100 text-emerald-900 text-[9px] font-extrabold px-1.5 py-0.5 rounded">ফিচার্ড</span>
+                                </div>
+                                <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold uppercase inline-block mb-1">
+                                  {cat?.name || 'সেবা'}
+                                </span>
+                                <h3 className="text-xs font-extrabold text-slate-900 line-clamp-2 leading-tight">{service.name}</h3>
+                                <p className="text-[10px] text-slate-500 line-clamp-1 mt-1">{service.address}</p>
                               </div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1">
-                                <span className="text-xs font-bold text-emerald-900 bg-lime-100 px-1.5 py-0.5 rounded">ফিচার্ড</span>
-                                {service.is_verified && (
-                                  <span className="bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded text-[9px] flex items-center gap-0.5 shrink-0">
-                                    <CheckCircle size={10} className="fill-blue-500 text-white" />
-                                    ভেরিফাইড
-                                  </span>
-                                )}
+                              
+                              <div className="flex items-center justify-between text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-50">
+                                <span className="flex items-center gap-0.5 truncate max-w-[80px]">
+                                  <Clock size={10} className="text-emerald-700 shrink-0" />
+                                  <span className="truncate">{service.opening_hours}</span>
+                                </span>
+                                <span className="text-emerald-700 font-extrabold flex items-center gap-0.5 group-hover:translate-x-0.5 transition">
+                                  দেখুন
+                                  <ChevronRight size={11} />
+                                </span>
                               </div>
-                              <h3 className="text-xs font-bold text-slate-900 truncate mt-1">{service.name}</h3>
-                              <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">{service.address}</p>
-                              <p className="text-[10px] text-slate-500 mt-0.5">খোলা: {service.opening_hours}</p>
                             </div>
-                            <ChevronRight size={18} className="text-slate-400 shrink-0" />
-                          </div>
-                        ))}
+                          );
+                        })}
                     </div>
                   </section>
                 )}
@@ -2090,23 +2091,55 @@ export default function App() {
                       {/* Filter services list in current district detail */}
                       <div className="space-y-2">
                         <h3 className="text-xs font-bold text-slate-700">জনপ্রিয় সেবা ও প্রতিষ্ঠান সমূহ</h3>
-                        <div className="space-y-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                           {services
                             .filter(s => s.district_id === currentDist.id && s.status === 'PUBLISHED')
-                            .slice(0, 5)
-                            .map(s => (
-                              <div
-                                key={s.id}
-                                onClick={() => setSelectedService(s)}
-                                className="bg-white p-3 rounded-xl border border-slate-100 hover:border-emerald-200 transition cursor-pointer flex justify-between items-center"
-                              >
-                                <div>
-                                  <h4 className="text-xs font-bold text-slate-900">{s.name}</h4>
-                                  <p className="text-[10px] text-slate-500 mt-0.5">{s.address}</p>
+                            .slice(0, 8)
+                            .map(s => {
+                              const cat = initialCategories.find(c => c.id === s.category_id);
+                              const style = getCategoryStyle(s.category_id);
+                              return (
+                                <div
+                                  key={s.id}
+                                  onClick={() => setSelectedService(s)}
+                                  className="bg-white hover:bg-emerald-50/20 border border-slate-100 hover:border-emerald-200 p-3 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-sm transition cursor-pointer group"
+                                >
+                                  <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className={`w-10 h-10 rounded-xl ${style.bg} ${style.text} flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition`}>
+                                        {s.photos && s.photos[0] ? (
+                                          <img src={s.photos[0]} alt={s.name} className="w-full h-full object-cover rounded-xl" />
+                                        ) : (
+                                          <IconComponent name={cat?.iconName || 'Grid'} className={style.text} />
+                                        )}
+                                      </div>
+                                      {s.is_verified && (
+                                        <span className="bg-blue-50 text-blue-800 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                                          <CheckCircle size={9} className="fill-blue-500 text-white" />
+                                          ভেরিফাইড
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold uppercase inline-block mb-1">
+                                      {cat?.name || 'সেবা'}
+                                    </span>
+                                    <h3 className="text-xs font-extrabold text-slate-900 line-clamp-2 leading-tight">{s.name}</h3>
+                                    <p className="text-[10px] text-slate-500 line-clamp-1 mt-1">{s.address}</p>
+                                  </div>
+                                  
+                                  <div className="flex items-center justify-between text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-50">
+                                    <span className="flex items-center gap-0.5 truncate max-w-[80px]">
+                                      <Clock size={10} className="text-emerald-700 shrink-0" />
+                                      <span className="truncate">{s.opening_hours}</span>
+                                    </span>
+                                    <span className="text-emerald-700 font-extrabold flex items-center gap-0.5 group-hover:translate-x-0.5 transition">
+                                      দেখুন
+                                      <ChevronRight size={11} />
+                                    </span>
+                                  </div>
                                 </div>
-                                <ChevronRight size={16} className="text-slate-400" />
-                              </div>
-                            ))}
+                              );
+                            })}
                         </div>
                       </div>
                     </>
@@ -2180,31 +2213,25 @@ export default function App() {
                     </button>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {filteredServices.map(service => (
-                      <div
-                        key={service.id}
-                        onClick={() => setSelectedService(service)}
-                        className="bg-white p-4 rounded-2xl border border-slate-100 hover:border-emerald-200 transition shadow-sm hover:shadow flex gap-3 relative cursor-pointer"
-                      >
-                        {service.photos && service.photos[0] ? (
-                          <img
-                            src={service.photos[0]}
-                            alt={service.name}
-                            className="w-20 h-20 rounded-xl object-cover border border-slate-100 shrink-0"
-                          />
-                        ) : (
-                          <div className="w-20 h-20 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 shrink-0">
-                            <IconComponent name={initialCategories.find(c => c.id === service.category_id)?.iconName || 'Grid'} className="text-slate-400" />
-                          </div>
-                        )}
-
-                        <div className="flex-1 min-w-0 flex flex-col justify-between">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {filteredServices.map(service => {
+                      const cat = initialCategories.find(c => c.id === service.category_id);
+                      const style = getCategoryStyle(service.category_id);
+                      return (
+                        <div
+                          key={service.id}
+                          onClick={() => setSelectedService(service)}
+                          className="bg-white hover:bg-emerald-50/20 border border-slate-100 hover:border-emerald-200 p-3 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-sm transition cursor-pointer group"
+                        >
                           <div>
-                            <div className="flex items-center gap-1 flex-wrap">
-                              <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold uppercase">
-                                {initialCategories.find(c => c.id === service.category_id)?.name}
-                              </span>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className={`w-10 h-10 rounded-xl ${style.bg} ${style.text} flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition`}>
+                                {service.photos && service.photos[0] ? (
+                                  <img src={service.photos[0]} alt={service.name} className="w-full h-full object-cover rounded-xl" />
+                                ) : (
+                                  <IconComponent name={cat?.iconName || 'Grid'} className={style.text} />
+                                )}
+                              </div>
                               {service.is_verified && (
                                 <span className="bg-blue-50 text-blue-800 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                                   <CheckCircle size={9} className="fill-blue-500 text-white" />
@@ -2212,23 +2239,26 @@ export default function App() {
                                 </span>
                               )}
                             </div>
-                            <h3 className="text-xs font-extrabold text-slate-900 mt-1 truncate">{service.name}</h3>
-                            <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">ঠিকানা: {service.address}</p>
+                            <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold uppercase inline-block mb-1">
+                              {cat?.name || 'সেবা'}
+                            </span>
+                            <h3 className="text-xs font-extrabold text-slate-900 line-clamp-2 leading-tight">{service.name}</h3>
+                            <p className="text-[10px] text-slate-500 line-clamp-1 mt-1">ঠিকানা: {service.address}</p>
                           </div>
                           
-                          <div className="flex items-center justify-between text-[10px] text-slate-400 mt-2 pt-2 border-t border-slate-50">
-                            <span className="flex items-center gap-1">
-                              <Clock size={11} className="text-emerald-700" />
-                              {service.opening_hours}
+                          <div className="flex items-center justify-between text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-50">
+                            <span className="flex items-center gap-0.5 truncate max-w-[80px]">
+                              <Clock size={10} className="text-emerald-700 shrink-0" />
+                              <span className="truncate">{service.opening_hours}</span>
                             </span>
-                            <span className="text-emerald-700 font-extrabold flex items-center gap-0.5">
+                            <span className="text-emerald-700 font-extrabold flex items-center gap-0.5 group-hover:translate-x-0.5 transition">
                               দেখুন
-                              <ChevronRight size={12} />
+                              <ChevronRight size={11} />
                             </span>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -2391,30 +2421,50 @@ export default function App() {
                     );
                   }
                   return (
-                    <div className="space-y-3">
-                      {savedList.map(s => (
-                        <div
-                          key={s.id}
-                          className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between"
-                        >
-                          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setSelectedService(s)}>
-                            <div className="w-10 h-10 bg-emerald-50 text-emerald-700 rounded-lg flex items-center justify-center">
-                              <IconComponent name={initialCategories.find(c => c.id === s.category_id)?.iconName || 'Grid'} />
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                      {savedList.map(s => {
+                        const cat = initialCategories.find(c => c.id === s.category_id);
+                        const style = getCategoryStyle(s.category_id);
+                        return (
+                          <div
+                            key={s.id}
+                            className="bg-white hover:bg-emerald-50/20 border border-slate-100 hover:border-emerald-200 p-3 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-sm transition group"
+                          >
+                            <div className="cursor-pointer" onClick={() => setSelectedService(s)}>
+                              <div className="flex items-center justify-between mb-2">
+                                <div className={`w-10 h-10 rounded-xl ${style.bg} ${style.text} flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition`}>
+                                  <IconComponent name={cat?.iconName || 'Grid'} className={style.text} />
+                                </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleSaveService(s.id);
+                                  }}
+                                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-full transition cursor-pointer"
+                                  title="সংরক্ষণ বাতিল"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                              <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold uppercase inline-block mb-1">
+                                {cat?.name || 'সেবা'}
+                              </span>
+                              <h3 className="text-xs font-extrabold text-slate-900 line-clamp-2 leading-tight">{s.name}</h3>
+                              <p className="text-[10px] text-slate-500 line-clamp-1 mt-1">{s.address}</p>
                             </div>
-                            <div>
-                              <h3 className="text-xs font-bold text-slate-900 leading-tight">{s.name}</h3>
-                              <p className="text-[10px] text-slate-400 mt-0.5">{s.address}</p>
+                            
+                            <div className="mt-3 pt-2 border-t border-slate-50 flex items-center justify-end">
+                              <button
+                                onClick={() => setSelectedService(s)}
+                                className="text-[10px] text-emerald-700 font-extrabold flex items-center gap-0.5 hover:underline cursor-pointer"
+                              >
+                                বিস্তারিত দেখুন
+                                <ChevronRight size={11} />
+                              </button>
                             </div>
                           </div>
-                          <button
-                            onClick={() => toggleSaveService(s.id)}
-                            className="p-2 text-red-500 hover:bg-red-50 rounded-full transition"
-                            title="সংরক্ষণ বাতিল"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   );
                 })()}
