@@ -314,7 +314,6 @@ export const initialCategories: Category[] = [
   { id: 'restaurant', name: 'রেস্টুরেন্ট', nameEn: 'Restaurant', iconName: 'Utensils' },
   { id: 'hotel', name: 'হোটেল', nameEn: 'Hotel', iconName: 'Bed' },
   { id: 'tourism', name: 'পর্যটন', nameEn: 'Tourism', iconName: 'Compass' },
-  { id: 'agriculture', name: 'কৃষি যন্ত্রপাতি ও সহায়তা', nameEn: 'Agricultural Equipment & Support', iconName: 'Tractor' },
   { id: 'emergency', name: 'জরুরি সেবা', nameEn: 'Emergency Service', iconName: 'AlertTriangle' },
   { id: 'citizen', name: 'নাগরিক সেবা', nameEn: 'Citizen Service', iconName: 'User' },
   { id: 'other', name: 'অন্যান্য সেবা', nameEn: 'Other Services', iconName: 'Grid' },

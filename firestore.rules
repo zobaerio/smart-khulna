@@ -24,9 +24,9 @@ service cloud.firestore {
 
     // 1. User Profiles: Public read for community directory, owner or admin write
     match /profiles/{userId} {
-      allow read: if true;
-      allow create: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
-      allow update: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+      allow read: if isAuthenticated(); // Authenticated users can read (including their own)
+      allow update: if request.auth.uid == userId || isSuperAdmin();
+      allow create: if request.auth.uid == userId || isSuperAdmin();
       allow delete: if isSuperAdmin();
     }
 
