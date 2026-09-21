@@ -149,7 +149,7 @@ export const PostCard: React.FC<PostCardProps> = ({
   };
 
   return (
-    <article className="bg-white rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-sm transition duration-200 overflow-hidden">
+    <article className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-sm transition duration-200 overflow-hidden text-slate-900 dark:text-slate-100">
       {/* CARD HEADER */}
       <div className="p-4 pb-3 flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -168,13 +168,13 @@ export const PostCard: React.FC<PostCardProps> = ({
             <div className="flex items-center gap-1.5 flex-wrap">
               <button
                 onClick={() => onViewProfile(post.authorId, post.authorName, post.authorEmail)}
-                className="text-sm font-bold text-slate-900 hover:text-emerald-700 cursor-pointer font-serif"
+                className="text-sm font-bold text-slate-900 dark:text-slate-100 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer font-serif"
               >
                 {post.authorName}
               </button>
               {renderBadge(post.authorBadge)}
             </div>
-            <div className="flex items-center gap-2 text-[11px] text-slate-500 flex-wrap">
+            <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 flex-wrap">
               <span>{formatTimestamp(post.createdAt)}</span>
               {districtObj && (
                 <>
@@ -200,7 +200,7 @@ export const PostCard: React.FC<PostCardProps> = ({
           </button>
 
           {showMenu && (
-            <div className="absolute right-0 top-8 z-30 w-44 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 text-xs text-slate-700 animate-in fade-in duration-150">
+            <div className="absolute right-0 top-8 z-30 w-44 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-800 py-1.5 text-xs text-slate-700 dark:text-slate-300 animate-in fade-in duration-150">
               {isAuthor ? (
                 <>
                   {onEditPost && (
@@ -251,7 +251,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                       setShowMenu(false);
                       onReport('post', post.id, post.title || post.content.slice(0, 30));
                     }}
-                    className="w-full text-left px-3.5 py-2 hover:bg-rose-50 text-rose-600 flex items-center gap-2 cursor-pointer font-medium border-t border-slate-100"
+                    className="w-full text-left px-3.5 py-2 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-600 flex items-center gap-2 cursor-pointer font-medium border-t border-slate-100 dark:border-slate-800"
                   >
                     <AlertTriangle size={13} /> পোস্ট রিপোর্ট করুন
                   </button>
@@ -265,11 +265,11 @@ export const PostCard: React.FC<PostCardProps> = ({
       {/* POST TITLE & CONTENT (WITH SEE MORE / SEE LESS TOGGLE) */}
       <div className="px-4 pb-3">
         {post.title && (
-          <h3 className="font-bold text-slate-900 text-sm font-serif mb-1 leading-snug">
+          <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm font-serif mb-1 leading-snug">
             {post.title}
           </h3>
         )}
-        <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">
+        <div className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">
           {getTruncatedContent()}
           {isLongContent && (
             <button
@@ -285,7 +285,7 @@ export const PostCard: React.FC<PostCardProps> = ({
         {(post.hashtags?.length || post.locationName) && (
           <div className="mt-2.5 flex items-center gap-2 flex-wrap text-[11px]">
             {post.locationName && (
-              <span className="inline-flex items-center gap-1 text-slate-500 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200/80">
+              <span className="inline-flex items-center gap-1 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 px-2 py-0.5 rounded-md border border-slate-200/80 dark:border-slate-800">
                 <MapPin size={10} className="text-emerald-600" />
                 {post.locationName}
               </span>
@@ -360,7 +360,7 @@ export const PostCard: React.FC<PostCardProps> = ({
 
       {/* COMMENTS SECTION */}
       {showComments && (
-        <div className="border-t border-slate-100 bg-slate-50/40 p-4 space-y-3">
+        <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/35 p-4 space-y-3">
           {/* Add Comment Input */}
           <form onSubmit={handleCommentSubmit} className="flex gap-2">
             <input
@@ -368,7 +368,7 @@ export const PostCard: React.FC<PostCardProps> = ({
               value={commentInput}
               onChange={e => setCommentInput(e.target.value)}
               placeholder="একটি মন্তব্য লিখুন..."
-              className="flex-1 bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none placeholder:text-slate-400"
+              className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-900 dark:text-slate-100"
             />
             <button
               type="submit"
@@ -388,17 +388,17 @@ export const PostCard: React.FC<PostCardProps> = ({
             <div className="space-y-3 pt-1">
               {comments.map(c => (
                 <div key={c.id} className="space-y-1.5">
-                  <div className="bg-white rounded-xl p-3 border border-slate-200/80 text-xs">
+                  <div className="bg-white dark:bg-slate-950 rounded-xl p-3 border border-slate-200/80 dark:border-slate-800/80 text-xs">
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => onViewProfile(c.authorId, c.authorName, c.authorEmail)}
-                          className="font-bold text-slate-900 hover:text-emerald-700 cursor-pointer"
+                          className="font-bold text-slate-900 dark:text-slate-100 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer"
                         >
                           {c.authorName}
                         </button>
                         {renderBadge(c.authorBadge)}
-                        <span className="text-[10px] text-slate-400">• {formatTimestamp(c.createdAt)}</span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500">• {formatTimestamp(c.createdAt)}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         {currentUserId === c.authorId && (
@@ -419,7 +419,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                         </button>
                       </div>
                     </div>
-                    <p className="text-slate-700 leading-relaxed">{c.content}</p>
+                    <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{c.content}</p>
 
                     {/* Reply toggle */}
                     <div className="mt-2 pt-1 flex items-center gap-3 text-[11px] text-slate-500">
@@ -440,16 +440,16 @@ export const PostCard: React.FC<PostCardProps> = ({
                       {c.replies.map(rep => (
                         <div
                           key={rep.id}
-                          className="bg-emerald-50/40 rounded-xl p-2.5 border border-emerald-100 text-xs"
+                          className="bg-emerald-50/40 dark:bg-emerald-950/20 rounded-xl p-2.5 border border-emerald-100 dark:border-emerald-900/40 text-xs"
                         >
                           <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-1.5">
-                              <span className="font-bold text-slate-900">{rep.authorName}</span>
+                              <span className="font-bold text-slate-900 dark:text-slate-100">{rep.authorName}</span>
                               {renderBadge(rep.authorBadge)}
-                              <span className="text-[10px] text-slate-400">• {formatTimestamp(rep.createdAt)}</span>
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500">• {formatTimestamp(rep.createdAt)}</span>
                             </div>
                           </div>
-                          <p className="text-slate-700 leading-relaxed">{rep.content}</p>
+                          <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{rep.content}</p>
                         </div>
                       ))}
                     </div>
@@ -463,7 +463,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                         value={replyInput}
                         onChange={e => setReplyInput(e.target.value)}
                         placeholder={`${c.authorName}-কে উত্তর দিন...`}
-                        className="flex-1 bg-white border border-emerald-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-emerald-600 focus:outline-none"
+                        className="flex-1 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-emerald-600 focus:outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                         autoFocus
                       />
                       <button

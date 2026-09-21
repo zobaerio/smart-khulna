@@ -71,7 +71,8 @@ import {
   Loader2,
   Tractor,
   Sun,
-  Moon
+  Moon,
+  Menu
 } from 'lucide-react';
 import { compressImage } from './lib/imageCompressor';
 import { auth, googleProvider, db } from './firebase';
@@ -203,6 +204,7 @@ export default function App() {
   });
   const [viewingDistrictId, setViewingDistrictId] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem('theme') === 'dark';
   });
@@ -1900,7 +1902,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col items-center font-sans">
+    <div className="min-h-screen w-full overflow-x-hidden bg-slate-50 dark:bg-slate-950 text-slate-800 flex flex-col items-center font-sans">
       {/* Animated Branded Launch Screen on cold start */}
       {showSplash && (
         <SplashScreen
@@ -1918,6 +1920,162 @@ export default function App() {
         onDismissReconnected={resetWasOffline}
       />
       <InstallPromptBanner />
+
+      {/* MOBILE DRAWER (Slide-out Navigation Menu) */}
+      {isDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex md:hidden">
+          {/* Overlay Backdrop with fade-in */}
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-300"
+            onClick={() => setIsDrawerOpen(false)}
+          ></div>
+
+          {/* Drawer content with slide-in animation */}
+          <div className="relative flex w-full max-w-xs flex-1 flex-col bg-slate-900 text-slate-100 p-6 shadow-2xl transition-transform duration-300 transform translate-x-0 border-r border-slate-800">
+            {/* Close Button */}
+            <button
+              onClick={() => setIsDrawerOpen(false)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition cursor-pointer"
+              aria-label="Close menu"
+            >
+              <X size={20} />
+            </button>
+
+            {/* Sidebar Branding */}
+            <div className="flex items-center gap-3 mb-6 mt-2">
+              <div className="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg border border-lime-400 shrink-0">
+                <span className="text-lg font-black text-white">K</span>
+              </div>
+              <div>
+                <h2 className="text-base font-bold tracking-tight text-white font-serif">স্মার্ট খুলনা</h2>
+                <p className="text-[9px] text-lime-400 font-medium">Smart Khulna local platform</p>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-400 leading-relaxed mb-4 font-serif">
+              খুলনা বিভাগের সকল জেলা, জরুরি যোগাযোগ, স্বাস্থ্যসেবা ও পেশাজীবীদের তথ্য নিয়ে সম্পূর্ণ ডিজিটালাইজড লোকাল-সার্ভিস ডিরেক্টরি।
+            </p>
+
+            {/* Navigation Links */}
+            <div className="space-y-1.5 flex-1 overflow-y-auto mb-4 scrollbar-none">
+              <button
+                onClick={() => {
+                  navigateTo('home');
+                  setIsDrawerOpen(false);
+                }}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
+                  activeTab === 'home' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <span className="flex items-center gap-2.5"><Home size={16} /> হোম পেজ</span>
+              </button>
+              <button
+                onClick={() => {
+                  navigateTo('services');
+                  setIsDrawerOpen(false);
+                }}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
+                  activeTab === 'services' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <span className="flex items-center gap-2.5"><Grid size={16} /> সকল নাগরিক সেবা</span>
+              </button>
+              <button
+                onClick={() => {
+                  navigateTo('community');
+                  setIsDrawerOpen(false);
+                }}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
+                  activeTab === 'community' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <span className="flex items-center gap-2.5"><Users size={16} /> কমিউনিটি সোশ্যাল ফিড</span>
+                <span className="text-[9px] bg-emerald-700/80 text-lime-300 px-1.5 py-0.5 rounded-full font-bold">নতুন</span>
+              </button>
+              <button
+                onClick={() => {
+                  navigateTo('messages');
+                  setIsDrawerOpen(false);
+                }}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
+                  activeTab === 'messages' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <span className="flex items-center gap-2.5"><MessageSquare size={16} /> ব্যক্তিগত মেসেজ</span>
+                {totalUnreadMessages > 0 && (
+                  <span className="text-[9px] bg-emerald-500 text-white px-1.5 py-0.5 rounded-full font-bold">
+                    {totalUnreadMessages}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  navigateTo('saved');
+                  setIsDrawerOpen(false);
+                }}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
+                  activeTab === 'saved' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <span className="flex items-center gap-2.5"><Heart size={16} /> সংরক্ষিত সেবা</span>
+              </button>
+              <button
+                onClick={() => {
+                  navigateTo('add');
+                  setIsDrawerOpen(false);
+                }}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
+                  activeTab === 'add' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <span className="flex items-center gap-2.5"><Plus size={16} /> নতুন তথ্য যোগ করুন</span>
+              </button>
+
+              {/* District Active Panel */}
+              <div className="mt-4 bg-slate-800/85 p-3 rounded-xl border border-slate-700">
+                <p className="text-[10px] text-lime-400 font-bold uppercase tracking-wider mb-1">সক্রিয় জেলা</p>
+                <p className="text-base font-extrabold text-white flex items-center gap-1.5">
+                  <MapPin size={16} className="text-emerald-500" />
+                  {initialDistricts.find(d => d.id === selectedDistrict)?.name} জেলা
+                </p>
+              </div>
+
+              {/* Stats Grid inside mobile drawer */}
+              <div className="grid grid-cols-2 gap-1.5 text-[10px] text-slate-400 pt-1">
+                <div className="bg-slate-800/60 p-1.5 rounded text-center">
+                  <span className="block text-white font-bold">{stats.publishedServices}+</span>
+                  প্রকাশিত সেবা
+                </div>
+                <div className="bg-slate-800/60 p-1.5 rounded text-center">
+                  <span className="block text-lime-400 font-bold">১০টি জেলা</span>
+                  কাভারেজ
+                </div>
+              </div>
+            </div>
+
+            {/* Admin trigger and footer */}
+            <div className="space-y-3">
+              {(userProfile?.role === 'super_admin' || userProfile?.role === 'sub_admin') && (
+                <button
+                  onClick={() => {
+                    setAdminView('dashboard');
+                    setActiveTab('profile');
+                    setIsDrawerOpen(false);
+                  }}
+                  className="w-full bg-lime-500 hover:bg-lime-400 text-slate-950 font-bold py-2 px-4 rounded-xl flex items-center justify-center gap-2 transition duration-200 text-xs shadow-md cursor-pointer"
+                >
+                  <Shield size={14} />
+                  অ্যাডমিন ড্যাশবোর্ড
+                </button>
+              )}
+
+              <div className="text-[10px] text-slate-500 text-center border-t border-slate-800 pt-3 font-serif">
+                স্মার্ট খুলনা প্ল্যাটফর্ম © ২০২৬<br />সকল স্বত্ব সংরক্ষিত।
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
 
 
@@ -2068,7 +2226,15 @@ export default function App() {
           
           {/* MOBILE HEADER (Visually aligned to the Netrokona Reference Screenshot) */}
           <header className="sticky top-0 bg-white dark:bg-slate-950 border-b border-emerald-100 dark:border-slate-800 px-4 py-3 flex items-center justify-between z-10 shadow-sm">
-            <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigateTo('home')}>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsDrawerOpen(true)}
+                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-850 rounded-lg text-slate-700 dark:text-slate-300 md:hidden cursor-pointer"
+                aria-label="Open menu"
+              >
+                <Menu size={20} />
+              </button>
+              <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigateTo('home')}>
               <div className="w-9 h-9 bg-emerald-700 rounded-xl flex items-center justify-center text-white font-black text-sm border border-lime-400 shrink-0 shadow-inner">
                 K
               </div>
@@ -2079,6 +2245,7 @@ export default function App() {
                 </div>
                 <span className="text-[10px] text-slate-500 dark:text-slate-400 block -mt-1 font-serif">খুলনা বিভাগের সকল সেবা একসাথে</span>
               </div>
+            </div>
             </div>
 
             <div className="flex items-center gap-1.5">
@@ -3961,14 +4128,16 @@ export default function App() {
 
 
           {/* PERSISTENT BOTTOM NAVIGATION (5 Tab structure: Home, Services, Community, Messages, Profile) */}
-          <nav className="fixed bottom-0 left-0 right-0 md:absolute md:bottom-0 bg-white border-t border-slate-200 py-2 px-3 flex justify-around items-center z-10 shadow-lg">
+          <nav className="fixed bottom-0 left-0 right-0 md:absolute md:bottom-0 bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 py-2 px-3 flex justify-around items-center z-10 shadow-lg">
             <button
               onClick={() => {
                 setActiveTab('home');
                 setViewingDistrictId(null);
               }}
               className={`flex flex-col items-center gap-1 text-[10px] font-bold transition flex-1 cursor-pointer ${
-                activeTab === 'home' && !viewingDistrictId ? 'text-emerald-700' : 'text-slate-400 hover:text-slate-600'
+                activeTab === 'home' && !viewingDistrictId 
+                  ? 'text-emerald-700 dark:text-emerald-400' 
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
               }`}
             >
               <Home size={18} />
@@ -3981,33 +4150,39 @@ export default function App() {
                 setViewingDistrictId(null);
               }}
               className={`flex flex-col items-center gap-1 text-[10px] font-bold transition flex-1 cursor-pointer ${
-                activeTab === 'services' ? 'text-emerald-700' : 'text-slate-400 hover:text-slate-600'
+                activeTab === 'services' 
+                  ? 'text-emerald-700 dark:text-emerald-400' 
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
               }`}
             >
               <Grid size={18} />
               সেবা
             </button>
-
+ 
             <button
               onClick={() => {
                 setActiveTab('community');
                 setViewingDistrictId(null);
               }}
               className={`flex flex-col items-center gap-1 text-[10px] font-bold transition flex-1 cursor-pointer relative ${
-                activeTab === 'community' ? 'text-emerald-700' : 'text-slate-400 hover:text-slate-600'
+                activeTab === 'community' 
+                  ? 'text-emerald-700 dark:text-emerald-400' 
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
               }`}
             >
               <Users size={18} />
               কমিউনিটি
             </button>
-
+ 
             <button
               onClick={() => {
                 setActiveTab('messages');
                 setViewingDistrictId(null);
               }}
               className={`flex flex-col items-center gap-1 text-[10px] font-bold transition flex-1 cursor-pointer relative ${
-                activeTab === 'messages' ? 'text-emerald-700' : 'text-slate-400 hover:text-slate-600'
+                activeTab === 'messages' 
+                  ? 'text-emerald-700 dark:text-emerald-400' 
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
               }`}
             >
               <div className="relative">
@@ -4020,14 +4195,16 @@ export default function App() {
               </div>
               মেসেজ
             </button>
-
+ 
             <button
               onClick={() => {
                 setActiveTab('profile');
                 setViewingDistrictId(null);
               }}
               className={`flex flex-col items-center gap-1 text-[10px] font-bold transition flex-1 cursor-pointer ${
-                activeTab === 'profile' ? 'text-emerald-700' : 'text-slate-400 hover:text-slate-600'
+                activeTab === 'profile' 
+                  ? 'text-emerald-700 dark:text-emerald-400' 
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
               }`}
             >
               <User size={18} />
