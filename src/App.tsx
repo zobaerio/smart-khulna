@@ -66,7 +66,7 @@ import {
   LayoutGrid
 } from 'lucide-react';
 import { auth, googleProvider, db } from './firebase';
-import { signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged, updateProfile } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged, updateProfile, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import {
   collection,
   doc,
@@ -245,6 +245,15 @@ export default function App() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editDisplayName, setEditDisplayName] = useState('');
   const [editPhotoURL, setEditPhotoURL] = useState('');
+  const [editBio, setEditBio] = useState('');
+  const [editFacebook, setEditFacebook] = useState('');
+  const [editTwitter, setEditTwitter] = useState('');
+  const [editInstagram, setEditInstagram] = useState('');
+  const [editWebsite, setEditWebsite] = useState('');
+  const [emailAuthMode, setEmailAuthMode] = useState<'login' | 'register'>('login');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authName, setAuthName] = useState('');
 
   // Gemini AI Grounding States
   const [isGroundingLoading, setIsGroundingLoading] = useState(false);
@@ -410,8 +419,9 @@ export default function App() {
         const displayName = firebaseUser.displayName || 'ব্যবহারকারী';
         const photoURL = firebaseUser.photoURL || '';
         
-        // Define initial roles. Check if super admin by email
-        const isSuperAdminEmail = ['zobaerhasan431@gmail.com', 'zobaerio24@gmail.com'].includes(email);
+        // Define initial roles. Check if super admin by email (case-insensitive)
+        const cleanEmail = email.trim().toLowerCase();
+        const isSuperAdminEmail = ['zobaerhasan431@gmail.com', 'zobaerio24@gmail.com'].includes(cleanEmail);
         
         // Try to fetch from Firestore
         const userDocRef = doc(db, 'profiles', firebaseUser.uid);
@@ -516,6 +526,23 @@ export default function App() {
     }
   };
 
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert('ছবির সাইজ ২ মেগাবাইটের কম হতে হবে।');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setEditPhotoURL(event.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth.currentUser) return;
@@ -524,12 +551,45 @@ export default function App() {
         displayName: editDisplayName,
         photoURL: editPhotoURL
       });
-      setUserProfile(prev => prev ? { ...prev, name: editDisplayName, avatar: editPhotoURL } : null);
+
+      const userDocRef = doc(db, 'profiles', auth.currentUser.uid);
+      const updatedProfileData = {
+        name: editDisplayName,
+        avatar: editPhotoURL,
+        bio: editBio,
+        facebook: editFacebook,
+        twitter: editTwitter,
+        instagram: editInstagram,
+        website: editWebsite
+      };
+      await setDoc(userDocRef, updatedProfileData, { merge: true });
+
+      setUserProfile(prev => prev ? { ...prev, ...updatedProfileData } : null);
       setIsEditingProfile(false);
-      await logAction('প্রোফাইল আপডেট', `${auth.currentUser.email} নিজের নাম ও প্রোফাইল ছবি আপডেট করেছেন`);
+      await logAction('প্রোফাইল আপডেট', `${auth.currentUser.email} নিজের প্রোফাইল, বায়ো ও সোশ্যাল মিডিয়া লিংক আপডেট করেছেন`);
       alert('প্রোফাইল সফলভাবে আপডেট করা হয়েছে!');
     } catch (err: any) {
       alert('প্রোফাইল আপডেট করতে সমস্যা হয়েছে: ' + (err.message || err));
+    }
+  };
+
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (emailAuthMode === 'register') {
+        const res = await createUserWithEmailAndPassword(auth, authEmail, authPassword);
+        if (authName.trim() && res.user) {
+          await updateProfile(res.user, { displayName: authName.trim() });
+        }
+        await logAction('ব্যবহারকারী নিবন্ধন', `${authEmail} সফলভাবে রেজিস্টার করেছেন`);
+        alert('নিবন্ধন সফল হয়েছে!');
+      } else {
+        const res = await signInWithEmailAndPassword(auth, authEmail, authPassword);
+        await logAction('ব্যবহারকারী লগইন', `${res.user.email} সফলভাবে লগইন করেছেন`);
+        alert('লগইন সফল হয়েছে!');
+      }
+    } catch (err: any) {
+      alert('অথেন্টিকেশন ত্রুটি: ' + (err.message || err));
     }
   };
 
@@ -2520,12 +2580,13 @@ export default function App() {
               <div className="space-y-4">
                 {/* 1. AUTH GUEST OR USER CARD */}
                 {!currentUser ? (
-                  <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center space-y-4 shadow-sm">
-                    <User className="text-emerald-700 mx-auto" size={44} />
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-900">স্মার্ট খুলনা একাউন্ট</h3>
-                      <p className="text-xs text-slate-500 mt-1">আপনার সংরক্ষিত ডাটা সিঙ্ক করতে এবং নতুন তথ্য যুক্ত করার ট্র্যাক রাখতে অ্যাকাউন্ট লগইন করুন।</p>
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-sm text-left">
+                    <div className="text-center">
+                      <User className="text-emerald-700 mx-auto mb-2" size={40} />
+                      <h3 className="text-sm font-bold text-slate-900">স্মার্ট খুলনা অ্যাকাউন্ট</h3>
+                      <p className="text-xs text-slate-500 mt-1">গুগল দিয়ে অথবা ইমেইল দিয়ে রেজিস্টার বা লগইন করুন।</p>
                     </div>
+
                     <button
                       onClick={handleGoogleLogin}
                       className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-sm cursor-pointer"
@@ -2533,7 +2594,76 @@ export default function App() {
                       <Sparkles size={14} className="text-lime-300" />
                       Google অ্যাকাউন্ট দিয়ে লগইন করুন
                     </button>
-                    <p className="text-[10px] text-slate-400">আমরা আপনার তথ্যের গোপনীয়তা ও সুরক্ষা নিশ্চিত করি।</p>
+
+                    <div className="relative flex py-1 items-center">
+                      <div className="flex-grow border-t border-slate-200"></div>
+                      <span className="flex-shrink mx-4 text-slate-400 text-[10px]">অথবা ইমেইল দিয়ে</span>
+                      <div className="flex-grow border-t border-slate-200"></div>
+                    </div>
+
+                    {/* Toggle Login vs Register */}
+                    <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-bold text-center">
+                      <button
+                        type="button"
+                        onClick={() => setEmailAuthMode('login')}
+                        className={`flex-1 py-1.5 rounded-lg transition cursor-pointer ${emailAuthMode === 'login' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'}`}
+                      >
+                        লগইন
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEmailAuthMode('register')}
+                        className={`flex-1 py-1.5 rounded-lg transition cursor-pointer ${emailAuthMode === 'register' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'}`}
+                      >
+                        রেজিস্ট্রেশন
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleEmailAuth} className="space-y-3">
+                      {emailAuthMode === 'register' && (
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">আপনার নাম</label>
+                          <input
+                            type="text"
+                            value={authName}
+                            onChange={(e) => setAuthName(e.target.value)}
+                            required
+                            placeholder="পূর্ণ নাম লিখুন"
+                            className="w-full border border-slate-200 p-2 rounded-xl text-xs focus:ring-1 focus:ring-emerald-700 outline-none bg-white"
+                          />
+                        </div>
+                      )}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">ইমেইল ঠিকানা</label>
+                        <input
+                          type="email"
+                          value={authEmail}
+                          onChange={(e) => setAuthEmail(e.target.value)}
+                          required
+                          placeholder="example@gmail.com"
+                          className="w-full border border-slate-200 p-2 rounded-xl text-xs focus:ring-1 focus:ring-emerald-700 outline-none bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">পাসওয়ার্ড</label>
+                        <input
+                          type="password"
+                          value={authPassword}
+                          onChange={(e) => setAuthPassword(e.target.value)}
+                          required
+                          minLength={6}
+                          placeholder="কমপক্ষে ৬ অক্ষরের পাসওয়ার্ড"
+                          className="w-full border border-slate-200 p-2 rounded-xl text-xs focus:ring-1 focus:ring-emerald-700 outline-none bg-white"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition cursor-pointer shadow-sm"
+                      >
+                        {emailAuthMode === 'register' ? 'অ্যাকাউন্ট তৈরি করুন (Register)' : 'লগইন করুন (Login)'}
+                      </button>
+                    </form>
+                    <p className="text-[10px] text-slate-400 text-center">আমরা আপনার তথ্যের গোপনীয়তা ও সুরক্ষা নিশ্চিত করি।</p>
                   </div>
                 ) : (
                   <div className="bg-gradient-to-br from-slate-900 to-emerald-950 text-white rounded-2xl p-5 shadow-md flex items-center justify-between">
@@ -2566,13 +2696,18 @@ export default function App() {
                 {currentUser && (
                   <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold text-slate-800">প্রোফাইল তথ্য পরিবর্তন (নাম ও ছবি)</h4>
+                      <h4 className="text-xs font-bold text-slate-800">প্রোফাইল তথ্য, ছবি ও সোশ্যাল লিংক পরিবর্তন</h4>
                       <button
                         onClick={() => {
                           setIsEditingProfile(!isEditingProfile);
                           if (!isEditingProfile && currentUser) {
-                            setEditDisplayName(currentUser.displayName || '');
-                            setEditPhotoURL(currentUser.photoURL || '');
+                            setEditDisplayName(currentUser.displayName || userProfile?.name || '');
+                            setEditPhotoURL(currentUser.photoURL || userProfile?.avatar || '');
+                            setEditBio(userProfile?.bio || '');
+                            setEditFacebook(userProfile?.facebook || '');
+                            setEditTwitter(userProfile?.twitter || '');
+                            setEditInstagram(userProfile?.instagram || '');
+                            setEditWebsite(userProfile?.website || '');
                           }
                         }}
                         className="text-xs text-emerald-700 font-bold hover:underline cursor-pointer"
@@ -2595,13 +2730,67 @@ export default function App() {
                           />
                         </div>
                         <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">প্রোফাইল ছবির লিংক (Image URL)</label>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">প্রোফাইল ছবি আপলোড করুন</label>
+                          <div className="flex items-center gap-3">
+                            {editPhotoURL && (
+                              <img src={editPhotoURL} alt="Preview" className="w-10 h-10 rounded-full object-cover border border-slate-300" />
+                            )}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleAvatarFileChange}
+                              className="w-full border border-slate-200 p-1.5 rounded-lg text-xs bg-white text-slate-600 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">বায়ো / নিজের সম্পর্কে (Bio)</label>
+                          <textarea
+                            value={editBio}
+                            onChange={(e) => setEditBio(e.target.value)}
+                            rows={2}
+                            className="w-full border border-slate-200 p-2 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700 resize-none"
+                            placeholder="নিজের সম্পর্কে কিছু লিখুন..."
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">ফেসবুক প্রোফাইল/পেইজ লিংক</label>
                           <input
                             type="url"
-                            value={editPhotoURL}
-                            onChange={(e) => setEditPhotoURL(e.target.value)}
+                            value={editFacebook}
+                            onChange={(e) => setEditFacebook(e.target.value)}
                             className="w-full border border-slate-200 p-2 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700"
-                            placeholder="https://example.com/avatar.jpg"
+                            placeholder="https://facebook.com/username"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">টুইটার / এক্স (Twitter/X) লিংক</label>
+                          <input
+                            type="url"
+                            value={editTwitter}
+                            onChange={(e) => setEditTwitter(e.target.value)}
+                            className="w-full border border-slate-200 p-2 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700"
+                            placeholder="https://twitter.com/username"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">ইনস্টাগ্রাম (Instagram) লিংক</label>
+                          <input
+                            type="url"
+                            value={editInstagram}
+                            onChange={(e) => setEditInstagram(e.target.value)}
+                            className="w-full border border-slate-200 p-2 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700"
+                            placeholder="https://instagram.com/username"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">ব্যক্তিগত ওয়েবসাইট বা পোর্টফোলিও</label>
+                          <input
+                            type="url"
+                            value={editWebsite}
+                            onChange={(e) => setEditWebsite(e.target.value)}
+                            className="w-full border border-slate-200 p-2 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700"
+                            placeholder="https://example.com"
                           />
                         </div>
                         <button

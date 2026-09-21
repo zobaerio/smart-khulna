@@ -68,6 +68,11 @@ export interface UserProfile {
   email: string;
   phone?: string;
   avatar?: string;
+  bio?: string;
+  facebook?: string;
+  twitter?: string;
+  instagram?: string;
+  website?: string;
   role: 'super_admin' | 'sub_admin' | 'user';
   selectedDistrict?: string;
   savedServices?: string[];
