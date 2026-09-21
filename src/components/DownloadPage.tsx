@@ -123,12 +123,8 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
 
         <div className="max-w-md mx-auto relative z-10 flex flex-col items-center">
           {/* Logo badge */}
-          <div className="w-20 h-20 bg-white rounded-2xl shadow-xl p-2 flex items-center justify-center mb-4">
-            <img 
-              src="/file_0000000078dc81fabee4e5a0d47f7348.png" 
-              alt="Smart Khulna Logo" 
-              className="w-full h-full object-contain rounded-xl" 
-            />
+          <div className="w-20 h-20 bg-white rounded-2xl shadow-xl p-3 flex items-center justify-center mb-4">
+            <img src="/icon.svg" alt="Smart Khulna Logo" className="w-full h-full object-contain" />
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-bold mb-2">
@@ -699,7 +695,7 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
                   level="H"
                   includeMargin={true}
                   imageSettings={{
-                    src: '/file_0000000078dc81fabee4e5a0d47f7348.png',
+                    src: '/icon.svg',
                     x: undefined,
                     y: undefined,
                     height: 36,

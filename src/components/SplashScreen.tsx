@@ -32,13 +32,9 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
     >
       <div className="flex flex-col items-center max-w-xs text-center px-6 animate-pulse">
         {/* Logo Monogram */}
-        <div className="w-24 h-24 rounded-3xl bg-white shadow-2xl p-2 flex items-center justify-center mb-6 relative overflow-hidden">
+        <div className="w-24 h-24 rounded-3xl bg-white shadow-2xl p-4 flex items-center justify-center mb-6 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-tr from-emerald-100 to-emerald-50 opacity-60" />
-          <img 
-            src="/file_0000000078dc81fabee4e5a0d47f7348.png" 
-            alt="Smart Khulna" 
-            className="w-full h-full object-contain relative z-10 rounded-2xl" 
-          />
+          <img src="/icon.svg" alt="Smart Khulna" className="w-full h-full object-contain relative z-10" />
         </div>
 
         {/* Brand Name */}
