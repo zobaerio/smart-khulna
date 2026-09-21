@@ -222,64 +222,7 @@ export const initialCommunityComments = {
   ]
 };
 
-export const initialSampleUsers: PublicUserProfile[] = [
-  {
-    uid: 'user_khulna_admin',
-    name: 'স্মার্ট খুলনা তথ্য সেবা (Admin)',
-    email: 'zobaerhasan431@gmail.com',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80',
-    bio: 'স্মার্ট খুলনা ডিজিটাল নাগরিক সেবা ও কমিউনিটি তথ্য সমন্বয়কারী। খুলনা বিভাগের ১০ জেলার নাগরিক সেবা দ্রুত পৌঁছে দেওয়াই আমাদের লক্ষ্য।',
-    district: 'khulna',
-    joinedDate: 'জানুয়ারি ২০২৪',
-    badge: 'admin',
-    postsCount: 42,
-    followersCount: 528,
-    followingCount: 15,
-    isOnline: true
-  },
-  {
-    uid: 'user_bagerhat_heritage',
-    name: 'তানভীর আহমেদ',
-    email: 'tanvir.bagerhat@gmail.com',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80',
-    bio: 'বাগেরহাটের স্থানীয় গাইড ও প্রত্নতাত্ত্বিক ঐতিহ্য অনুরাগী। ষাট গম্বুজ ও সুন্দরবনের সৌন্দর্য প্রচারে নিবেদিত।',
-    district: 'bagerhat',
-    joinedDate: 'মার্চ ২০২৪',
-    badge: 'verified_citizen',
-    postsCount: 18,
-    followersCount: 142,
-    followingCount: 39,
-    isOnline: true
-  },
-  {
-    uid: 'user_jashore_benapole',
-    name: 'মোস্তাফিজুর রহমান',
-    email: 'mustafiz.jashore@yahoo.com',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&q=80',
-    bio: 'যশোরের আইটি পেশাজীবী ও টেক উদ্যোক্তা। যশোর আইটি পার্কের কমিউনিটি সংগঠক।',
-    district: 'jashore',
-    joinedDate: 'ফেব্রুয়ারি ২০২৪',
-    badge: 'verified_citizen',
-    postsCount: 29,
-    followersCount: 210,
-    followingCount: 45,
-    isOnline: false
-  },
-  {
-    uid: 'user_satkhira_eco',
-    name: 'সাদিয়া তাসনিম',
-    email: 'sadia.satkhira@outlook.com',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&q=80',
-    bio: 'সাতক্ষীরা সুন্দরবন ইকোট্যুরিজম ও সামাজিক গবেষক। উপকূলীয় দুর্যোগ ব্যবস্থাপনা কর্মী।',
-    district: 'satkhira',
-    joinedDate: 'এপ্রিল ২০২৪',
-    badge: 'verified_citizen',
-    postsCount: 15,
-    followersCount: 185,
-    followingCount: 62,
-    isOnline: true
-  }
-];
+export const initialSampleUsers: PublicUserProfile[] = [];
 
 export const initialSampleConversations: Conversation[] = [
   {
