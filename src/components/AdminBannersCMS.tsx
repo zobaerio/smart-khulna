@@ -16,9 +16,13 @@ import {
   Upload,
   ArrowRight,
   SlidersHorizontal,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
+import { Icon } from './ui/Icon';
 import { Banner, District, landmarkImagePresets } from '../dbData';
+import { compressImage } from '../lib/imageCompressor';
+
 
 interface AdminBannersCMSProps {
   banners: Banner[];
@@ -48,6 +52,7 @@ export const AdminBannersCMS: React.FC<AdminBannersCMSProps> = ({
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
   const [previewBanner, setPreviewBanner] = useState<Banner | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCompressingImage, setIsCompressingImage] = useState(false);
 
   // Form Fields
   const [formTitle, setFormTitle] = useState('');
@@ -91,23 +96,32 @@ export const AdminBannersCMS: React.FC<AdminBannersCMSProps> = ({
   };
 
   // Handle Image Upload via File
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check size limit (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      alert('ছবির সাইজ ২ মেগাবাইট এর কম হতে হবে');
+    // Check size limit (allow up to 10MB, which gets compressed)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('ছবির সাইজ ১০ মেগাবাইট এর কম হতে হবে');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setFormImage(event.target.result as string);
-      }
-    };
-    reader.readAsDataURL(file);
+    setIsCompressingImage(true);
+    try {
+      const compressedDataUrl = await compressImage(file, 1200, 600, 0.85);
+      setFormImage(compressedDataUrl);
+    } catch (err) {
+      console.warn('Image compression fallback to FileReader:', err);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setFormImage(event.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsCompressingImage(false);
+    }
   };
 
   // Save Banner (Add or Update)
@@ -361,7 +375,7 @@ export const AdminBannersCMS: React.FC<AdminBannersCMSProps> = ({
       {/* Banners Grid */}
       {filteredBanners.length === 0 ? (
         <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-10 text-center space-y-3">
-          <ImageIcon className="mx-auto text-slate-300" size={40} />
+          <Icon icon={ImageIcon} className="mx-auto text-slate-300" size={40} interactive />
           <h4 className="text-sm font-bold text-slate-700">কোনো ব্যানার খুঁজে পাওয়া যায়নি</h4>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
             নির্বাচিত জেলা বা ফিল্টারে কোনো ব্যানার পাওয়া যায়নি। নতুন ব্যানার যোগ করতে উপরের বোতামে চাপুন।

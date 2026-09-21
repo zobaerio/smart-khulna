@@ -170,14 +170,14 @@ const getCategoryStyle = (catId: string) => {
 };
 
 // Dynamic Icon Component
-const IconComponent = ({ name, className }: { name: string; className?: string }) => {
+const IconComponent = ({ name, className, size = 18, strokeWidth = 1.5 }: { name: string; className?: string; size?: number; strokeWidth?: number }) => {
   const icons: Record<string, any> = {
     Building2, HeartPulse, GraduationCap, Bus, Landmark, Truck, Scale, MapPin, Sprout,
     Briefcase, Home, HardHat, UserCheck, Car, Zap, Wrench, Settings, Utensils, Bed, Compass, Grid,
     PhoneCall, Info, ShieldAlert, Shield, Flame, Ambulance, Sparkles, BarChart2, Plus, Bell, Clock, Edit2, LayoutGrid
   };
   const Comp = icons[name] || Grid;
-  return <Comp className={className} size={18} />;
+  return <Comp className={className} size={size} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />;
 };
 
 export default function App() {
@@ -1544,7 +1544,7 @@ export default function App() {
     }
   };
 
-  const handleStartMessage = (targetUid: string, targetName: string, targetEmail: string) => {
+  const handleStartMessage = async (targetUid: string, targetName: string, targetEmail: string) => {
     if (!requireAuth('বার্তা পাঠানো')) return;
     if (targetUid === currentUser.uid) {
       alert('নিজের সাথে মেসেজ আদান-প্রদান করা সম্ভব নয়।');
@@ -1580,7 +1580,15 @@ export default function App() {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
-      setConversations(prev => [existing!, ...prev]);
+      
+      try {
+        await setDoc(doc(db, 'conversations', newConvId), existing);
+        setConversations(prev => [existing!, ...prev]);
+      } catch (err) {
+        console.error('Failed to create conversation:', err);
+        alert('কথোপকথন শুরু করতে সমস্যা হয়েছে।');
+        return;
+      }
     }
 
     setActiveConversationId(existing.id);
@@ -1588,7 +1596,7 @@ export default function App() {
     setShowUserProfileModal(false);
   };
 
-  const handleSendMessage = (conversationId: string, text: string, attachmentsOrMediaUrl?: any, mediaType?: 'image' | 'file') => {
+  const handleSendMessage = async (conversationId: string, text: string, attachmentsOrMediaUrl?: any, mediaType?: 'image' | 'file') => {
     if (!currentUser) return;
     const conv = conversations.find(c => c.id === conversationId);
     if (!conv) return;
@@ -1596,17 +1604,8 @@ export default function App() {
     const otherUid = conv.participantIds.find(uid => uid !== currentUser.uid) || '';
 
     let attachments: any[] = [];
-    let mediaUrl: string | undefined = undefined;
-    let finalMediaType: 'image' | 'file' | undefined = mediaType;
-
     if (Array.isArray(attachmentsOrMediaUrl)) {
       attachments = attachmentsOrMediaUrl;
-      if (attachments.length > 0) {
-        mediaUrl = attachments[0].url;
-        finalMediaType = attachments[0].type === 'image' ? 'image' : 'file';
-      }
-    } else if (typeof attachmentsOrMediaUrl === 'string') {
-      mediaUrl = attachmentsOrMediaUrl;
     }
 
     const newMsg: ChatMessage = {
@@ -1622,31 +1621,55 @@ export default function App() {
       createdAt: new Date().toISOString()
     };
 
-    setMessagesMap(prev => ({
-      ...prev,
-      [conversationId]: [...(prev[conversationId] || []), newMsg]
-    }));
+    // Save to Firestore
+    try {
+      // 1. Add Message
+      await addDoc(collection(db, 'conversations', conversationId, 'messages'), newMsg);
+      
+      // 2. Update Conversation
+      const convRef = doc(db, 'conversations', conversationId);
+      await updateDoc(convRef, {
+        lastMessage: {
+          text: newMsg.text || (attachments.length > 0 && attachments[0].type === 'image' ? '📷 ছবি' : '📎 ফাইল'),
+          senderId: newMsg.senderId,
+          senderName: newMsg.senderName,
+          timestamp: newMsg.createdAt,
+          isRead: false
+        },
+        updatedAt: new Date().toISOString(),
+        ['unreadCounts.' + otherUid]: (conv.unreadCounts?.[otherUid] || 0) + 1
+      });
+      
+      // 3. Update Local State (as before)
+      setMessagesMap(prev => ({
+        ...prev,
+        [conversationId]: [...(prev[conversationId] || []), newMsg]
+      }));
 
-    setConversations(prev => prev.map(c => {
-      if (c.id === conversationId) {
-        return {
-          ...c,
-          lastMessage: {
-            text: newMsg.text || (attachments.length > 0 && attachments[0].type === 'image' ? '📷 ছবি' : '📎 ফাইল'),
-            senderId: newMsg.senderId,
-            senderName: newMsg.senderName,
-            timestamp: newMsg.createdAt,
-            isRead: false
-          },
-          updatedAt: new Date().toISOString(),
-          unreadCounts: {
-            ...c.unreadCounts,
-            [otherUid]: (c.unreadCounts?.[otherUid] || 0) + 1
-          }
-        };
-      }
-      return c;
-    }));
+      setConversations(prev => prev.map(c => {
+        if (c.id === conversationId) {
+          return {
+            ...c,
+            lastMessage: {
+              text: newMsg.text || (attachments.length > 0 && attachments[0].type === 'image' ? '📷 ছবি' : '📎 ফাইল'),
+              senderId: newMsg.senderId,
+              senderName: newMsg.senderName,
+              timestamp: newMsg.createdAt,
+              isRead: false
+            },
+            updatedAt: new Date().toISOString(),
+            unreadCounts: {
+              ...c.unreadCounts,
+              [otherUid]: (c.unreadCounts?.[otherUid] || 0) + 1
+            }
+          };
+        }
+        return c;
+      }));
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      alert('মেসেজ পাঠাতে সমস্যা হয়েছে।');
+    }
 
     if (otherUid) {
       const summaryText = text
@@ -1673,16 +1696,31 @@ export default function App() {
     }
   };
 
-  const handleDeleteMessage = (conversationId: string, messageId: string) => {
-    setMessagesMap(prev => ({
-      ...prev,
-      [conversationId]: (prev[conversationId] || []).filter(m => m.id !== messageId)
-    }));
+  const handleDeleteMessage = async (conversationId: string, messageId: string) => {
+    try {
+      await deleteDoc(doc(db, 'conversations', conversationId, 'messages', messageId));
+      setMessagesMap(prev => ({
+        ...prev,
+        [conversationId]: (prev[conversationId] || []).filter(m => m.id !== messageId)
+      }));
+    } catch (err) {
+      console.error('Failed to delete message:', err);
+      alert('মেসেজটি মুছতে সমস্যা হয়েছে।');
+    }
   };
 
-  const handleDeleteConversation = (conversationId: string) => {
-    if (!window.confirm('আপনি কি এই কথোপকথনটি আপনার ভিউ থেকে মুছে ফেলতে চান?')) return;
-    setConversations(prev => prev.filter(c => c.id !== conversationId));
+  const handleDeleteConversation = async (conversationId: string) => {
+    if (!currentUser || !window.confirm('আপনি কি এই কথোপকথনটি আপনার ভিউ থেকে মুছে ফেলতে চান?')) return;
+    try {
+      const convRef = doc(db, 'conversations', conversationId);
+      await updateDoc(convRef, {
+        hiddenForUserIds: [...(conversations.find(c => c.id === conversationId)?.hiddenForUserIds || []), currentUser.uid]
+      });
+      setConversations(prev => prev.filter(c => c.id !== conversationId));
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+      alert('কথোপকথনটি মুছতে সমস্যা হয়েছে।');
+    }
   };
 
   const handleBlockUser = (targetUid: string) => {

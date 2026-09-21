@@ -11,6 +11,7 @@ import {
   AlertCircle,
   Megaphone
 } from 'lucide-react';
+import { Icon } from '../ui/Icon';
 import { CommunityNotification, NotificationType } from '../../types/community';
 
 interface NotificationCenterProps {
@@ -33,21 +34,21 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const renderIcon = (type: NotificationType) => {
     switch (type) {
       case 'new_message':
-        return <MessageCircle size={15} className="text-emerald-600" />;
+        return <Icon icon={MessageCircle} size={18} className="text-emerald-600" interactive />;
       case 'new_follower':
-        return <UserPlus size={15} className="text-blue-600" />;
+        return <Icon icon={UserPlus} size={18} className="text-blue-600" interactive />;
       case 'post_like':
-        return <Heart size={15} className="text-rose-500 fill-rose-100" />;
+        return <Icon icon={Heart} size={18} className="text-rose-500" interactive />;
       case 'post_comment':
       case 'comment_reply':
-        return <MessageSquare size={15} className="text-amber-600" />;
+        return <Icon icon={MessageSquare} size={18} className="text-amber-600" interactive />;
       case 'post_share':
-        return <Share2 size={15} className="text-indigo-600" />;
+        return <Icon icon={Share2} size={18} className="text-indigo-600" interactive />;
       case 'report_resolved':
-        return <AlertCircle size={15} className="text-emerald-700" />;
+        return <Icon icon={AlertCircle} size={18} className="text-emerald-700" interactive />;
       case 'admin_announcement':
       default:
-        return <Megaphone size={15} className="text-emerald-700" />;
+        return <Icon icon={Megaphone} size={18} className="text-emerald-700" interactive />;
     }
   };
 

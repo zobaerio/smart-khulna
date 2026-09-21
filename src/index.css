@@ -1,1 +1,16 @@
 @import "tailwindcss";
+
+.icon-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem; /* Increased padding */
+  border-radius: 9999px; /* rounded-full */
+  transition: all 0.2s ease-in-out; /* Added easing */
+}
+
+.icon-container:hover {
+  background-color: #ecfdf5; /* hover:bg-emerald-50 */
+  transform: scale(1.1); /* Increased hover scale */
+  cursor: pointer;
+}
