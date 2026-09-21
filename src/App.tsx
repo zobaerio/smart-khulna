@@ -62,7 +62,8 @@ import {
   Users,
   MessageSquare,
   MessageCircle,
-  AlertOctagon
+  AlertOctagon,
+  LayoutGrid
 } from 'lucide-react';
 import { auth, googleProvider, db } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
@@ -98,6 +99,7 @@ import {
 } from './dbData';
 import { usePWA } from './hooks/usePWA';
 import { OfflineBanner } from './components/OfflineBanner';
+import { InstallPromptBanner } from './components/InstallPromptBanner';
 import { SplashScreen } from './components/SplashScreen';
 import { DownloadPage } from './components/DownloadPage';
 import { AdminDownloadsCMS } from './components/AdminDownloadsCMS';
@@ -129,12 +131,40 @@ import { NotificationCenter } from './components/community/NotificationCenter';
 import { CommunityModerationDashboard } from './components/community/CommunityModerationDashboard';
 import { ReportModal } from './components/community/ReportModal';
 
+// Category Color Scheme Mapping for Compact Visual Cards
+const getCategoryStyle = (catId: string) => {
+  const styles: Record<string, { bg: string; text: string }> = {
+    govt: { bg: 'bg-emerald-50', text: 'text-emerald-700' },
+    health: { bg: 'bg-rose-50', text: 'text-rose-600' },
+    education: { bg: 'bg-blue-50', text: 'text-blue-600' },
+    transport: { bg: 'bg-amber-50', text: 'text-amber-600' },
+    banking: { bg: 'bg-sky-50', text: 'text-sky-600' },
+    courier: { bg: 'bg-teal-50', text: 'text-teal-600' },
+    car: { bg: 'bg-purple-50', text: 'text-purple-600' },
+    professional: { bg: 'bg-indigo-50', text: 'text-indigo-600' },
+    lawyer: { bg: 'bg-sky-50', text: 'text-sky-700' },
+    local: { bg: 'bg-emerald-50', text: 'text-emerald-600' },
+    agriculture: { bg: 'bg-lime-50', text: 'text-lime-700' },
+    business: { bg: 'bg-orange-50', text: 'text-orange-600' },
+    realestate: { bg: 'bg-teal-50', text: 'text-teal-700' },
+    engineering: { bg: 'bg-yellow-50', text: 'text-yellow-700' },
+    electrician: { bg: 'bg-amber-50', text: 'text-amber-600' },
+    plumber: { bg: 'bg-cyan-50', text: 'text-cyan-700' },
+    mechanic: { bg: 'bg-slate-100', text: 'text-slate-700' },
+    restaurant: { bg: 'bg-rose-50', text: 'text-rose-700' },
+    hotel: { bg: 'bg-indigo-50', text: 'text-indigo-700' },
+    tourism: { bg: 'bg-emerald-50', text: 'text-emerald-700' },
+    other: { bg: 'bg-slate-100', text: 'text-slate-600' },
+  };
+  return styles[catId] || { bg: 'bg-emerald-50', text: 'text-emerald-700' };
+};
+
 // Dynamic Icon Component
 const IconComponent = ({ name, className }: { name: string; className?: string }) => {
   const icons: Record<string, any> = {
     Building2, HeartPulse, GraduationCap, Bus, Landmark, Truck, Scale, MapPin, Sprout,
     Briefcase, Home, HardHat, UserCheck, Car, Zap, Wrench, Settings, Utensils, Bed, Compass, Grid,
-    PhoneCall, Info, ShieldAlert, Shield, Flame, Ambulance, Sparkles, BarChart2, Plus, Bell, Clock, Edit2
+    PhoneCall, Info, ShieldAlert, Shield, Flame, Ambulance, Sparkles, BarChart2, Plus, Bell, Clock, Edit2, LayoutGrid
   };
   const Comp = icons[name] || Grid;
   return <Comp className={className} size={18} />;
@@ -460,8 +490,16 @@ export default function App() {
     try {
       const res = await signInWithPopup(auth, googleProvider);
       await logAction('ব্যবহারকারী লগইন', `${res.user.email} সিস্টেমে লগইন করেছেন`);
-    } catch (error) {
-      console.error("Google login failed", error);
+    } catch (error: any) {
+      if (
+        error?.code === 'auth/popup-closed-by-user' ||
+        error?.code === 'auth/cancelled-popup-request' ||
+        error?.code === 'auth/user-cancelled'
+      ) {
+        // User closed or dismissed the Google popup dialog without signing in
+        return;
+      }
+      console.warn("Google login notification:", error?.message || error);
     }
   };
 
@@ -1324,6 +1362,7 @@ export default function App() {
         wasOffline={wasOffline}
         onDismissReconnected={resetWasOffline}
       />
+      <InstallPromptBanner />
 
       {/* Dynamic Desktop Header Frame / Notification Alert Banner */}
       <div className="w-full bg-emerald-900 text-white py-1 px-4 text-xs text-center flex justify-center items-center gap-2 overflow-hidden shadow-sm">
@@ -1700,15 +1739,17 @@ export default function App() {
                   )}
                 </div>
 
-                {/* 4. EMERGENCY SERVICES (Red Theme, Visual Priority aligned to reference screen) */}
-                <section className="space-y-3">
-                  <div className="flex items-center justify-between border-b border-rose-100 pb-1.5">
-                    <div>
-                      <h2 className="text-base font-extrabold text-red-950 flex items-center gap-1.5 font-serif">
-                        <ShieldAlert className="text-red-600 animate-pulse" size={18} />
-                        জরুরি সেবা
-                      </h2>
-                      <p className="text-[11px] text-slate-500 -mt-0.5">দ্রুত সহায়তা পেতে নিচে সরাসরি কল বাটনে ক্লিক করুন</p>
+                {/* 4. EMERGENCY SERVICES (Compact Mobile App Grid matching reference interface) */}
+                <section className="bg-white border border-rose-100/90 rounded-2xl p-3 sm:p-4 shadow-xs space-y-2">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-rose-50">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                        <ShieldAlert className="w-4 h-4 animate-pulse" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs sm:text-sm font-extrabold text-red-950 font-serif">জরুরি সেবা</h3>
+                        <p className="text-[10px] text-slate-500 leading-none mt-0.5">দ্রুত সহায়তা পেতে আইকনে ক্লিক করুন</p>
+                      </div>
                     </div>
                     {userProfile?.role === 'super_admin' && (
                       <button
@@ -1716,68 +1757,144 @@ export default function App() {
                           setAdminView('emergencies');
                           setActiveTab('profile');
                         }}
-                        className="text-[10px] text-red-700 bg-red-50 font-bold px-2 py-1 rounded border border-rose-100 hover:bg-red-100"
+                        className="text-[10px] text-red-700 bg-red-50 font-bold px-2 py-0.5 rounded border border-rose-100 hover:bg-red-100"
                       >
                         সম্পাদনা
                       </button>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    {localEmergencies.map(contact => (
-                      <div
-                        key={contact.id}
-                        className="bg-white border-l-4 border-l-red-600 border border-red-50 hover:border-red-100 p-3 rounded-xl shadow-sm flex flex-col justify-between"
-                      >
-                        <div>
-                          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 leading-tight">
-                            <IconComponent name={contact.iconName} className="text-red-500 shrink-0" />
-                            <span className="truncate">{contact.name}</span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 mt-1">{contact.description || 'জরুরি কন্টাক্ট নম্বর'}</p>
-                          <span className="block text-xs font-extrabold text-emerald-900 tracking-wider mt-1.5 bg-emerald-50 px-1.5 py-0.5 rounded w-max">
-                            {contact.phone}
-                          </span>
-                        </div>
-                        <a
-                          href={`tel:${contact.phone}`}
-                          className="mt-3 w-full bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold py-1.5 px-3 rounded-lg flex items-center justify-center gap-1 transition shadow-sm"
-                        >
-                          <Phone size={11} />
-                          কল করুন
-                        </a>
+                  {/* 4 Emergency Services Compact Shortcut Grid */}
+                  <div className="grid grid-cols-4 gap-2 pt-1">
+                    {/* Police */}
+                    <a
+                      href={`tel:${localEmergencies.find(e => e.iconName === 'Shield' || e.name.includes('পুলিশ'))?.phone || '01713-373265'}`}
+                      className="bg-white hover:bg-sky-50/50 border border-slate-100 hover:border-sky-200 rounded-xl p-2 flex flex-col items-center justify-center text-center transition cursor-pointer group aspect-square shadow-xs"
+                    >
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center mb-1 group-hover:scale-105 transition shrink-0">
+                        <Shield size={18} />
                       </div>
-                    ))}
+                      <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 leading-tight">পুলিশ</span>
+                    </a>
+
+                    {/* Ambulance */}
+                    <a
+                      href={`tel:${localEmergencies.find(e => e.iconName === 'Ambulance' || e.name.includes('অ্যাম্বুলেন্স'))?.phone || '01711-295328'}`}
+                      className="bg-white hover:bg-rose-50/50 border border-slate-100 hover:border-rose-200 rounded-xl p-2 flex flex-col items-center justify-center text-center transition cursor-pointer group aspect-square shadow-xs"
+                    >
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mb-1 group-hover:scale-105 transition shrink-0">
+                        <Ambulance size={18} />
+                      </div>
+                      <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 leading-tight">অ্যাম্বুলেন্স</span>
+                    </a>
+
+                    {/* Fire Service */}
+                    <a
+                      href={`tel:${localEmergencies.find(e => e.iconName === 'Flame' || e.name.includes('ফায়ার') || e.name.includes('ফায়ার'))?.phone || '02-477722222'}`}
+                      className="bg-white hover:bg-amber-50/50 border border-slate-100 hover:border-amber-200 rounded-xl p-2 flex flex-col items-center justify-center text-center transition cursor-pointer group aspect-square shadow-xs"
+                    >
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-1 group-hover:scale-105 transition shrink-0">
+                        <Flame size={18} />
+                      </div>
+                      <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 leading-tight">ফায়ার সার্ভিস</span>
+                    </a>
+
+                    {/* National Helpline */}
+                    <a
+                      href={`tel:${emergencyContacts.find(e => e.id === 'nat-999')?.phone || '999'}`}
+                      className="bg-white hover:bg-emerald-50/50 border border-slate-100 hover:border-emerald-200 rounded-xl p-2 flex flex-col items-center justify-center text-center transition cursor-pointer group aspect-square shadow-xs"
+                    >
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center mb-1 group-hover:scale-105 transition shrink-0">
+                        <PhoneCall size={18} />
+                      </div>
+                      <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 leading-tight">জাতীয় হেল্পলাইন</span>
+                    </a>
                   </div>
                 </section>
 
-                {/* 5. POPULAR SERVICES GRID (Clickable Cards with Arrows) */}
-                <section className="space-y-3">
-                  <div>
-                    <h2 className="text-base font-extrabold text-emerald-950 flex items-center gap-1.5 font-serif">
-                      <Sparkles size={18} className="text-emerald-700" />
-                      জনপ্রিয় সেবা ক্যাটাগরি
+                {/* 5. POPULAR SERVICES GRID (Compact App-Icon Grid matching reference interface) */}
+                <section className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-1.5 font-serif">
+                      <span className="text-base">🔥</span>
+                      <span>জনপ্রিয় সেবা</span>
                     </h2>
-                    <p className="text-[11px] text-slate-500 -mt-0.5">সবচেয়ে বেশি প্রয়োজনীয় সেবাগুলো সিলেক্ট করুন</p>
+                    <button
+                      onClick={() => {
+                        setFilterCategory('all');
+                        setActiveTab('services');
+                      }}
+                      className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 transition cursor-pointer"
+                    >
+                      <span>সব সেবা দেখুন</span>
+                      <ArrowRight size={13} />
+                    </button>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {initialCategories.slice(0, 8).map(cat => (
-                      <button
-                        key={cat.id}
-                        onClick={() => {
-                          setFilterCategory(cat.id);
-                          setActiveTab('services');
-                        }}
-                        className="bg-white hover:bg-emerald-50/50 border border-slate-100 hover:border-emerald-200 p-3.5 rounded-xl transition flex flex-col items-center text-center space-y-2 shadow-sm shrink-0 cursor-pointer text-slate-800"
-                      >
-                        <div className="w-10 h-10 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center shadow-inner">
-                          <IconComponent name={cat.iconName} className="text-emerald-700" />
-                        </div>
-                        <span className="text-xs font-bold text-slate-900 truncate w-full">{cat.name}</span>
-                        <ChevronRight size={14} className="text-slate-400" />
-                      </button>
-                    ))}
+                  <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-2.5">
+                    {initialCategories.slice(0, 8).map(cat => {
+                      const style = getCategoryStyle(cat.id);
+                      return (
+                        <button
+                          key={cat.id}
+                          onClick={() => {
+                            setFilterCategory(cat.id);
+                            setActiveTab('services');
+                          }}
+                          className="bg-white hover:bg-emerald-50/30 border border-slate-100 hover:border-emerald-200 p-2 sm:p-2.5 rounded-2xl flex flex-col items-center justify-center text-center shadow-xs hover:shadow-sm transition cursor-pointer aspect-square min-h-[84px] sm:min-h-[92px] group"
+                        >
+                          <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl ${style.bg} ${style.text} flex items-center justify-center mb-1 group-hover:scale-105 transition shrink-0 shadow-2xs`}>
+                            <IconComponent name={cat.iconName} className={style.text} />
+                          </div>
+                          <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 text-center leading-tight line-clamp-2 w-full px-0.5">
+                            {cat.name}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                {/* 5.5 ALL CATEGORIES GRID (Compact App-Icon Grid matching reference interface) */}
+                <section className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-1.5 font-serif">
+                      <LayoutGrid size={16} className="text-emerald-700" />
+                      <span>সকল বিভাগ</span>
+                    </h2>
+                    <button
+                      onClick={() => {
+                        setFilterCategory('all');
+                        setActiveTab('services');
+                      }}
+                      className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 transition cursor-pointer"
+                    >
+                      <span>বিভাগগুলো দেখুন</span>
+                      <ArrowRight size={13} />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2 sm:gap-2.5">
+                    {initialCategories.slice(8).map(cat => {
+                      const style = getCategoryStyle(cat.id);
+                      return (
+                        <button
+                          key={cat.id}
+                          onClick={() => {
+                            setFilterCategory(cat.id);
+                            setActiveTab('services');
+                          }}
+                          className="bg-white hover:bg-emerald-50/30 border border-slate-100 hover:border-emerald-200 p-2 sm:p-2.5 rounded-2xl flex flex-col items-center justify-center text-center shadow-xs hover:shadow-sm transition cursor-pointer aspect-square min-h-[84px] sm:min-h-[92px] group"
+                        >
+                          <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl ${style.bg} ${style.text} flex items-center justify-center mb-1 group-hover:scale-105 transition shrink-0 shadow-2xs`}>
+                            <IconComponent name={cat.iconName} className={style.text} />
+                          </div>
+                          <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 text-center leading-tight line-clamp-2 w-full px-0.5">
+                            {cat.name}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </section>
 
