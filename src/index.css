@@ -11,6 +11,6 @@
 
 .icon-container:hover {
   background-color: #ecfdf5; /* hover:bg-emerald-50 */
-  transform: scale(1.1); /* Increased hover scale */
+  transform: scale(1.05); /* hover scale 1.05 */
   cursor: pointer;
 }

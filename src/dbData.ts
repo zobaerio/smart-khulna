@@ -314,6 +314,9 @@ export const initialCategories: Category[] = [
   { id: 'restaurant', name: 'রেস্টুরেন্ট', nameEn: 'Restaurant', iconName: 'Utensils' },
   { id: 'hotel', name: 'হোটেল', nameEn: 'Hotel', iconName: 'Bed' },
   { id: 'tourism', name: 'পর্যটন', nameEn: 'Tourism', iconName: 'Compass' },
+  { id: 'agriculture', name: 'কৃষি যন্ত্রপাতি ও সহায়তা', nameEn: 'Agricultural Equipment & Support', iconName: 'Tractor' },
+  { id: 'emergency', name: 'জরুরি সেবা', nameEn: 'Emergency Service', iconName: 'AlertTriangle' },
+  { id: 'citizen', name: 'নাগরিক সেবা', nameEn: 'Citizen Service', iconName: 'User' },
   { id: 'other', name: 'অন্যান্য সেবা', nameEn: 'Other Services', iconName: 'Grid' },
 ];
 
@@ -399,7 +402,45 @@ export const initialServices: Service[] = [
     photos: ['https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80']
   },
 
-  // Bagerhat
+  // Agriculture & Equipment
+  {
+    id: 'ag-fertilizer-1',
+    name: 'খুলনা সার ও কীটনাশক সরবরাহকারী',
+    slug: 'khulna-fertilizer-pesticide-supplier',
+    description: 'খুলনা অঞ্চলে উচ্চমানের সার, জৈব ও রাসায়নিক কীটনাশক সরবরাহে বিশ্বস্ত প্রতিষ্ঠান। (ডিমো ডেটা)',
+    category_id: 'agriculture',
+    district_id: 'khulna',
+    upazila_id: 'khulna-sadar',
+    address: 'নিরালা রোড, খুলনা',
+    phone: '01711-001122',
+    latitude: 22.8150,
+    longitude: 89.5500,
+    opening_hours: 'সকাল ৯:০০ - সন্ধ্যা ৭:০০',
+    is_verified: true,
+    status: 'PUBLISHED',
+    created_at: '2026-09-20T12:00:00Z',
+    updated_at: '2026-09-20T12:00:00Z',
+    photos: []
+  },
+  {
+    id: 'ag-machinery-1',
+    name: 'কৃষি যন্ত্রপাতি মেরামত সেন্টার',
+    slug: 'agriculture-machinery-repair-khulna',
+    description: 'ট্রাক্টর, পাওয়ার টিলার ও অন্যান্য আধুনিক কৃষি যন্ত্রপাতির বিশেষজ্ঞ মেরামত ও রক্ষণাবেক্ষণ সেবা। (ডিমো ডেটা)',
+    category_id: 'agriculture',
+    district_id: 'khulna',
+    upazila_id: 'khulna-sadar',
+    address: 'ডুমুরিয়া বাজার এলাকা, খুলনা',
+    phone: '01712-334455',
+    latitude: 22.7500,
+    longitude: 89.4500,
+    opening_hours: 'সকাল ৮:০০ - সন্ধ্যা ৬:০০',
+    is_verified: true,
+    status: 'PUBLISHED',
+    created_at: '2026-09-20T12:00:00Z',
+    updated_at: '2026-09-20T12:00:00Z',
+    photos: []
+  },
   {
     id: 'bg-shaitgumbad',
     name: 'ষাট গম্বুজ মসজিদ ও জাদুঘর',
