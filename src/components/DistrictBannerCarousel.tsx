@@ -89,7 +89,7 @@ export const DistrictBannerCarousel: React.FC<DistrictBannerCarouselProps> = ({
 
   return (
     <div
-      className="relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-md group cursor-pointer aspect-21/9 sm:aspect-24/9 min-h-[170px] max-h-[260px] bg-slate-900 select-none"
+      className="relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-md group cursor-pointer aspect-video sm:aspect-video min-h-[140px] max-h-[200px] bg-slate-900 select-none"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onClick={handleBannerClick}

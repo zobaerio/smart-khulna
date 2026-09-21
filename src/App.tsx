@@ -69,7 +69,9 @@ import {
   Linkedin,
   Droplets,
   Loader2,
-  Tractor
+  Tractor,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { compressImage } from './lib/imageCompressor';
 import { auth, googleProvider, db } from './firebase';
@@ -108,6 +110,7 @@ import {
 } from './dbData';
 import { usePWA } from './hooks/usePWA';
 import { OfflineBanner } from './components/OfflineBanner';
+import { ServiceQR } from './components/ServiceQR';
 import { InstallPromptBanner } from './components/InstallPromptBanner';
 import { SplashScreen } from './components/SplashScreen';
 import { DownloadPage } from './components/DownloadPage';
@@ -200,6 +203,19 @@ export default function App() {
   });
   const [viewingDistrictId, setViewingDistrictId] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('theme') === 'dark';
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [darkMode]);
 
   // Authentication & Users
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -2048,20 +2064,20 @@ export default function App() {
         </div>
 
         {/* PRIMARY INTERACTIVE PORTAL (Mobile viewport layout on small screens, expands nicely) */}
-        <div className="flex-1 flex flex-col min-h-[85vh] bg-slate-50 relative pb-16 md:pb-0">
+        <div className="flex-1 flex flex-col min-h-[85vh] bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 relative pb-16 md:pb-0">
           
           {/* MOBILE HEADER (Visually aligned to the Netrokona Reference Screenshot) */}
-          <header className="sticky top-0 bg-white border-b border-emerald-100 px-4 py-3 flex items-center justify-between z-10 shadow-sm">
+          <header className="sticky top-0 bg-white dark:bg-slate-950 border-b border-emerald-100 dark:border-slate-800 px-4 py-3 flex items-center justify-between z-10 shadow-sm">
             <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigateTo('home')}>
               <div className="w-9 h-9 bg-emerald-700 rounded-xl flex items-center justify-center text-white font-black text-sm border border-lime-400 shrink-0 shadow-inner">
                 K
               </div>
               <div>
                 <div className="flex items-center gap-1">
-                  <span className="text-base font-extrabold text-emerald-950 tracking-tight font-serif">স্মার্ট খুলনা</span>
-                  <span className="text-[9px] bg-lime-100 text-emerald-800 font-bold px-1 rounded">Beta</span>
+                  <span className="text-base font-extrabold text-emerald-950 dark:text-emerald-300 tracking-tight font-serif">স্মার্ট খুলনা</span>
+                  <span className="text-[9px] bg-lime-100 dark:bg-lime-900/30 text-emerald-800 dark:text-emerald-300 font-bold px-1 rounded">Beta</span>
                 </div>
-                <span className="text-[10px] text-slate-500 block -mt-1 font-serif">খুলনা বিভাগের সকল সেবা একসাথে</span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 block -mt-1 font-serif">খুলনা বিভাগের সকল সেবা একসাথে</span>
               </div>
             </div>
 
@@ -2103,6 +2119,14 @@ export default function App() {
                 <Map size={12} />
                 <span className="hidden sm:inline">সকল</span> জেলা
               </button>
+              <button
+                onClick={() => setDarkMode(prev => !prev)}
+                className="p-2 text-emerald-900 hover:bg-emerald-50 dark:text-emerald-100 dark:hover:bg-slate-800 rounded-full cursor-pointer"
+                title={darkMode ? "লাইট মোড" : "ডার্ক মোড"}
+              >
+                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+
               <button
                 onClick={() => setShowNotificationCenter(prev => !prev)}
                 className="p-2 text-emerald-900 hover:bg-emerald-50 rounded-full relative cursor-pointer"
@@ -2370,12 +2394,12 @@ export default function App() {
                             setFilterCategory(cat.id);
                             setActiveTab('services');
                           }}
-                          className="bg-white hover:bg-emerald-50/30 border border-slate-100 hover:border-emerald-200 p-2 sm:p-2.5 rounded-2xl flex flex-col items-center justify-center text-center shadow-xs hover:shadow-sm transition cursor-pointer aspect-square min-h-[84px] sm:min-h-[92px] group"
+                          className="bg-white dark:bg-slate-800/80 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 border border-slate-100 dark:border-slate-700 hover:border-emerald-200 dark:hover:border-emerald-500/40 p-2 sm:p-2.5 rounded-2xl flex flex-col items-center justify-center text-center shadow-xs hover:shadow-md hover:-translate-y-1 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ease-out cursor-pointer aspect-square min-h-[84px] sm:min-h-[92px] group"
                         >
-                          <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl ${style.bg} ${style.text} flex items-center justify-center mb-1 group-hover:scale-105 transition shrink-0 shadow-2xs`}>
+                          <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl ${style.bg} ${style.text} flex items-center justify-center mb-1 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shrink-0 shadow-2xs`}>
                             <IconComponent name={cat.iconName} className={style.text} />
                           </div>
-                          <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 text-center leading-tight line-clamp-2 w-full px-0.5">
+                          <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 text-center leading-tight line-clamp-2 w-full px-0.5 transition-colors duration-200">
                             {cat.name}
                           </span>
                         </button>
@@ -2413,12 +2437,12 @@ export default function App() {
                             setFilterCategory(cat.id);
                             setActiveTab('services');
                           }}
-                          className="bg-white hover:bg-emerald-50/30 border border-slate-100 hover:border-emerald-200 p-2 sm:p-2.5 rounded-2xl flex flex-col items-center justify-center text-center shadow-xs hover:shadow-sm transition cursor-pointer aspect-square min-h-[84px] sm:min-h-[92px] group"
+                          className="bg-white dark:bg-slate-800/80 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 border border-slate-100 dark:border-slate-700 hover:border-emerald-200 dark:hover:border-emerald-500/40 p-2 sm:p-2.5 rounded-2xl flex flex-col items-center justify-center text-center shadow-xs hover:shadow-md hover:-translate-y-1 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ease-out cursor-pointer aspect-square min-h-[84px] sm:min-h-[92px] group"
                         >
-                          <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl ${style.bg} ${style.text} flex items-center justify-center mb-1 group-hover:scale-105 transition shrink-0 shadow-2xs`}>
+                          <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl ${style.bg} ${style.text} flex items-center justify-center mb-1 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shrink-0 shadow-2xs`}>
                             <IconComponent name={cat.iconName} className={style.text} />
                           </div>
-                          <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 text-center leading-tight line-clamp-2 w-full px-0.5">
+                          <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 text-center leading-tight line-clamp-2 w-full px-0.5 transition-colors duration-200">
                             {cat.name}
                           </span>
                         </button>
@@ -4139,6 +4163,9 @@ export default function App() {
                   <div>
                     <span className="font-bold text-slate-700">ঠিকানা:</span>
                     <p className="text-slate-600 mt-0.5">{selectedService.address}, উপজেলা: {selectedService.upazila_id}, {initialDistricts.find(d => d.id === selectedService.district_id)?.name}</p>
+                    <div className="mt-4">
+                      <ServiceQR url={window.location.href + '?service=' + selectedService.id} />
+                    </div>
                   </div>
                 </div>
 
