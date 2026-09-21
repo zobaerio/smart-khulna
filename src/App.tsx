@@ -1943,9 +1943,12 @@ export default function App() {
 
             {/* Sidebar Branding */}
             <div className="flex items-center gap-3 mb-6 mt-2">
-              <div className="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg border border-lime-400 shrink-0">
-                <span className="text-lg font-black text-white">K</span>
-              </div>
+              <img
+                src="/file_0000000078dc81fabee4e5a0d47f7348.png"
+                alt="Smart Khulna Logo"
+                className="w-10 h-10 object-contain rounded-2xl shrink-0 shadow-lg"
+                referrerPolicy="no-referrer"
+              />
               <div>
                 <h2 className="text-base font-bold tracking-tight text-white font-serif">স্মার্ট খুলনা</h2>
                 <p className="text-[9px] text-lime-400 font-medium">Smart Khulna local platform</p>
@@ -2087,8 +2090,14 @@ export default function App() {
           <div>
             <div className="flex items-center gap-3 mb-6">
               {/* Modern K Monogram Leaf Logo */}
-              <div className="w-11 h-11 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg border border-lime-400 shrink-0">
-                <span className="text-xl font-black text-white tracking-widest relative">K<span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-lime-400 rounded-full animate-ping"></span></span>
+              <div className="relative shrink-0">
+                <img
+                  src="/file_0000000078dc81fabee4e5a0d47f7348.png"
+                  alt="Smart Khulna Logo"
+                  className="w-11 h-11 object-contain rounded-2xl shadow-lg"
+                  referrerPolicy="no-referrer"
+                />
+                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-lime-400 rounded-full animate-ping"></span>
               </div>
               <div>
                 <h1 className="text-lg font-bold tracking-tight text-white font-serif">স্মার্ট খুলনা</h1>
@@ -2235,9 +2244,12 @@ export default function App() {
                 <Menu size={20} />
               </button>
               <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigateTo('home')}>
-              <div className="w-9 h-9 bg-emerald-700 rounded-xl flex items-center justify-center text-white font-black text-sm border border-lime-400 shrink-0 shadow-inner">
-                K
-              </div>
+                <img
+                  src="/file_0000000078dc81fabee4e5a0d47f7348.png"
+                  alt="Smart Khulna Logo"
+                  className="w-9 h-9 object-contain rounded-xl shrink-0 shadow-sm border border-slate-100 dark:border-slate-800"
+                  referrerPolicy="no-referrer"
+                />
               <div>
                 <div className="flex items-center gap-1">
                   <span className="text-base font-extrabold text-emerald-950 dark:text-emerald-300 tracking-tight font-serif">স্মার্ট খুলনা</span>
@@ -2265,19 +2277,7 @@ export default function App() {
                 </span>
               ) : null}
 
-              {/* Quick Link to Download Page */}
-              <button
-                onClick={() => navigateTo('download')}
-                className={`text-xs border font-bold py-1.5 px-2.5 rounded-full flex items-center gap-1 transition cursor-pointer ${
-                  activeTab === 'download'
-                    ? 'bg-emerald-700 text-white border-emerald-700'
-                    : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-emerald-200'
-                }`}
-                title="অ্যাপ ডাউনলোড ও ইনস্টল সেন্টার"
-              >
-                <Smartphone size={12} />
-                <span className="hidden sm:inline">অ্যাপ পান</span>
-              </button>
+
 
               <button
                 onClick={() => setViewingDistrictId(viewingDistrictId ? null : 'all')}
