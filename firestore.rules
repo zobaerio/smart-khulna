@@ -1,0 +1,130 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email in ['zobaerhasan431@gmail.com', 'zobaerio24@gmail.com'] ||
+        (request.auth.token.keys().hasAny(['role']) && request.auth.token.role == 'super_admin')
+      );
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Health check endpoint
+    match /test/{docId} {
+      allow read: if true;
+    }
+
+    // 1. User Profiles: Public read for community directory, owner or admin write
+    match /profiles/{userId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+      allow update: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+      allow delete: if isSuperAdmin();
+    }
+
+    // 2. Community Posts: Public read of published posts, author or admin write
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.authorId == request.auth.uid ||
+        isSuperAdmin() ||
+        // Allow liking/saving by updating likedBy/savedBy
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'likedBy', 'savedBy', 'commentsCount', 'sharesCount'])
+      );
+      allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isSuperAdmin());
+
+      // Nested Comments
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+        allow update: if isAuthenticated() && (
+          resource.data.authorId == request.auth.uid ||
+          isSuperAdmin() ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'likedBy', 'replies'])
+        );
+        allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isSuperAdmin());
+      }
+    }
+
+    // 3. Conversations & Chat: Strictly participants only (Admins do NOT automatically read private chats)
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid in resource.data.participantIds
+      );
+      allow create: if isAuthenticated() && (
+        request.auth.uid in request.resource.data.participantIds
+      );
+      allow update: if isAuthenticated() && (
+        request.auth.uid in resource.data.participantIds
+      );
+      allow delete: if isAuthenticated() && (
+        request.auth.uid in resource.data.participantIds
+      );
+
+      // Private Messages Subcollection
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && (
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
+        );
+        allow create: if isAuthenticated() && (
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
+          request.resource.data.senderId == request.auth.uid
+        );
+        allow update: if isAuthenticated() && (
+          resource.data.senderId == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
+        );
+        allow delete: if isAuthenticated() && resource.data.senderId == request.auth.uid;
+      }
+    }
+
+    // 4. Reports System: Reporter or Admin
+    match /reports/{reportId} {
+      allow create: if isAuthenticated() && request.resource.data.reportedByUid == request.auth.uid;
+      allow read: if isAuthenticated() && (
+        resource.data.reportedByUid == request.auth.uid || isSuperAdmin()
+      );
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // 5. Notifications: Recipient only
+    match /notifications/{notificationId} {
+      allow read, update, delete: if isAuthenticated() && resource.data.recipientUid == request.auth.uid;
+      allow create: if isAuthenticated();
+    }
+
+    // 6. Settings & Release Configuration: Public read, admin write
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    // 7. Activity & Audit Logs: Authenticated creation, super admin read
+    match /activity_logs/{logId} {
+      allow create: if isAuthenticated();
+      allow read: if isSuperAdmin();
+      allow update, delete: if false;
+    }
+
+    // 8. Service Submissions: Authenticated creation, admin read/write
+    match /submissions/{submissionId} {
+      allow create: if isAuthenticated();
+      allow read: if isAuthenticated() && (resource.data.submitted_by == request.auth.token.email || isSuperAdmin());
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // Default deny all other paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="skGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#064e3b" />
+    </linearGradient>
+    <linearGradient id="leafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+    <filter id="dropShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- Background rounded squircle -->
+  <rect width="512" height="512" rx="128" fill="url(#skGrad)" />
+  
+  <!-- Subtle decorative ring -->
+  <circle cx="256" cy="256" r="210" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="6" stroke-dasharray="16 12" />
+
+  <!-- Main stylized K and Leaf motif -->
+  <g filter="url(#dropShadow)">
+    <!-- Vertical stem of K with leaf tip -->
+    <path d="M144 128 C144 116 156 108 168 116 L208 140 C216 145 220 154 220 164 L220 368 C220 380 208 388 196 380 L156 356 C148 351 144 342 144 332 Z" fill="#ffffff" />
+    
+    <!-- Top diagonal leaf branch of K -->
+    <path d="M220 256 C250 210 300 150 360 144 C368 143 372 152 366 158 C328 196 294 246 260 286 Z" fill="url(#leafGrad)" />
+    
+    <!-- Bottom diagonal kick of K -->
+    <path d="M226 270 L340 376 C348 384 360 380 360 370 L360 330 C360 322 356 314 350 308 L264 236 Z" fill="#ffffff" />
+
+    <!-- Location beacon dot / Smart pulse -->
+    <circle cx="360" cy="144" r="22" fill="#fbbf24" />
+    <circle cx="360" cy="144" r="12" fill="#ffffff" />
+  </g>
+</svg>

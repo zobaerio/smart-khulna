@@ -1,0 +1,6 @@
+{
+  "name": "Smart Khulna",
+  "description": "A professional Bangladesh local-service discovery and information platform for Khulna Division.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

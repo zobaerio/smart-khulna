@@ -1,0 +1,195 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with role-based access control and preferences",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Unique identifier of the user matching Firebase Auth UID"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the user"
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the authenticated user"
+        },
+        "role": {
+          "type": "string",
+          "description": "Authorization role of the user",
+          "enum": ["super_admin", "sub_admin", "user"]
+        },
+        "selectedDistrict": {
+          "type": "string",
+          "description": "Currently selected division district id"
+        },
+        "savedServices": {
+          "type": "array",
+          "description": "List of bookmarked service IDs"
+        }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "CommunityPost": {
+      "title": "CommunityPost",
+      "description": "Public or district-level community post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorEmail": { "type": "string" },
+        "content": { "type": "string" },
+        "type": { "type": "string" },
+        "districtId": { "type": "string" },
+        "status": { "type": "string", "enum": ["published", "draft", "hidden", "removed"] },
+        "likesCount": { "type": "number" },
+        "commentsCount": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "authorId", "authorName", "content", "status", "createdAt"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "Private 1-to-1 chat between two participants",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "participantIds": { "type": "array" },
+        "unreadCounts": { "type": "object" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "participantIds", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Private chat message within a conversation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "conversationId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "isRead": { "type": "boolean" }
+      },
+      "required": ["id", "conversationId", "senderId", "createdAt"]
+    },
+    "CommunityReport": {
+      "title": "CommunityReport",
+      "description": "User-submitted report on post, comment, user, or message",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "targetType": { "type": "string" },
+        "targetId": { "type": "string" },
+        "reportedByUid": { "type": "string" },
+        "reason": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "reviewed", "resolved", "dismissed"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "targetType", "targetId", "reportedByUid", "reason", "status", "createdAt"]
+    },
+    "CommunityNotification": {
+      "title": "CommunityNotification",
+      "description": "In-app notifications for user interactions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "recipientUid": { "type": "string" },
+        "actorUid": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "recipientUid", "title", "message", "isRead", "createdAt"]
+    },
+    "AppReleaseConfig": {
+      "title": "AppReleaseConfig",
+      "description": "Cross-platform app versioning, download links, and release notes",
+      "type": "object",
+      "properties": {
+        "currentVersion": { "type": "string" },
+        "minimumSupportedVersion": { "type": "string" },
+        "releaseDate": { "type": "string" }
+      },
+      "required": ["currentVersion", "minimumSupportedVersion", "releaseDate"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable log of administrative and system activities",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "user": { "type": "string" },
+        "role": { "type": "string" },
+        "action": { "type": "string" },
+        "target": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "user", "action", "timestamp"]
+    },
+    "ServiceSubmission": {
+      "title": "ServiceSubmission",
+      "description": "Community user submission for local district services",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "district_id": { "type": "string" },
+        "status": { "type": "string" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "name", "phone", "district_id", "status", "created_at"]
+    }
+  },
+  "firestore": {
+    "/profiles/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile documents keyed by Firebase Auth UID"
+    },
+    "/posts/{postId}": {
+      "schema": "CommunityPost",
+      "description": "Community posts with public read and author/admin write"
+    },
+    "/posts/{postId}/comments/{commentId}": {
+      "schema": "PostComment",
+      "description": "Comments nested within community posts"
+    },
+    "/conversations/{conversationId}": {
+      "schema": "Conversation",
+      "description": "Private 1-to-1 conversation metadata accessible strictly to participants"
+    },
+    "/conversations/{conversationId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Private messages accessible strictly to conversation participants"
+    },
+    "/reports/{reportId}": {
+      "schema": "CommunityReport",
+      "description": "Moderation reports accessible to reporter and admin moderators"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "CommunityNotification",
+      "description": "Private notifications for a specific user"
+    },
+    "/settings/{settingId}": {
+      "schema": "AppReleaseConfig",
+      "description": "System settings including app release config and download metadata"
+    },
+    "/activity_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Audit trail of changes made by administrators"
+    },
+    "/submissions/{submissionId}": {
+      "schema": "ServiceSubmission",
+      "description": "User-submitted local services pending review"
+    }
+  }
+}
