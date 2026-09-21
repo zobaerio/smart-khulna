@@ -407,6 +407,8 @@ export default function App() {
       if (firebaseUser) {
         setCurrentUser(firebaseUser);
         const email = firebaseUser.email || '';
+        const displayName = firebaseUser.displayName || 'ব্যবহারকারী';
+        const photoURL = firebaseUser.photoURL || '';
         
         // Define initial roles. Check if super admin by email
         const isSuperAdminEmail = ['zobaerhasan431@gmail.com', 'zobaerio24@gmail.com'].includes(email);
@@ -417,19 +419,22 @@ export default function App() {
           const docSnap = await getDoc(userDocRef);
           if (docSnap.exists()) {
             const data = docSnap.data() as UserProfile;
-            if (isSuperAdminEmail && data.role !== 'super_admin') {
-              const elevatedProfile = { ...data, role: 'super_admin' as const };
-              await setDoc(userDocRef, elevatedProfile, { merge: true });
-              setUserProfile(elevatedProfile);
-            } else {
-              setUserProfile(data);
-            }
+            const updatedProfile: UserProfile = {
+              ...data,
+              name: displayName !== 'ব্যবহারকারী' ? displayName : (data.name || displayName),
+              avatar: photoURL || data.avatar || '',
+              role: isSuperAdminEmail ? ('super_admin' as const) : (data.role || 'user')
+            };
+            // Always sync latest Google profile info (name, avatar, super_admin role)
+            await setDoc(userDocRef, updatedProfile, { merge: true });
+            setUserProfile(updatedProfile);
           } else {
             // Document does not exist, create it
             const newProfile: UserProfile = {
               uid: firebaseUser.uid,
-              name: firebaseUser.displayName || 'ব্যবহারকারী',
+              name: displayName,
               email: email,
+              avatar: photoURL,
               role: isSuperAdminEmail ? 'super_admin' : 'user',
               selectedDistrict: selectedDistrict,
               savedServices: []
@@ -450,8 +455,9 @@ export default function App() {
           // Fallback Offline Profile
           setUserProfile({
             uid: firebaseUser.uid,
-            name: firebaseUser.displayName || 'ব্যবহারকারী',
+            name: displayName,
             email: email,
+            avatar: photoURL,
             role: isSuperAdminEmail ? 'super_admin' : 'user',
             selectedDistrict: selectedDistrict,
             savedServices: JSON.parse(localStorage.getItem(`favs_${firebaseUser.uid}`) || '[]')

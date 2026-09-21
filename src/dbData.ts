@@ -67,6 +67,7 @@ export interface UserProfile {
   name: string;
   email: string;
   phone?: string;
+  avatar?: string;
   role: 'super_admin' | 'sub_admin' | 'user';
   selectedDistrict?: string;
   savedServices?: string[];
