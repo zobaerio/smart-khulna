@@ -1912,8 +1912,21 @@ export default function App() {
 
   const handleSendMessage = async (conversationId: string, text: string, attachmentsOrMediaUrl?: any, mediaType?: 'image' | 'file') => {
     if (!currentUser) return;
-    const conv = conversations.find(c => c.id === conversationId);
-    if (!conv) return;
+    let conv = conversations.find(c => c.id === conversationId);
+    if (!conv) {
+      try {
+        const snap = await getDoc(doc(db, 'conversations', conversationId));
+        if (snap.exists()) {
+          conv = { ...snap.data(), id: snap.id } as Conversation;
+        }
+      } catch (e) {
+        console.error('Failed to fetch conversation:', e);
+      }
+    }
+    if (!conv) {
+      alert('কথোপকথন পাওয়া যায়নি।');
+      return;
+    }
 
     const otherUid = conv.participantIds.find(uid => uid !== currentUser.uid) || '';
 
@@ -1942,7 +1955,7 @@ export default function App() {
       
       // 2. Update Conversation
       const convRef = doc(db, 'conversations', conversationId);
-      await updateDoc(convRef, {
+      const updatePayload: any = {
         lastMessage: {
           text: newMsg.text || (attachments.length > 0 && attachments[0].type === 'image' ? '📷 ছবি' : '📎 ফাইল'),
           senderId: newMsg.senderId,
@@ -1951,9 +1964,12 @@ export default function App() {
           isRead: false
         },
         updatedAt: new Date().toISOString(),
-        ['unreadCounts.' + otherUid]: (conv.unreadCounts?.[otherUid] || 0) + 1,
         hiddenForUserIds: []
-      });
+      };
+      if (otherUid) {
+        updatePayload['unreadCounts.' + otherUid] = (conv.unreadCounts?.[otherUid] || 0) + 1;
+      }
+      await updateDoc(convRef, updatePayload);
       
       // 3. Update Local State (as before)
       setMessagesMap(prev => ({
@@ -4382,7 +4398,7 @@ export default function App() {
                 currentUserId={currentUser?.uid || null}
                 currentUserEmail={currentUser?.email || null}
                 currentUserName={currentUser?.displayName || null}
-                currentUserAvatar={currentUser?.photoURL}
+                currentUserAvatar={currentUser?.photoURL || userProfile?.avatar || ''}
                 districts={initialDistricts}
                 allUsers={allCommunityUsers}
                 conversations={conversations}
@@ -4392,7 +4408,7 @@ export default function App() {
                 onDeleteMessage={handleDeleteMessage}
                 onDeleteConversation={handleDeleteConversation}
                 onStartConversationWithUser={(targetUser) => {
-                  handleStartMessage(targetUser.uid, targetUser.name, targetUser.email || '');
+                  handleStartMessage(targetUser.uid, targetUser.name, targetUser.email || '', targetUser.avatar);
                 }}
                 onBlockUser={handleBlockUser}
                 onReportUser={(targetUid, name) => {
