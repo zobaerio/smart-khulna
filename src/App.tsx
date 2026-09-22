@@ -2582,9 +2582,7 @@ export default function App() {
 
               {/* Sidebar Branding */}
               <div className="flex items-center gap-3 mb-4 mt-2">
-                <div className="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg border border-lime-400 shrink-0">
-                  <span className="text-lg font-black text-white">K</span>
-                </div>
+                <SmartKhulnaLogo size={40} showGlow={true} id="drawer-brand-logo" />
                 <div>
                   <h2 className="text-base font-bold tracking-tight text-white font-serif">স্মার্ট খুলনা</h2>
                   <p className="text-[9px] text-lime-400 font-medium">Smart Khulna local platform</p>
