@@ -289,6 +289,7 @@ export default function App() {
   // Authentication & Users
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [showReactivateModal, setShowReactivateModal] = useState(false);
 
   // Core Data States (synchronized between Firestore and localStorage fallback)
   const [services, setServices] = useState<Service[]>(() => getLocalData('services', initialServices));
@@ -600,13 +601,18 @@ export default function App() {
               subAdminScope: data.subAdminScope || localCached?.subAdminScope,
               savedServices: data.savedServices || localCached?.savedServices || [],
               isLocked: typeof data.isLocked === 'boolean' ? data.isLocked : !!localCached?.isLocked,
-              showActiveStatus: typeof data.showActiveStatus === 'boolean' ? data.showActiveStatus : (localCached?.showActiveStatus !== false)
+              showActiveStatus: typeof data.showActiveStatus === 'boolean' ? data.showActiveStatus : (localCached?.showActiveStatus !== false),
+              isDeleted: !!data.isDeleted
             };
             
             // Sync with local cache and Firestore
             localStorage.setItem(`smart_khulna_profile_${firebaseUser.uid}`, JSON.stringify(updatedProfile));
             await setDoc(userDocRef, updatedProfile, { merge: true });
             setUserProfile(updatedProfile);
+            
+            if (data.isDeleted) {
+              setShowReactivateModal(true);
+            }
 
             // Update in community directory
             setAllCommunityUsers(prev => {
@@ -2262,6 +2268,21 @@ export default function App() {
     }
   };
 
+  const handleDeleteMessages = async (conversationId: string, messageIds: string[]) => {
+    try {
+      await Promise.all(messageIds.map(messageId => 
+        deleteDoc(doc(db, 'conversations', conversationId, 'messages', messageId))
+      ));
+      setMessagesMap(prev => ({
+        ...prev,
+        [conversationId]: (prev[conversationId] || []).filter(m => !messageIds.includes(m.id))
+      }));
+    } catch (err) {
+      console.error('Failed to delete messages:', err);
+      alert('মেসেজগুলো মুছতে সমস্যা হয়েছে।');
+    }
+  };
+
   const handleDeleteConversation = async (conversationId: string) => {
     if (!currentUser || !window.confirm('আপনি কি এই কথোপকথনটি আপনার ভিউ থেকে মুছে ফেলতে চান?')) return;
     try {
@@ -2442,6 +2463,73 @@ export default function App() {
             setShowSplash(false);
           }}
         />
+      )}
+
+      {/* Account Reactivation Modal overlay */}
+      {showReactivateModal && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 max-w-md w-full text-center space-y-6 shadow-2xl animate-in fade-in zoom-in duration-300">
+            <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-950/40 rounded-full flex items-center justify-center mx-auto text-emerald-600 border-4 border-emerald-100 dark:border-emerald-900/50">
+              <CheckCircle size={36} />
+            </div>
+            
+            <div className="space-y-3">
+              <h2 className="text-lg font-extrabold text-slate-900 dark:text-white font-serif">স্বাগতম ফিরে এসেছেন! (Welcome Back!)</h2>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                আপনার অ্যাকাউন্টটি পূর্বে ডিলিট বা নিষ্ক্রিয় করা হয়েছিল। আপনি কি আপনার অ্যাকাউন্টটি পুনরায় সচল বা অ্যাক্টিভেট করতে চান?
+              </p>
+              <div className="text-left text-[11px] bg-slate-50 dark:bg-slate-850 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-1.5 text-slate-600 dark:text-slate-300">
+                <p className="font-bold text-slate-800 dark:text-slate-200">সচল করলে যা যা ফিরে পাবেন:</p>
+                <p>• আপনার পূর্বের সকল পোস্ট ও সার্ভিস তথ্য</p>
+                <p>• আপনার ফ্রেন্ডস, ফলোয়ার্স ও পূর্বের চ্যাট হিস্ট্রি</p>
+                <p>• নাগরিক ভেরিফিকেশন স্ট্যাটাস ও অন্যান্য সেটিংস</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                onClick={async () => {
+                  try {
+                    if (currentUser) {
+                      const userDocRef = doc(db, 'profiles', currentUser.uid);
+                      await setDoc(userDocRef, { isDeleted: false }, { merge: true });
+                      
+                      // Update local states
+                      setUserProfile(prev => {
+                        if (prev) {
+                          const updated = { ...prev, isDeleted: false };
+                          localStorage.setItem(`smart_khulna_profile_${currentUser.uid}`, JSON.stringify(updated));
+                          return updated;
+                        }
+                        return null;
+                      });
+                      
+                      setShowReactivateModal(false);
+                      alert("অভিনন্দন! আপনার অ্যাকাউন্টটি সফলভাবে পুনরায় সচল করা হয়েছে।");
+                    }
+                  } catch (err) {
+                    console.error("Failed to reactivate account:", err);
+                    alert("অ্যাকাউন্ট সচল করতে সমস্যা হয়েছে। দয়া করে আবার চেষ্টা করুন।");
+                  }
+                }}
+                className="w-full py-3 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-md cursor-pointer"
+              >
+                হ্যাঁ, সচল করতে চাই (Reactivate)
+              </button>
+              
+              <button
+                onClick={() => {
+                  // Sign out and close
+                  auth.signOut();
+                  setShowReactivateModal(false);
+                }}
+                className="w-full py-3 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition cursor-pointer"
+              >
+                না, লগআউট করুন (Logout)
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Real-time Connectivity / Offline status banner */}
@@ -3904,7 +3992,14 @@ export default function App() {
                     onMessage={(uid: string, name: string, avatar?: string) => handleStartMessage(uid, name, '', avatar)}
                     onFollow={handleFollow}
                     onUnfollow={handleUnfollow}
-                    onBack={() => setViewingProfileUid(null)}
+                    onBack={() => {
+                      if (viewingProfileUid && viewingProfileUid !== currentUser?.uid) {
+                        setViewingProfileUid(null);
+                        setActiveTab('community');
+                      } else {
+                        setActiveTab('home');
+                      }
+                    }}
                     posts={targetPosts}
                     services={targetServices}
                     districts={initialDistricts}
@@ -4012,6 +4107,7 @@ export default function App() {
                   onSelectConversation={setActiveConversationId}
                   onSendMessage={handleSendMessage}
                   onDeleteMessage={handleDeleteMessage}
+                  onDeleteMessages={handleDeleteMessages}
                   onDeleteConversation={handleDeleteConversation}
                   onStartConversationWithUser={(targetUser) => {
                     handleStartMessage(targetUser.uid, targetUser.name, targetUser.email || '', targetUser.avatar);

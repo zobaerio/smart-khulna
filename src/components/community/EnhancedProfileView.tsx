@@ -42,7 +42,8 @@ import {
   Volume2,
   Monitor,
   CreditCard,
-  Check
+  Check,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PublicUserProfile, CommunityPost, VerifiedBadgeType } from '../../types/community';
@@ -153,11 +154,28 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
   const [visitors, setVisitors] = useState<ProfileVisitor[]>([]);
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [showFbSettings, setShowFbSettings] = useState(false);
-  const [activeSettingSection, setActiveSettingSection] = useState<'main' | 'profile_lock' | 'active_status' | 'meta_verified' | 'blocking' | 'tagging' | 'two_factor' | 'archive' | 'search_visibility'>('main');
+  const [activeSettingSection, setActiveSettingSection] = useState<'main' | 'profile_lock' | 'active_status' | 'meta_verified' | 'blocking' | 'tagging' | 'two_factor' | 'archive' | 'search_visibility' | 'delete_account'>('main');
   const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
   const [blockingInput, setBlockingInput] = useState('');
   const [loadingSetting, setLoadingSetting] = useState<string | null>(null);
   const [twoFactorPinInput, setTwoFactorPinInput] = useState('');
+
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // Handle click outside to close 3-dot dropdown without blocking page scrolling
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowMoreMenu(false);
+      }
+    }
+    if (showMoreMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMoreMenu]);
 
   // Load blocked users and 2fa from profile on init
   useEffect(() => {
@@ -279,7 +297,7 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
             </div>
           )}
 
-          <div className="relative">
+          <div className="relative" ref={dropdownRef}>
             <button 
               onClick={() => setShowMoreMenu(!showMoreMenu)}
               className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition cursor-pointer"
@@ -290,17 +308,12 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
             {/* Profile Dropdown Menu */}
             <AnimatePresence>
               {showMoreMenu && (
-                <>
-                  <div 
-                    className="fixed inset-0 z-40" 
-                    onClick={() => setShowMoreMenu(false)}
-                  />
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                    className="absolute right-0 top-10 w-52 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 py-1.5 z-50 overflow-hidden"
-                  >
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                  className="absolute right-0 top-10 w-52 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 py-1.5 z-50 overflow-hidden"
+                >
                     {isOwnProfile ? (
                       <>
                         <button 
@@ -421,7 +434,6 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                       </button>
                     )}
                   </motion.div>
-                </>
               )}
             </AnimatePresence>
           </div>
@@ -1086,6 +1098,7 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                   {activeSettingSection === 'two_factor' && 'দ্বি-স্তর নিরাপত্তা (Two-Factor Security)'}
                   {activeSettingSection === 'archive' && 'স্টোরি ও পোস্ট আর্কাইভ (Archive)'}
                   {activeSettingSection === 'search_visibility' && 'সার্চ ইঞ্জিনে অনুসন্ধান (Search Visibility)'}
+                  {activeSettingSection === 'delete_account' && 'অ্যাকাউন্ট নিষ্ক্রিয় ও ডিলিট (Delete Account)'}
                 </h2>
               </div>
               <div className="flex items-center gap-2">
@@ -1354,7 +1367,24 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                           </div>
                           <div>
                             <h4 className="text-xs font-black text-slate-900 dark:text-white">Blocking (ব্লক লিস্ট)</h4>
-                            <p className="text-[10px] text-slate-500">আপনার блок করা নাগরিকদের তালিকা পরিচালনা করুন</p>
+                            <p className="text-[10px] text-slate-500">আপনার ব্লক করা নাগরিকদের তালিকা পরিচালনা করুন</p>
+                          </div>
+                        </div>
+                        <ChevronRight size={16} className="text-slate-400" />
+                      </button>
+
+                      {/* Delete Account Option */}
+                      <button 
+                        onClick={() => setActiveSettingSection('delete_account')}
+                        className="w-full p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-850 text-left transition text-slate-800 dark:text-slate-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-red-500/10 rounded-full text-red-600">
+                            <Trash2 size={18} />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black text-red-600 dark:text-red-400">Delete Account (অ্যাকাউন্ট ডিলিট)</h4>
+                            <p className="text-[10px] text-slate-500">আপনার অ্যাকাউন্টটি নিষ্ক্রিয় বা ডিলিট করুন</p>
                           </div>
                         </div>
                         <ChevronRight size={16} className="text-slate-400" />
@@ -1443,13 +1473,29 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                       আপনার প্রোফাইলে একটি সম্মানিত "ভেরিফাইড নাগরিক" ব্লু ভেরিফিকেশন ব্যাজ যোগ করুন! এর ফলে অ্যাপের সর্বত্র আপনার নামের পাশে সম্মানিত ব্যাজটি প্রদর্শন করবে।
                     </p>
                   </div>
-                  <div className="p-4 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 rounded-2xl text-left space-y-2">
-                    <h4 className="text-xs font-bold text-blue-800 dark:text-blue-300">ভেরিফিকেশনের সুবিধাসমূহ:</h4>
-                    <ul className="text-[10px] text-slate-600 dark:text-slate-400 space-y-1 list-disc list-inside font-medium">
-                      <li>নামের পাশে প্রফেশনাল ব্লু চেকমার্ক ব্যাজ</li>
-                      <li>কমিউনিটিতে সর্বোচ্চ প্রাধান্য ও ট্রাস্ট</li>
-                      <li>সহজ রক্তদান ও জরুরি সেবা প্রদানকারী অ্যাক্সেস</li>
-                    </ul>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 rounded-2xl text-left space-y-2">
+                      <h4 className="text-xs font-bold text-blue-800 dark:text-blue-300">ভেরিফিকেশনের সুবিধাসমূহ:</h4>
+                      <ul className="text-[10px] text-slate-600 dark:text-slate-400 space-y-1 list-disc list-inside font-medium">
+                        <li>নামের পাশে প্রফেশনাল ব্লু চেকমার্ক ব্যাজ</li>
+                        <li>কমিউনিটিতে সর্বোচ্চ প্রাধান্য ও ট্রাস্ট</li>
+                        <li>সহজ রক্তদান ও জরুরি সেবা প্রদানকারী অ্যাক্সেস</li>
+                      </ul>
+                    </div>
+
+                    <div className="p-4 bg-emerald-50/70 dark:bg-emerald-950/25 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl text-left space-y-2.5">
+                      <div className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs">
+                        <Award size={16} />
+                        <span>ফ্রি মেটা ভেরিফিকেশন অফার!</span>
+                      </div>
+                      <p className="text-[10px] text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                        ভেরিফিকেশন চাইলে যেকোনো নাগরিক সরাসরি নিতে পারবেন। তবে আপনার এলাকা বা আপনার জেলার মানুষের সহায়তার জন্য এখানে বিভিন্ন দরকারী সার্ভিস বা ইনফরমেশন (যেমন: ব্লাড ডোনার, এম্বুলেন্স, ডাক্তার, বা অন্য যেকোনো নাগরিক সেবা) অ্যাড করার পর আপনি **সম্পূর্ণ ফ্রিতে মেটা ভেরিফিকেশন** ব্লু ব্যাজ সচল করতে পারবেন!
+                      </p>
+                      <div className="text-[9px] bg-white/80 dark:bg-slate-900/80 px-2.5 py-1.5 rounded-lg text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-100 dark:border-emerald-800/60 flex items-center justify-between">
+                        <span>বর্তমান স্থিতি: জেলা সার্ভিস অবদানকারী</span>
+                        <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-full text-[8px]">যোগ্য (Eligible)</span>
+                      </div>
+                    </div>
                   </div>
                   <div>
                     <button 
@@ -1700,6 +1746,55 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                   >
                     সেভ ও সম্পন্ন করুন
                   </button>
+                </div>
+              )}
+
+              {/* Sub-Section: Delete Account */}
+              {activeSettingSection === 'delete_account' && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 text-center space-y-6 shadow-xs max-w-md mx-auto">
+                  <div className="w-16 h-16 bg-red-50 dark:bg-red-950/40 rounded-full flex items-center justify-center mx-auto text-red-600 border-4 border-red-100 dark:border-red-900/50">
+                    <Trash2 size={28} />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">অ্যাকাউন্ট ডিলিট করুন (Delete Account)</h3>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      আপনি কি নিশ্চিত যে আপনার অ্যাকাউন্টটি ডিলিট করতে চান? অ্যাকাউন্ট ডিলিট করলে আপনার প্রোফাইলটি সাময়িকভাবে নিষ্ক্রিয় করা হবে এবং অন্য কোনো ব্যবহারকারী আপনার প্রোফাইল দেখতে পাবেন না। 
+                    </p>
+                    <p className="text-[11px] text-emerald-600 font-bold bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
+                      পরবর্তীতে আপনি চাইলে যেকোনো সময় পুনরায় লগইন করার মাধ্যমে আপনার অ্যাকাউন্টটি সম্পূর্ণ ফ্রিতে এবং নিরাপদে সচল করতে পারবেন।
+                    </p>
+                  </div>
+
+                  <div className="space-y-2 pt-2">
+                    <button 
+                      onClick={async () => {
+                        if (confirm("আপনি কি নিশ্চিতভাবে আপনার অ্যাকাউন্টটি নিষ্ক্রিয় বা ডিলিট করতে চান? পরবর্তীতে পুনরায় লগইন করে সচল করতে পারবেন।")) {
+                          try {
+                            setLoadingSetting('delete_account');
+                            await handleUpdateProfileField('isDeleted', true);
+                            if (onLogout) {
+                              onLogout();
+                            }
+                          } catch (err) {
+                            console.error(err);
+                            alert("অ্যাকাউন্ট নিষ্ক্রিয় করতে সমস্যা হয়েছে। দয়া করে আবার চেষ্টা করুন।");
+                          } finally {
+                            setLoadingSetting(null);
+                          }
+                        }
+                      }}
+                      disabled={loadingSetting === 'delete_account'}
+                      className="w-full py-2.5 rounded-xl text-xs font-extrabold bg-red-600 hover:bg-red-700 text-white transition disabled:opacity-50"
+                    >
+                      {loadingSetting === 'delete_account' ? 'নিষ্ক্রিয় করা হচ্ছে...' : 'হ্যাঁ, অ্যাকাউন্ট ডিলিট করুন'}
+                    </button>
+                    <button 
+                      onClick={() => setActiveSettingSection('main')}
+                      className="w-full py-2.5 rounded-xl text-xs font-extrabold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition"
+                    >
+                      ফিরে যান
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

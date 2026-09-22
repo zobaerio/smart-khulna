@@ -101,6 +101,7 @@ export interface UserProfile {
   savedServices?: string[];
   isLocked?: boolean;
   showActiveStatus?: boolean;
+  isDeleted?: boolean;
   subAdminScope?: {
     districtId?: string;
     categoryId?: string;
