@@ -43,7 +43,8 @@ import {
   Monitor,
   CreditCard,
   Check,
-  Trash2
+  Trash2,
+  DownloadCloud
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PublicUserProfile, CommunityPost, VerifiedBadgeType } from '../../types/community';
@@ -51,6 +52,7 @@ import { Service, District, Category } from '../../dbData';
 import { IconComponent } from './IconComponent';
 import { db } from '../../firebase';
 import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { AppUpdateModal } from '../ui/AppUpdateModal';
 
 interface ProfileVisitor {
   id: string;
@@ -155,6 +157,7 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
   const [showVisitorsModal, setShowVisitorsModal] = useState(false);
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [showFbSettings, setShowFbSettings] = useState(false);
+  const [showAppUpdateModal, setShowAppUpdateModal] = useState(false);
   const [activeSettingSection, setActiveSettingSection] = useState<'main' | 'profile_lock' | 'active_status' | 'meta_verified' | 'blocking' | 'tagging' | 'two_factor' | 'archive' | 'search_visibility' | 'delete_account'>('main');
   const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
   const [blockingInput, setBlockingInput] = useState('');
@@ -1525,6 +1528,23 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                         <ChevronRight size={16} className="text-slate-400" />
                       </button>
 
+                      {/* App Update System */}
+                      <button 
+                        onClick={() => setShowAppUpdateModal(true)}
+                        className="w-full p-4 flex items-center justify-between hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 text-left transition text-slate-800 dark:text-slate-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-emerald-500/10 rounded-full text-emerald-600">
+                            <DownloadCloud size={18} />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black text-slate-900 dark:text-white">App Update (অ্যাপ আপডেট)</h4>
+                            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">নতুন ফিচার ও নিরাপত্তা আপডেট চেক করুন</p>
+                          </div>
+                        </div>
+                        <ChevronRight size={16} className="text-slate-400" />
+                      </button>
+
                       {/* Delete Account Option */}
                       <button 
                         onClick={() => setActiveSettingSection('delete_account')}
@@ -2087,6 +2107,12 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
           </div>
         )}
       </AnimatePresence>
+
+      {/* App Update Modal */}
+      <AppUpdateModal
+        isOpen={showAppUpdateModal}
+        onClose={() => setShowAppUpdateModal(false)}
+      />
     </div>
   );
 };

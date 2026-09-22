@@ -335,23 +335,23 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden h-full flex flex-col md:flex-row">
+    <div className="bg-white dark:bg-slate-900 md:rounded-3xl md:border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden h-full w-full flex-1 min-h-0 flex flex-col md:flex-row">
       {/* LEFT COLUMN: CONVERSATION LIST */}
       <div
-        className={`w-full md:w-80 lg:w-96 border-r border-slate-200 flex flex-col bg-slate-50/50 h-full ${
+        className={`w-full md:w-80 lg:w-96 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50/50 dark:bg-slate-950/50 h-full min-h-0 shrink-0 ${
           mobileShowChat ? 'hidden md:flex' : 'flex'
         }`}
       >
-        {/* LIST HEADER */}
-        <div className="p-4 border-b border-slate-200 bg-white space-y-3">
+        {/* LIST HEADER (FIXED TOP) */}
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3 shrink-0 z-10">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900 font-serif flex items-center gap-2">
-              <MessageCircle size={18} className="text-emerald-700" />
+            <h2 className="text-base font-bold text-slate-900 dark:text-white font-serif flex items-center gap-2">
+              <MessageCircle size={18} className="text-emerald-700 dark:text-emerald-400" />
               মেসেজ
             </h2>
             <button
               onClick={() => setShowNewChatModal(true)}
-              className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+              className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
             >
               <UserPlus size={13} /> নতুন চ্যাট
             </button>
@@ -364,24 +364,31 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
               type="text"
               value={chatSearchQuery}
               onChange={e => setChatSearchQuery(e.target.value)}
-              placeholder="চ্যাট অনুসন্ধান..."
-              className="w-full bg-slate-100 border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 text-xs focus:ring-2 focus:ring-emerald-600 focus:bg-white focus:outline-none"
+              placeholder="মেসেজ খুঁজুন..."
+              className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-600 focus:bg-white dark:focus:bg-slate-900 focus:outline-none placeholder-slate-400"
             />
           </div>
         </div>
 
-        {/* CONVERSATION ITEMS */}
-        <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+        {/* CONVERSATION ITEMS (ONLY THIS AREA SCROLLS) */}
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain custom-chat-scrollbar divide-y divide-slate-100 dark:divide-slate-800/60 pb-20 md:pb-6">
           {filteredConversations.length === 0 ? (
-            <div className="p-8 text-center text-xs text-slate-400 space-y-2">
-              <MessageCircle size={24} className="mx-auto text-slate-300" />
-              <p>কোনো বার্তা বা কথোপকথন পাওয়া যায়নি।</p>
-              <button
-                onClick={() => setShowNewChatModal(true)}
-                className="text-emerald-700 hover:underline font-bold"
-              >
-                নতুন কথোপকথন শুরু করুন
-              </button>
+            <div className="p-8 text-center text-xs text-slate-400 dark:text-slate-500 space-y-2.5 my-auto flex flex-col items-center justify-center min-h-[250px]">
+              <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 dark:text-slate-500">
+                <MessageCircle size={24} />
+              </div>
+              <h4 className="font-bold text-slate-700 dark:text-slate-300">কোনো মেসেজ নেই</h4>
+              <p className="text-[11px] max-w-xs leading-relaxed">
+                {chatSearchQuery ? 'অনুসন্ধানের সাথে মেলে এমন কোনো কথোপকথন পাওয়া যায়নি।' : 'আপনার কোনো কথোপকথন এখনো শুরু হয়নি।'}
+              </p>
+              {!chatSearchQuery && (
+                <button
+                  onClick={() => setShowNewChatModal(true)}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition text-xs shadow-xs cursor-pointer inline-flex items-center gap-1.5 mt-2"
+                >
+                  <UserPlus size={14} /> নতুন কথোপকথন শুরু করুন
+                </button>
+              )}
             </div>
           ) : (
             filteredConversations.map(conv => {
@@ -397,39 +404,39 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                     onSelectConversation(conv.id);
                     setMobileShowChat(true);
                   }}
-                  className={`w-full p-3.5 flex items-start gap-3 text-left transition cursor-pointer hover:bg-slate-100/70 ${
-                    isActive ? 'bg-emerald-50/80 border-r-4 border-emerald-700' : ''
+                  className={`w-full p-3.5 flex items-start gap-3 text-left transition cursor-pointer hover:bg-slate-100/70 dark:hover:bg-slate-800/60 ${
+                    isActive ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-r-4 border-emerald-700 dark:border-emerald-500' : ''
                   }`}
                 >
                   <div className="relative flex-shrink-0">
                     <img
                       src={getSafeAvatarUrl(other?.avatar, other?.name, other?.uid)}
                       alt={other?.name || 'User'}
-                      className="w-11 h-11 rounded-full object-cover border border-slate-200 bg-emerald-50"
+                      className="w-11 h-11 rounded-full object-cover border border-slate-200 dark:border-slate-700 bg-emerald-50"
                       onError={(e) => {
                         e.currentTarget.src = getSafeAvatarUrl('', other?.name, other?.uid);
                       }}
                       referrerPolicy="no-referrer"
                     />
                     {other?.isOnline && (
-                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full" />
+                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full" />
                     )}
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1 mb-0.5">
-                      <h4 className="text-xs font-bold text-slate-900 truncate">
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
                         {other?.name || 'ব্যবহারকারী'}
                       </h4>
                       {conv.lastMessage && (
-                        <span className="text-[10px] text-slate-400 flex-shrink-0">
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 flex-shrink-0">
                           {formatMessageTime(conv.lastMessage.timestamp)}
                         </span>
                       )}
                     </div>
 
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-[11px] text-slate-500 truncate">
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
                         {conv.lastMessage?.text || 'ছবি বা ফাইল পাঠানো হয়েছে'}
                       </p>
                       {unread > 0 && (
@@ -448,14 +455,14 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
 
       {/* RIGHT COLUMN: ACTIVE CHAT VIEW */}
       <div
-        className={`flex-1 flex flex-col bg-white ${
+        className={`flex-1 flex flex-col bg-white h-full min-h-0 overflow-hidden ${
           mobileShowChat ? 'flex' : 'hidden md:flex'
         }`}
       >
         {activeConv && otherParticipant ? (
           <>
-            {/* CHAT HEADER */}
-            <div className="p-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
+            {/* CHAT HEADER (FIXED TOP) */}
+            <div className="p-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/70 shrink-0 z-20">
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setMobileShowChat(false)}
@@ -613,7 +620,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
 
             {/* ACTION SUCCESS TOAST */}
             {actionSuccessToast && (
-              <div className="bg-emerald-600 text-white px-3.5 py-2 text-xs font-bold flex items-center justify-between animate-in slide-in-from-top duration-200">
+              <div className="bg-emerald-600 text-white px-3.5 py-2 text-xs font-bold flex items-center justify-between animate-in slide-in-from-top duration-200 shrink-0 z-20">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 size={15} />
                   <span>{actionSuccessToast}</span>
@@ -627,10 +634,10 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
               </div>
             )}
 
-            {/* MESSAGES STREAM */}
+            {/* MESSAGES STREAM (ONLY SCROLLING AREA) */}
             <div
               ref={scrollContainerRef}
-              className={`flex-1 p-4 overflow-y-auto space-y-3 transition-all duration-300 relative ${activeTheme.bgClass}`}
+              className={`flex-1 min-h-0 w-full p-4 overflow-y-auto overscroll-contain custom-chat-scrollbar space-y-3 transition-all duration-300 relative ${activeTheme.bgClass}`}
             >
               {/* Dynamic Theme Ambient Animation Overlay */}
               <ChatThemeAnimationOverlay animationType={activeTheme.animationType} />
@@ -646,14 +653,18 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                   এখনও কোনো মেসেজ পাঠানো হয়নি। একটি শুভেচ্ছা বার্তা পাঠান!
                 </div>
               ) : (
-                currentMessages.map(msg => {
+                currentMessages.map((msg, idx) => {
                   const isMine = msg.senderId === currentUserId;
                   const isSelected = selectedMessageIds.includes(msg.id);
+                  const prevMsg = idx > 0 ? currentMessages[idx - 1] : null;
+                  const isSameSender = prevMsg && prevMsg.senderId === msg.senderId;
 
                   return (
                     <div
                       key={msg.id}
-                      className={`relative z-10 flex items-center gap-2.5 w-full ${isMine ? 'justify-end' : 'justify-start'} ${
+                      className={`relative z-10 flex items-end gap-2 w-full ${isMine ? 'justify-end' : 'justify-start'} ${
+                        isSameSender ? 'mt-1' : 'mt-3'
+                      } ${
                         isSelectionMode 
                           ? 'cursor-pointer hover:bg-slate-500/5 dark:hover:bg-slate-200/5 p-1 rounded-xl transition-colors duration-150' 
                           : ''
@@ -668,9 +679,9 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                         }
                       }}
                     >
-                      {/* Selection Checkbox */}
+                      {/* Selection Checkbox in selection mode */}
                       {isSelectionMode && (
-                        <div className="flex-shrink-0">
+                        <div className="flex-shrink-0 mb-1">
                           {isSelected ? (
                             <CheckSquare size={16} className="text-red-500 fill-red-100 dark:fill-red-950/30" />
                           ) : (
@@ -680,22 +691,22 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                       )}
 
                       <div
-                        className={`max-w-[85%] sm:max-w-[70%] rounded-2xl p-3 text-xs leading-relaxed shadow-xs relative group ${
+                        className={`max-w-[85%] sm:max-w-[72%] p-2.5 sm:p-3 text-xs sm:text-[13px] leading-relaxed shadow-xs relative group break-words select-text ${
                           isMine
-                            ? activeTheme.myBubble
-                            : activeTheme.otherBubble
+                            ? `${activeTheme.myBubble} rounded-2xl ${isSameSender ? 'rounded-tr-md' : 'rounded-tr-xs'}`
+                            : `${activeTheme.otherBubble} rounded-2xl ${isSameSender ? 'rounded-tl-md' : 'rounded-tl-xs'}`
                         }`}
                       >
                         {/* ATTACHED IMAGES */}
                         {msg.attachments && msg.attachments.length > 0 && (
                           <div className="mb-2 space-y-1.5">
                             {msg.attachments.map(att => (
-                              <div key={att.id} className="rounded-xl overflow-hidden">
+                              <div key={att.id} className="rounded-xl overflow-hidden shadow-2xs">
                                 {att.type === 'image' ? (
                                   <img
                                     src={att.url}
                                     alt={att.name}
-                                    className="max-h-56 object-cover rounded-xl cursor-pointer hover:opacity-95 transition"
+                                    className="max-h-60 w-full object-cover rounded-xl cursor-pointer hover:opacity-95 transition"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setLightboxAttachment(att);
@@ -706,15 +717,15 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                                     href={att.url}
                                     download={att.name}
                                     onClick={(e) => e.stopPropagation()}
-                                    className={`flex items-center gap-2 p-2 rounded-xl text-xs ${
+                                    className={`flex items-center gap-2 p-2 rounded-xl text-xs font-medium ${
                                       isMine
-                                        ? 'bg-black/25 text-white hover:bg-black/40'
-                                        : 'bg-slate-100 text-slate-800 hover:bg-slate-200'
+                                        ? 'bg-black/20 text-white hover:bg-black/30'
+                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200'
                                     }`}
                                   >
-                                    <Paperclip size={13} />
-                                    <span className="truncate max-w-xs">{att.name}</span>
-                                    {att.size && <span className="opacity-70 text-[10px]">({att.size})</span>}
+                                    <Paperclip size={13} className="shrink-0" />
+                                    <span className="truncate max-w-[180px] sm:max-w-xs">{att.name}</span>
+                                    {att.size && <span className="opacity-70 text-[10px] shrink-0">({att.size})</span>}
                                   </a>
                                 )}
                               </div>
@@ -723,44 +734,25 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                         )}
 
                         {/* MESSAGE TEXT */}
-                        {msg.text && <p className="whitespace-pre-wrap">{msg.text}</p>}
+                        {msg.text && <p className="whitespace-pre-wrap break-words">{msg.text}</p>}
 
                         {/* TIME & READ STATUS */}
                         <div
-                          className={`mt-1 flex items-center gap-1 text-[9px] ${
-                            isMine ? `${activeTheme.textMy} justify-end` : activeTheme.textOther
+                          className={`mt-1 flex items-center gap-1 text-[9px] select-none ${
+                            isMine ? `${activeTheme.textMy} justify-end` : `${activeTheme.textOther} justify-end`
                           }`}
                         >
                           <span>{formatMessageTime(msg.createdAt)}</span>
                           {isMine && (
-                            <span>
+                            <span className="inline-flex items-center">
                               {msg.isRead ? (
-                                <CheckCheck size={11} className="text-emerald-300" />
+                                <CheckCheck size={12} className="text-emerald-300 stroke-[2.5]" />
                               ) : (
-                                <Check size={11} />
+                                <Check size={12} className="opacity-80 stroke-[2]" />
                               )}
                             </span>
                           )}
                         </div>
-
-                        {/* DELETE SINGLE SENT MESSAGE BUTTON (Only for messages sent by the user) */}
-                        {!isSelectionMode && isMine && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteModal({
-                                isOpen: true,
-                                mode: 'single',
-                                messageId: msg.id,
-                                textPreview: msg.text || (msg.attachments?.length ? 'ছবি/সংযুক্ত ফাইল' : 'মেসেজ')
-                              });
-                            }}
-                            className="absolute -top-2 -left-2 bg-slate-800/90 hover:bg-red-600 text-white p-1.5 rounded-full opacity-80 sm:opacity-0 group-hover:opacity-100 transition duration-150 cursor-pointer z-10 shadow-sm"
-                            title="মেসেজ মুছুন"
-                          >
-                            <Trash2 size={11} />
-                          </button>
-                        )}
                       </div>
                     </div>
                   );
@@ -769,9 +761,9 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
               <div ref={messagesEndRef} />
             </div>
 
-            {/* ATTACHMENTS PREVIEW BAR */}
+            {/* ATTACHMENTS PREVIEW BAR (FIXED) */}
             {attachments.length > 0 && (
-              <div className="p-2 border-t border-slate-200 bg-slate-50 flex items-center gap-2 overflow-x-auto">
+              <div className="p-2 border-t border-slate-200 bg-slate-50 flex items-center gap-2 overflow-x-auto shrink-0 z-20">
                 {attachments.map(att => (
                   <div
                     key={att.id}
@@ -795,9 +787,9 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
               </div>
             )}
 
-            {/* INPUT FORM OR BULK SELECTION ACTION BAR */}
+            {/* INPUT FORM OR BULK SELECTION ACTION BAR (FIXED BOTTOM) */}
             {isSelectionMode ? (
-              <div className="p-4 border-t border-red-100 dark:border-red-950/40 bg-red-50/60 dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in slide-in-from-bottom duration-200">
+              <div className="p-3 sm:p-4 border-t border-red-100 dark:border-red-950/40 bg-red-50/60 dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in slide-in-from-bottom duration-200 shrink-0 z-20">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-extrabold text-red-600 dark:text-red-400">
                     {selectedMessageIds.length}টি মেসেজ সিলেক্ট করা হয়েছে
@@ -855,7 +847,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
             ) : (
               <form
                 onSubmit={handleSend}
-                className="p-3 border-t border-slate-200 bg-white flex items-center gap-2"
+                className="p-2.5 sm:p-3 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-1.5 sm:gap-2 shrink-0 z-20"
               >
                 {/* IMAGE ATTACH BUTTON */}
                 <input
@@ -868,7 +860,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                 <button
                   type="button"
                   onClick={() => imageInputRef.current?.click()}
-                  className="p-2 text-slate-500 hover:text-emerald-700 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                  className="p-2 text-slate-500 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer shrink-0"
                   title="ছবি সংযুক্ত করুন"
                 >
                   <ImageIcon size={18} />
@@ -884,7 +876,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2 text-slate-500 hover:text-emerald-700 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                  className="p-2 text-slate-500 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer shrink-0"
                   title="ফাইল সংযুক্ত করুন"
                 >
                   <Paperclip size={18} />
@@ -901,14 +893,14 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                       : 'একটি বার্তা লিখুন...'
                   }
                   disabled={isOtherBlocked}
-                  className="flex-1 bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-emerald-600 focus:bg-white focus:outline-none placeholder:text-slate-400"
+                  className="flex-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-600 focus:bg-white dark:focus:bg-slate-900 focus:outline-none placeholder:text-slate-400"
                 />
 
                 {/* SEND BUTTON */}
                 <button
                   type="submit"
                   disabled={(!messageInput.trim() && attachments.length === 0) || isOtherBlocked}
-                  className="p-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white rounded-xl transition cursor-pointer"
+                  className="p-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white rounded-xl transition cursor-pointer shrink-0 shadow-xs"
                 >
                   <Send size={15} />
                 </button>

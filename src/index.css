@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 @variant dark (&:where(.dark, .dark *));
 
 @theme {
@@ -135,4 +144,30 @@
   background-color: #ecfdf5; /* hover:bg-emerald-50 */
   transform: scale(1.05); /* hover scale 1.05 */
   cursor: pointer;
+}
+
+/* Custom smooth scrollbar for chat messages */
+.custom-chat-scrollbar {
+  overflow-y: auto !important;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
+
+.custom-chat-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-chat-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-chat-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.3);
+  border-radius: 9999px;
+}
+
+.custom-chat-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.6);
 }

@@ -2860,10 +2860,10 @@ export default function App() {
         </div>
 
       {/* PRIMARY INTERACTIVE PORTAL (Mobile viewport layout on small screens, expands nicely) */}
-      <div className="flex-1 flex flex-col h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 relative pb-16 md:pb-0 overflow-hidden">
+      <div className="flex-1 flex flex-col h-[100dvh] max-h-[100dvh] bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 relative overflow-hidden">
         
         {/* STICKY TOP HEADER (Phase 1 Redesign) */}
-        <header className="sticky top-0 bg-white dark:bg-slate-950 backdrop-blur-md border-b border-emerald-100 dark:border-slate-800 z-50 shadow-sm">
+        <header className="sticky top-0 bg-white dark:bg-slate-950 backdrop-blur-md border-b border-emerald-100 dark:border-slate-800 z-50 shadow-sm shrink-0">
           {/* Top Scrolling Marquee (Bengal Tiger Style) */}
           <div className="bg-emerald-950 text-emerald-300 py-1.5 px-4 overflow-hidden whitespace-nowrap border-b border-emerald-900/50 flex items-center relative select-none">
             {/* Left: Notice Button - solid background masks the text as it enters inside */}
@@ -2974,8 +2974,8 @@ export default function App() {
       </header>
 
         {/* MAIN PAGE CONTAINER */}
-        <main className={`flex-1 overflow-hidden relative flex flex-col`}>
-          <div className={`flex-1 flex flex-col ${
+        <main className="flex-1 min-h-0 overflow-hidden relative flex flex-col">
+          <div className={`flex-1 min-h-0 flex flex-col ${
             (activeTab === 'messages' || activeTab === 'profile') 
               ? 'h-full overflow-hidden' 
               : activeTab === 'services'
@@ -4117,7 +4117,7 @@ export default function App() {
 
             {/* TAB VIEW - MESSAGING CENTER */}
             {activeTab === 'messages' && (
-              <div className="h-full overflow-hidden p-2 sm:p-4">
+              <div className="flex-1 min-h-0 h-full w-full overflow-hidden p-0 sm:p-2 md:p-3 flex flex-col">
                 <MessagingCenter
                   currentUserId={currentUser?.uid || null}
                   currentUserEmail={currentUser?.email || null}
@@ -4152,7 +4152,7 @@ export default function App() {
 
 
           {/* PERSISTENT BOTTOM NAVIGATION (5 Tab structure: Home, Services, Community, Messages, Profile) */}
-          <nav className="fixed bottom-0 left-0 right-0 md:absolute md:bottom-0 bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 py-2 px-3 flex justify-around items-center z-10 shadow-lg">
+          <nav className="bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 py-2 px-3 flex justify-around items-center shrink-0 z-30 shadow-lg md:hidden">
             <button
               onClick={() => {
                 setActiveTab('home');
