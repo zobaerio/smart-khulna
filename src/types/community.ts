@@ -227,6 +227,8 @@ export interface PublicUserProfile {
   isFollowing?: boolean;
   isBlocked?: boolean;
   isOnline?: boolean;
+  isLocked?: boolean;
+  showActiveStatus?: boolean;
 }
 
 export interface ModerationAction {

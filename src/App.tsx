@@ -598,7 +598,9 @@ export default function App() {
               role: isSuperAdminEmail ? ('super_admin' as const) : (data.role || localCached?.role || 'user'),
               subAdminPermissions: data.subAdminPermissions || localCached?.subAdminPermissions,
               subAdminScope: data.subAdminScope || localCached?.subAdminScope,
-              savedServices: data.savedServices || localCached?.savedServices || []
+              savedServices: data.savedServices || localCached?.savedServices || [],
+              isLocked: typeof data.isLocked === 'boolean' ? data.isLocked : !!localCached?.isLocked,
+              showActiveStatus: typeof data.showActiveStatus === 'boolean' ? data.showActiveStatus : (localCached?.showActiveStatus !== false)
             };
             
             // Sync with local cache and Firestore
@@ -753,6 +755,7 @@ export default function App() {
 
   // Sync and fetch all community user profiles in real-time
   useEffect(() => {
+    if (!currentUser) return;
     try {
       const unsub = onSnapshot(collection(db, 'profiles'), (snap) => {
         if (!snap.empty) {
@@ -775,6 +778,8 @@ export default function App() {
               followersCount: typeof data.followersCount === 'number' ? data.followersCount : 0,
               followingCount: typeof data.followingCount === 'number' ? data.followingCount : 0,
               badge: data.role === 'super_admin' ? 'admin' : (data.badge || 'none'),
+              isLocked: !!data.isLocked,
+              showActiveStatus: data.showActiveStatus !== false,
               socialLinks: data.socialLinks || {
                 facebook: data.facebook || '',
                 twitter: data.twitter || '',
@@ -787,13 +792,13 @@ export default function App() {
           setAllCommunityUsers(usersList);
         }
       }, (err) => {
-        console.warn("Could not listen to community users from Firestore:", err);
+        handleFirestoreError(err, OperationType.LIST, 'profiles');
       });
       return () => unsub();
     } catch (err) {
       console.warn("Real-time community profiles setup error:", err);
     }
-  }, []);
+  }, [currentUser]);
 
   // User-specific Likes, Follows, Saved Posts and Conversations Loader/Sync
   useEffect(() => {
@@ -2611,7 +2616,7 @@ export default function App() {
       <div className="w-full max-w-5xl flex-1 bg-white shadow-xl flex flex-col md:flex-row relative">
         
         {/* SIDE PANEL / DESKTOP PREVIEW FRAME (Visible only on medium/large screens) */}
-        <div className="hidden md:flex md:w-80 bg-slate-900 text-slate-100 p-6 flex-col justify-between shrink-0 border-r border-slate-800">
+        <div className="hidden md:flex md:w-80 bg-slate-900 text-slate-100 p-6 flex-col justify-between shrink-0 border-r border-slate-800 overflow-y-auto max-h-screen sticky top-0 scrollbar-thin scrollbar-thumb-slate-800">
           <div>
             <div className="flex items-center gap-3 mb-6">
               {/* Modern K Monogram Leaf Logo */}
@@ -2753,7 +2758,7 @@ export default function App() {
       <div className="flex-1 flex flex-col h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 relative pb-16 md:pb-0 overflow-hidden">
         
         {/* STICKY TOP HEADER (Phase 1 Redesign) */}
-        <header className="flex-shrink-0 bg-white dark:bg-slate-950 backdrop-blur-md border-b border-emerald-100 dark:border-slate-800 z-50 shadow-sm">
+        <header className="sticky top-0 bg-white dark:bg-slate-950 backdrop-blur-md border-b border-emerald-100 dark:border-slate-800 z-50 shadow-sm">
           {/* Top Scrolling Marquee (Bengal Tiger Style) */}
           <div className="bg-emerald-950 text-emerald-300 py-1.5 px-4 overflow-hidden whitespace-nowrap border-b border-emerald-900/50 flex items-center relative select-none">
             {/* Left: Notice Button - solid background masks the text as it enters inside */}
@@ -3934,6 +3939,9 @@ export default function App() {
                     savedPostIds={savedCommunityPostIds}
                     followingUids={followingUids}
                     onStartMessage={handleStartMessage}
+                    lang={lang}
+                    onToggleLang={() => setLang(lang === 'bn' ? 'en' : 'bn')}
+                    onToggleDarkMode={() => setDarkMode(!darkMode)}
                   />
                 )}
               </div>

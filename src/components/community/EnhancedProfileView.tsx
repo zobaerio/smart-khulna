@@ -30,14 +30,26 @@ import {
   Heart,
   Share2,
   Eye,
-  Plus
+  Plus,
+  Ban,
+  Search,
+  ChevronRight,
+  Lock,
+  Unlock,
+  Shield,
+  HelpCircle,
+  Bell,
+  Volume2,
+  Monitor,
+  CreditCard,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PublicUserProfile, CommunityPost, VerifiedBadgeType } from '../../types/community';
 import { Service, District, Category } from '../../dbData';
 import { IconComponent } from './IconComponent';
 import { db } from '../../firebase';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc, getDoc } from 'firebase/firestore';
 
 interface ProfileVisitor {
   id: string;
@@ -87,6 +99,9 @@ interface EnhancedProfileViewProps {
   followingUids: string[];
   onStartMessage: (uid: string, name: string, email: string, avatar?: string) => void;
   onOpenSettings?: () => void;
+  lang?: 'bn' | 'en';
+  onToggleLang?: () => void;
+  onToggleDarkMode?: () => void;
 }
 
 type ProfileTab = 'posts' | 'about' | 'photos' | 'services' | 'followers';
@@ -126,7 +141,10 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
   savedPostIds,
   followingUids,
   onStartMessage,
-  onOpenSettings
+  onOpenSettings,
+  lang = 'bn',
+  onToggleLang,
+  onToggleDarkMode
 }) => {
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -134,6 +152,35 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [visitors, setVisitors] = useState<ProfileVisitor[]>([]);
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [showFbSettings, setShowFbSettings] = useState(false);
+  const [activeSettingSection, setActiveSettingSection] = useState<'main' | 'profile_lock' | 'active_status' | 'meta_verified' | 'blocking' | 'tagging' | 'two_factor' | 'archive' | 'search_visibility'>('main');
+  const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
+  const [blockingInput, setBlockingInput] = useState('');
+  const [loadingSetting, setLoadingSetting] = useState<string | null>(null);
+  const [twoFactorPinInput, setTwoFactorPinInput] = useState('');
+
+  // Load blocked users and 2fa from profile on init
+  useEffect(() => {
+    if (profile && isOwnProfile) {
+      // @ts-ignore
+      setBlockedUsers(profile.blockedUserIds || []);
+      // @ts-ignore
+      setTwoFactorPinInput(profile.twoFactorPin || '');
+    }
+  }, [profile, isOwnProfile]);
+
+  const handleUpdateProfileField = async (fieldName: string, value: any) => {
+    if (!profile.uid) return;
+    setLoadingSetting(fieldName);
+    try {
+      const userRef = doc(db, 'profiles', profile.uid);
+      await updateDoc(userRef, { [fieldName]: value });
+    } catch (err) {
+      console.error(`Failed to update ${fieldName}:`, err);
+    } finally {
+      setLoadingSetting(null);
+    }
+  };
 
   // Fetch visitors for own profile
   useEffect(() => {
@@ -254,17 +301,74 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                     exit={{ opacity: 0, scale: 0.95, y: -10 }}
                     className="absolute right-0 top-10 w-52 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 py-1.5 z-50 overflow-hidden"
                   >
-                    {isOwnProfile && (
-                      <button 
-                        onClick={() => {
-                          setShowMoreMenu(false);
-                          if (onOpenSettings) onOpenSettings();
-                        }}
-                        className="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2.5 transition"
-                      >
-                        <Settings size={15} className="text-emerald-600" />
-                        অ্যাকাউন্ট সেটিংস
-                      </button>
+                    {isOwnProfile ? (
+                      <>
+                        <button 
+                          onClick={() => {
+                            setShowMoreMenu(false);
+                            setShowFbSettings(true);
+                            setActiveSettingSection('main');
+                          }}
+                          className="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2.5 transition"
+                        >
+                          <Settings size={15} className="text-emerald-600 animate-spin-slow" />
+                          সেটিংস ও প্রাইভেসি
+                        </button>
+
+                        <button 
+                          onClick={() => {
+                            setShowMoreMenu(false);
+                            if (onOpenSettings) onOpenSettings();
+                          }}
+                          className="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2.5 transition"
+                        >
+                          <Settings size={15} className="text-slate-500" />
+                          অ্যাকাউন্ট সেটিংস
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button 
+                          onClick={async () => {
+                            setShowMoreMenu(false);
+                            if (confirm(`${profile.name}-কে কি আপনি ব্লক করতে চান?`)) {
+                              try {
+                                const currentUserProfileRef = doc(db, 'profiles', currentUserUid!);
+                                const currentProfileSnap = await getDoc(currentUserProfileRef);
+                                if (currentProfileSnap.exists()) {
+                                  const curData = currentProfileSnap.data();
+                                  const currentBlocked = curData.blockedUserIds || [];
+                                  if (!currentBlocked.includes(profile.uid)) {
+                                    const updatedBlocked = [...currentBlocked, profile.uid];
+                                    await updateDoc(currentUserProfileRef, { blockedUserIds: updatedBlocked });
+                                    alert(`${profile.name}-কে সফলভাবে ব্লক করা হয়েছে!`);
+                                  } else {
+                                    alert('এই ব্যবহারকারী ইতিমধ্যেই ব্লকড আছেন।');
+                                  }
+                                }
+                              } catch (e) {
+                                console.error("Error blocking user:", e);
+                                alert("ব্লক করতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।");
+                              }
+                            }
+                          }}
+                          className="w-full px-4 py-2.5 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center gap-2.5 transition"
+                        >
+                          <Ban size={15} className="text-rose-500" />
+                          ব্লক করুন
+                        </button>
+
+                        <button 
+                          onClick={() => {
+                            setShowMoreMenu(false);
+                            onReport('user', profile.uid, profile.name);
+                          }}
+                          className="w-full px-4 py-2.5 text-left text-xs font-bold text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 flex items-center gap-2.5 transition"
+                        >
+                          <Info size={15} className="text-amber-500" />
+                          রিপোর্ট করুন
+                        </button>
+                      </>
                     )}
 
                     <button 
@@ -537,6 +641,12 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                   {badge.label}
                 </div>
               )}
+              {profile.isLocked && (
+                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-200 dark:border-blue-800 text-[10px] font-bold w-fit self-center sm:self-auto">
+                  <Lock size={12} />
+                  <span>প্রোফাইল লকড</span>
+                </div>
+              )}
             </div>
             
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-4 gap-y-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
@@ -607,8 +717,30 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
 
       {/* Tab Content */}
       <div className="p-4 max-w-screen-xl mx-auto pb-20">
-        <AnimatePresence mode="wait">
-          {activeTab === 'posts' && (
+        {profile.isLocked && !isOwnProfile ? (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 text-center max-w-md mx-auto my-8 shadow-sm">
+            <div className="w-20 h-20 bg-blue-50 dark:bg-blue-950/40 rounded-full flex items-center justify-center mx-auto text-blue-600 dark:text-blue-400 border-4 border-blue-100 dark:border-blue-900/50 mb-5 relative">
+              <span className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full p-1 border-2 border-white dark:border-slate-900">
+                <CheckCircle size={12} />
+              </span>
+              <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h3 className="text-base font-extrabold text-slate-800 dark:text-slate-100 font-serif mb-2">
+              {profile.name}-এর প্রোফাইলটি লক করা আছে
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-serif">
+              নিজের ছবি এবং পোস্টগুলো সুরক্ষিত রাখতে {profile.name} প্রোফাইলটি লক করে রেখেছেন। শুধুমাত্র এডমিন ও অনুমোদিত নাগরিকরা তাঁর বিস্তারিত তথ্য দেখতে পারবেন।
+            </p>
+            <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400">
+              <ShieldCheck size={16} />
+              <span>স্মার্ট খুলনা সিটিজেন প্রটেকশন ট্রাস্ট</span>
+            </div>
+          </div>
+        ) : (
+          <AnimatePresence mode="wait">
+            {activeTab === 'posts' && (
             <motion.div 
               key="posts"
               initial={{ opacity: 0, y: 10 }}
@@ -922,7 +1054,658 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
             </motion.div>
           )}
         </AnimatePresence>
+        )}
       </div>
+
+      {/* Facebook Settings and Privacy Drawer/Modal */}
+      <AnimatePresence>
+        {showFbSettings && (
+          <div className="fixed inset-0 bg-slate-100 dark:bg-slate-950 z-50 overflow-y-auto font-sans text-slate-800 dark:text-slate-100">
+            {/* Top Bar */}
+            <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-xs z-10">
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => {
+                    if (activeSettingSection === 'main') {
+                      setShowFbSettings(false);
+                    } else {
+                      setActiveSettingSection('main');
+                    }
+                  }}
+                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition cursor-pointer"
+                >
+                  <ArrowLeft size={20} className="text-slate-700 dark:text-slate-300" />
+                </button>
+                <h2 className="text-sm font-extrabold text-slate-900 dark:text-white font-serif">
+                  {activeSettingSection === 'main' && 'সেটিংস ও প্রাইভেসি (Settings & Privacy)'}
+                  {activeSettingSection === 'profile_lock' && 'প্রোফাইল লকিং (Profile Locking)'}
+                  {activeSettingSection === 'active_status' && 'সক্রিয়তা স্ট্যাটাস (Active Status)'}
+                  {activeSettingSection === 'meta_verified' && 'নাগরিক ভেরিফিকেশন (Meta Verified)'}
+                  {activeSettingSection === 'blocking' && 'ব্লক করা ব্যবহারকারী (Blocking)'}
+                  {activeSettingSection === 'tagging' && 'টাইমলাইন ও ট্যাগিং (Timeline & Tagging)'}
+                  {activeSettingSection === 'two_factor' && 'দ্বি-স্তর নিরাপত্তা (Two-Factor Security)'}
+                  {activeSettingSection === 'archive' && 'স্টোরি ও পোস্ট আর্কাইভ (Archive)'}
+                  {activeSettingSection === 'search_visibility' && 'সার্চ ইঞ্জিনে অনুসন্ধান (Search Visibility)'}
+                </h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <button className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition">
+                  <Search size={18} className="text-slate-600 dark:text-slate-400" />
+                </button>
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-200 ring-2 ring-emerald-500/20">
+                  {profile.avatar && <img src={profile.avatar} alt="" className="w-full h-full object-cover" />}
+                </div>
+              </div>
+            </div>
+
+            {/* Container */}
+            <div className="max-w-2xl mx-auto p-4 space-y-6 pb-24">
+              {activeSettingSection === 'main' && (
+                <div className="space-y-6">
+                  {/* Search Bar */}
+                  <div className="relative">
+                    <Search className="absolute left-3.5 top-3 text-slate-400" size={16} />
+                    <input 
+                      type="text" 
+                      placeholder="Search settings..."
+                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full text-xs shadow-xs focus:ring-2 focus:ring-emerald-500 outline-hidden transition"
+                    />
+                  </div>
+
+                  {/* Profile Shortcut Card */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full overflow-hidden shrink-0">
+                        {profile.avatar ? <img src={profile.avatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-slate-200" />}
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900 dark:text-white">{profile.name}</h4>
+                        <p className="text-[10px] text-slate-500">আপনার নাগরিক প্রোফাইল এবং সেটিংস পরিবর্তন করুন</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => alert("অ্যাকাউন্ট মোড সুইচ করা হয়েছে! আপনি এখন প্রফেশনাল মোডে আছেন।")}
+                      className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black transition shadow-xs"
+                    >
+                      প্রোফাইল সুইচ করুন
+                    </button>
+                  </div>
+
+                  {/* Preferences Section */}
+                  <div className="space-y-3">
+                    <h3 className="text-[11px] font-black text-slate-400 dark:text-slate-500 tracking-wider uppercase px-1">Preferences (পছন্দসমূহ)</h3>
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs divide-y divide-slate-100 dark:divide-slate-800/60">
+                      
+                      {/* Meta Verified Item */}
+                      <button 
+                        onClick={() => setActiveSettingSection('meta_verified')}
+                        className="w-full p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-850 text-left transition text-slate-800 dark:text-slate-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-blue-500/10 rounded-full text-blue-600">
+                            <CheckCircle size={18} />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black text-slate-900 dark:text-white">Meta Verified (নাগরিক ভেরিফিকেশন)</h4>
+                            <p className="text-[10px] text-slate-500">{profile.badge === 'verified_citizen' ? 'আপনি ভেরিফাইড নাগরিক' : 'প্রোফাইলে ব্লু ভেরিফিকেশন ব্যাজ যুক্ত করুন'}</p>
+                          </div>
+                        </div>
+                        <ChevronRight size={16} className="text-slate-400" />
+                      </button>
+
+                      {/* Language and Region */}
+                      <div className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-emerald-500/10 rounded-full text-emerald-600">
+                            <Globe size={18} />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black text-slate-900 dark:text-white">Language & Region (ভাষা ও অঞ্চল)</h4>
+                            <p className="text-[10px] text-slate-500">ভাষা পরিবর্তন করুন (বর্তমান: {lang === 'bn' ? 'বাংলা' : 'English'})</p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            if (onToggleLang) onToggleLang();
+                          }}
+                          className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-[10px] font-black rounded-lg transition"
+                        >
+                          {lang === 'bn' ? 'English' : 'বাংলা'}
+                        </button>
+                      </div>
+
+                      {/* Dark Mode */}
+                      <div className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-slate-600/10 rounded-full text-slate-600 dark:text-slate-400">
+                            <Monitor size={18} />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black text-slate-900 dark:text-white">Dark Mode (ডার্ক মোড)</h4>
+                            <p className="text-[10px] text-slate-500">আপনার ইন্টারফেস পরিবর্তন করুন</p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            if (onToggleDarkMode) onToggleDarkMode();
+                          }}
+                          className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-[10px] font-black rounded-lg transition"
+                        >
+                          ডার্ক মোড স্যুইচ
+                        </button>
+                      </div>
+
+                      {/* Notification sound toggle */}
+                      <div className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-amber-500/10 rounded-full text-amber-600">
+                            <Bell size={18} />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black text-slate-900 dark:text-white">Notification Settings (নোটিফিকেশন)</h4>
+                            <p className="text-[10px] text-slate-500">আলার্ট এবং শব্দ কনফিগার করুন</p>
+                          </div>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" className="sr-only peer" defaultChecked />
+                          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-hidden rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-600"></div>
+                        </label>
+                      </div>
+
+                      {/* Two-Factor Authentication Security */}
+                      <button 
+                        onClick={() => setActiveSettingSection('two_factor')}
+                        className="w-full p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-850 text-left transition text-slate-800 dark:text-slate-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-purple-500/10 rounded-full text-purple-600">
+                            <ShieldCheck size={18} />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black text-slate-900 dark:text-white">Two-Factor Security (দ্বি-স্তর নিরাপত্তা)</h4>
+                            {/* @ts-ignore */}
+                            <p className="text-[10px] text-slate-500">{profile.twoFactorEnabled ? 'দ্বি-স্তর বিশিষ্ট নিরাপত্তা লক চালু আছে' : '৪-ডিজিটের সিকিউরিটি পিন লক সেট করুন'}</p>
+                          </div>
+                        </div>
+                        <ChevronRight size={16} className="text-slate-400" />
+                      </button>
+
+                      {/* Story and Post Archive */}
+                      <button 
+                        onClick={() => setActiveSettingSection('archive')}
+                        className="w-full p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-850 text-left transition text-slate-800 dark:text-slate-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-cyan-500/10 rounded-full text-cyan-600">
+                            <Calendar size={18} />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black text-slate-900 dark:text-white">Story & Post Archive (আর্কাইভ সেটিংস)</h4>
+                            {/* @ts-ignore */}
+                            <p className="text-[10px] text-slate-500">{profile.storyArchiveEnabled !== false ? 'আপনার শেয়ার করা বিষয়গুলো আর্কাইভে সংরক্ষিত হবে' : 'আর্কাইভ ফিচার বন্ধ আছে'}</p>
+                          </div>
+                        </div>
+                        <ChevronRight size={16} className="text-slate-400" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Audience and visibility Section */}
+                  <div className="space-y-3">
+                    <h3 className="text-[11px] font-black text-slate-400 dark:text-slate-500 tracking-wider uppercase px-1">Audience and visibility (দর্শক ও দৃশ্যমানতা)</h3>
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs divide-y divide-slate-100 dark:divide-slate-800/60">
+                      
+                      {/* Profile Locking */}
+                      <button 
+                        onClick={() => setActiveSettingSection('profile_lock')}
+                        className="w-full p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-850 text-left transition text-slate-800 dark:text-slate-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-blue-500/10 rounded-full text-blue-600">
+                            <Lock size={18} />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black text-slate-900 dark:text-white">Profile locking (প্রোফাইল লক)</h4>
+                            <p className="text-[10px] text-slate-500">{profile.isLocked ? 'আপনার প্রোফাইল বর্তমানে লক করা' : 'আপনার ছবি ও পোস্টগুলো সুরক্ষিত রাখুন'}</p>
+                          </div>
+                        </div>
+                        <ChevronRight size={16} className="text-slate-400" />
+                      </button>
+
+                      {/* Active Status */}
+                      <button 
+                        onClick={() => setActiveSettingSection('active_status')}
+                        className="w-full p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-850 text-left transition text-slate-800 dark:text-slate-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-emerald-500/10 rounded-full text-emerald-600">
+                            <Users size={18} />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black text-slate-900 dark:text-white">Active status (অনলাইন সক্রিয়তা)</h4>
+                            <p className="text-[10px] text-slate-500">{profile.showActiveStatus !== false ? 'আপনি যখন সক্রিয় থাকেন তখন দেখাবে' : 'সক্রিয় স্ট্যাটাস লুকানো আছে'}</p>
+                          </div>
+                        </div>
+                        <ChevronRight size={16} className="text-slate-400" />
+                      </button>
+
+                      {/* Timeline and Tagging */}
+                      <button 
+                        onClick={() => setActiveSettingSection('tagging')}
+                        className="w-full p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-850 text-left transition text-slate-800 dark:text-slate-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-pink-500/10 rounded-full text-pink-600">
+                            <MessageSquare size={18} />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black text-slate-900 dark:text-white">Timeline & Tagging (টাইমলাইন ও ট্যাগিং)</h4>
+                            {/* @ts-ignore */}
+                            <p className="text-[10px] text-slate-500">{profile.timelinePostingPermission === 'only_me' ? 'শুধুমাত্র আমি পোস্ট করতে পারব' : profile.timelinePostingPermission === 'followers' ? 'শুধুমাত্র ফলোয়াররা পোস্ট করতে পারবে' : 'সবার জন্য উন্মুক্ত'}</p>
+                          </div>
+                        </div>
+                        <ChevronRight size={16} className="text-slate-400" />
+                      </button>
+
+                      {/* How people find and contact you */}
+                      <div className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-indigo-500/10 rounded-full text-indigo-600">
+                            <Shield size={18} />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black text-slate-900 dark:text-white">Phone Privacy (যোগাযোগের গোপনীয়তা)</h4>
+                            <p className="text-[10px] text-slate-500 font-medium">অন্যান্য ব্যবহারকারীদের জন্য ফোন নম্বর লুকান</p>
+                          </div>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          {/* @ts-ignore */}
+                          <input type="checkbox" className="sr-only peer" checked={!!profile.hidePhone} onChange={() => handleUpdateProfileField('hidePhone', !profile.hidePhone)} />
+                          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-hidden rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-600"></div>
+                        </label>
+                      </div>
+
+                      {/* Search Engine Visibility */}
+                      <div className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-teal-500/10 rounded-full text-teal-600">
+                            <Globe size={18} />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black text-slate-900 dark:text-white">Search Visibility (সার্চ ইঞ্জিনে অনুসন্ধান)</h4>
+                            <p className="text-[10px] text-slate-500">আপনার প্রোফাইল সার্চ ইঞ্জিনে দেখাবে কিনা</p>
+                          </div>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          {/* @ts-ignore */}
+                          <input type="checkbox" className="sr-only peer" checked={profile.searchEngineVisible !== false} onChange={() => handleUpdateProfileField('searchEngineVisible', profile.searchEngineVisible === false ? true : false)} />
+                          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-hidden rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-600"></div>
+                        </label>
+                      </div>
+
+                      {/* Blocking */}
+                      <button 
+                        onClick={() => setActiveSettingSection('blocking')}
+                        className="w-full p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-850 text-left transition text-slate-800 dark:text-slate-100"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-rose-500/10 rounded-full text-rose-600">
+                            <Ban size={18} />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black text-slate-900 dark:text-white">Blocking (ব্লক লিস্ট)</h4>
+                            <p className="text-[10px] text-slate-500">আপনার блок করা নাগরিকদের তালিকা পরিচালনা করুন</p>
+                          </div>
+                        </div>
+                        <ChevronRight size={16} className="text-slate-400" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-Section: Profile Lock */}
+              {activeSettingSection === 'profile_lock' && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 text-center space-y-6 shadow-xs max-w-md mx-auto">
+                  <div className="w-20 h-20 bg-blue-50 dark:bg-blue-950/40 rounded-full flex items-center justify-center mx-auto text-blue-600 dark:text-blue-400 border-4 border-blue-100 dark:border-blue-900/50">
+                    <Lock size={36} />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-base font-extrabold text-slate-900 dark:text-white">আপনার প্রোফাইল কি লক করতে চান?</h3>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      প্রোফাইল লক করলে আপনার পোস্ট, ছবি এবং বায়োডাটা শুধুমাত্র অ্যাডমিন এবং আপনার অনুমোদিত ফলোয়াররাই দেখতে পাবেন। এর মাধ্যমে আপনার গোপনীয়তা শতভাগ সুরক্ষিত থাকবে।
+                    </p>
+                  </div>
+                  <div className="pt-2">
+                    <button 
+                      onClick={async () => {
+                        await handleUpdateProfileField('isLocked', !profile.isLocked);
+                        alert(profile.isLocked ? "প্রোফাইল আনলক করা হয়েছে!" : "প্রোফাইল সফলভাবে লক করা হয়েছে!");
+                        setActiveSettingSection('main');
+                      }}
+                      className={`w-full py-2.5 rounded-xl text-xs font-extrabold text-white transition ${profile.isLocked ? 'bg-rose-600 hover:bg-rose-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                    >
+                      {loadingSetting === 'isLocked' ? 'অনুগ্রহ করে অপেক্ষা করুন...' : (profile.isLocked ? 'প্রোফাইল আনলক করুন' : 'প্রোফাইল লক করুন')}
+                    </button>
+                    <button 
+                      onClick={() => setActiveSettingSection('main')}
+                      className="w-full py-2.5 mt-2 rounded-xl text-xs font-extrabold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition"
+                    >
+                      বাতিল করুন
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-Section: Active Status */}
+              {activeSettingSection === 'active_status' && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 text-center space-y-6 shadow-xs max-w-md mx-auto">
+                  <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-950/40 rounded-full flex items-center justify-center mx-auto text-emerald-600 dark:text-emerald-400 border-4 border-emerald-100 dark:border-emerald-900/50 relative">
+                    <div className="absolute top-2 right-2 w-4 h-4 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full animate-ping" />
+                    <Users size={36} />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Active status (অনলাইন সক্রিয়তা)</h3>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      আপনি যখন অ্যাপ্লিকেশনে সক্রিয় থাকবেন, তখন অন্য নাগরিকরা আপনার নামের পাশে একটি সবুজ বিন্দু দেখতে পাবেন। এটি বন্ধ করলে আপনি অন্যদের সক্রিয়তা দেখতে পাবেন না।
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl">
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">সক্রিয় স্ট্যাটাস চালু রাখুন</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer" 
+                        checked={profile.showActiveStatus !== false} 
+                        onChange={() => handleUpdateProfileField('showActiveStatus', profile.showActiveStatus === false ? true : false)} 
+                      />
+                      <div className="w-10 h-6 bg-slate-200 peer-focus:outline-hidden rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-600"></div>
+                    </label>
+                  </div>
+                  <button 
+                    onClick={() => setActiveSettingSection('main')}
+                    className="w-full py-2.5 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white transition"
+                  >
+                    সেভ করুন
+                  </button>
+                </div>
+              )}
+
+              {/* Sub-Section: Meta Verified */}
+              {activeSettingSection === 'meta_verified' && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 text-center space-y-6 shadow-xs max-w-md mx-auto">
+                  <div className="w-20 h-20 bg-blue-50 dark:bg-blue-950/40 rounded-full flex items-center justify-center mx-auto text-blue-500 border-4 border-blue-100 dark:border-blue-900/50">
+                    <CheckCircle size={36} />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-base font-extrabold text-slate-900 dark:text-white">স্মার্ট খুলনা নাগরিক ভেরিফিকেশন</h3>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      আপনার প্রোফাইলে একটি সম্মানিত "ভেরিফাইড নাগরিক" ব্লু ভেরিফিকেশন ব্যাজ যোগ করুন! এর ফলে অ্যাপের সর্বত্র আপনার নামের পাশে সম্মানিত ব্যাজটি প্রদর্শন করবে।
+                    </p>
+                  </div>
+                  <div className="p-4 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 rounded-2xl text-left space-y-2">
+                    <h4 className="text-xs font-bold text-blue-800 dark:text-blue-300">ভেরিফিকেশনের সুবিধাসমূহ:</h4>
+                    <ul className="text-[10px] text-slate-600 dark:text-slate-400 space-y-1 list-disc list-inside font-medium">
+                      <li>নামের পাশে প্রফেশনাল ব্লু চেকমার্ক ব্যাজ</li>
+                      <li>কমিউনিটিতে সর্বোচ্চ প্রাধান্য ও ট্রাস্ট</li>
+                      <li>সহজ রক্তদান ও জরুরি সেবা প্রদানকারী অ্যাক্সেস</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <button 
+                      onClick={async () => {
+                        const newBadge = profile.badge === 'verified_citizen' ? 'none' : 'verified_citizen';
+                        await handleUpdateProfileField('badge', newBadge);
+                        alert(newBadge === 'verified_citizen' ? "অভিনন্দন! আপনার নাগরিক ভেরিফিকেশন ব্যাজ সফলভাবে সক্রিয় হয়েছে।" : "ভেরিফিকেশন ব্যাজ নিষ্ক্রিয় করা হয়েছে।");
+                        setActiveSettingSection('main');
+                      }}
+                      className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold transition shadow-md shadow-blue-500/20"
+                    >
+                      {loadingSetting === 'badge' ? 'লোডিং হচ্ছে...' : (profile.badge === 'verified_citizen' ? 'ভেরিফিকেশন ব্যাজ নিষ্ক্রিয় করুন' : 'ভেরিফাই ও ব্লু ব্যাজ পান')}
+                    </button>
+                    <button 
+                      onClick={() => setActiveSettingSection('main')}
+                      className="w-full py-2.5 mt-2 rounded-xl text-xs font-extrabold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition"
+                    >
+                      ফিরে যান
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-Section: Blocking */}
+              {activeSettingSection === 'blocking' && (
+                <div className="space-y-4">
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3 shadow-xs">
+                    <h3 className="text-xs font-extrabold text-slate-900 dark:text-white">কাউকে ব্লক করুন:</h3>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="ব্যবহারকারীর নাম লিখুন..." 
+                        value={blockingInput}
+                        onChange={(e) => setBlockingInput(e.target.value)}
+                        className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:ring-1 focus:ring-rose-500 outline-hidden focus:outline-hidden dark:text-white"
+                      />
+                      <button 
+                        onClick={async () => {
+                          if (!blockingInput.trim()) return;
+                          // Let's add block locally for simulation or add to Firestore
+                          const updated = [...blockedUsers, blockingInput.trim()];
+                          setBlockedUsers(updated);
+                          await handleUpdateProfileField('blockedUserIds', updated);
+                          setBlockingInput('');
+                          alert(`${blockingInput.trim()} ব্যবহারকারীকে সফলভাবে ব্লক করা হয়েছে!`);
+                        }}
+                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition cursor-pointer"
+                      >
+                        ব্লক করুন
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3 shadow-xs">
+                    <h3 className="text-xs font-extrabold text-slate-900 dark:text-white">ব্লক করা ব্যবহারকারীদের তালিকা ({blockedUsers.length})</h3>
+                    {blockedUsers.length > 0 ? (
+                      <div className="space-y-2">
+                        {blockedUsers.map((user, i) => (
+                          <div key={i} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800/80 rounded-xl">
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{user}</span>
+                            <button 
+                              onClick={async () => {
+                                const updated = blockedUsers.filter(u => u !== user);
+                                setBlockedUsers(updated);
+                                await handleUpdateProfileField('blockedUserIds', updated);
+                                alert("আনব্লক করা হয়েছে!");
+                              }}
+                              className="px-3 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-[10px] font-extrabold text-slate-700 dark:text-slate-300 transition"
+                            >
+                              আনব্লক করুন
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 italic text-center py-6">কোনো ব্যবহারকারী ব্লক লিস্টে নেই</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-Section: Tagging & Timeline posting permission */}
+              {activeSettingSection === 'tagging' && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-6 shadow-xs max-w-md mx-auto">
+                  <div className="w-16 h-16 bg-pink-50 dark:bg-pink-950/40 rounded-full flex items-center justify-center mx-auto text-pink-600 border-4 border-pink-100 dark:border-pink-900/50">
+                    <MessageSquare size={28} />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">টাইমলাইন ও ট্যাগিং পারমিশন</h3>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      আপনার নাগরিক প্রোফাইলের টাইমলাইনে অন্য নাগরিকদের পোস্ট করার अधिकार কে পাবেন তা সুনির্দিষ্ট করুন।
+                    </p>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {[
+                      { id: 'everyone', label: 'সবার জন্য উন্মুক্ত (Everyone)', desc: 'স্মার্ট খুলনার যেকোনো নিবন্ধিত নাগরিক আপনার প্রোফাইলে পোস্ট করতে পারবেন।' },
+                      { id: 'followers', label: 'শুধুমাত্র ফলোয়াররা (Followers only)', desc: 'যারা আপনাকে ফলো করছেন শুধুমাত্র তারাই আপনার প্রোফাইলে পোস্ট করতে পারবেন।' },
+                      { id: 'only_me', label: 'শুধুমাত্র আমি (Only me)', desc: 'আপনার প্রোফাইলে আপনি ছাড়া অন্য কেউ পোস্ট করতে পারবেন না।' }
+                    ].map(opt => (
+                      <button
+                        key={opt.id}
+                        // @ts-ignore
+                        onClick={async () => {
+                          await handleUpdateProfileField('timelinePostingPermission', opt.id);
+                          alert(`টাইমলাইন পারমিশন পরিবর্তন করে "${opt.label}" করা হয়েছে!`);
+                          setActiveSettingSection('main');
+                        }}
+                        // @ts-ignore
+                        className={`w-full p-4 text-left border rounded-2xl transition flex items-start gap-3 ${profile.timelinePostingPermission === opt.id || (!profile.timelinePostingPermission && opt.id === 'everyone') ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-500' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 hover:bg-slate-50'}`}
+                      >
+                        <div className="mt-0.5 shrink-0">
+                          {/* @ts-ignore */}
+                          <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${profile.timelinePostingPermission === opt.id || (!profile.timelinePostingPermission && opt.id === 'everyone') ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300'}`}>
+                            {/* @ts-ignore */}
+                            {(profile.timelinePostingPermission === opt.id || (!profile.timelinePostingPermission && opt.id === 'everyone')) && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-slate-900 dark:text-white">{opt.label}</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">{opt.desc}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  <button 
+                    onClick={() => setActiveSettingSection('main')}
+                    className="w-full py-2.5 rounded-xl text-xs font-extrabold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition"
+                  >
+                    ফিরে যান
+                  </button>
+                </div>
+              )}
+
+              {/* Sub-Section: Two-Factor Security PIN */}
+              {activeSettingSection === 'two_factor' && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-6 shadow-xs max-w-md mx-auto">
+                  <div className="w-16 h-16 bg-purple-50 dark:bg-purple-950/40 rounded-full flex items-center justify-center mx-auto text-purple-600 border-4 border-purple-100 dark:border-purple-900/50">
+                    <ShieldCheck size={28} />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">দ্বি-স্তরবিশিষ্ট পিন সিকিউরিটি (2FA)</h3>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      আপনার অ্যাকাউন্ট অননুমোদিত অ্যাক্সেস থেকে সুরক্ষিত রাখতে ৪-ডিজিটের সিকিউরিটি পিন সেট করুন।
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800/80 rounded-2xl flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">সিকিউরিটি লক স্ট্যাটাস</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer" 
+                        // @ts-ignore
+                        checked={!!profile.twoFactorEnabled} 
+                        // @ts-ignore
+                        onChange={async () => {
+                          // @ts-ignore
+                          const nextVal = !profile.twoFactorEnabled;
+                          if (nextVal && !twoFactorPinInput.trim()) {
+                            alert("দয়া করে প্রথমে ৪-ডিজিটের সিকিউরিটি পিন কোডটি লিখুন।");
+                            return;
+                          }
+                          await handleUpdateProfileField('twoFactorEnabled', nextVal);
+                        }} 
+                      />
+                      <div className="w-9 h-5 bg-slate-200 peer-focus:outline-hidden rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-600"></div>
+                    </label>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-extrabold text-slate-700 dark:text-slate-300 block">আপনার ৪-ডিজিটের সিকিউরিটি পিন কোড:</label>
+                    <input
+                      type="password"
+                      maxLength={4}
+                      placeholder="উদা: ৪৩২১"
+                      value={twoFactorPinInput}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setTwoFactorPinInput(val);
+                      }}
+                      className="w-full text-center tracking-widest text-lg font-bold p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setActiveSettingSection('main')}
+                      className="flex-1 py-2.5 rounded-xl text-xs font-extrabold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition"
+                    >
+                      বাতিল করুন
+                    </button>
+                    <button 
+                      onClick={async () => {
+                        if (twoFactorPinInput.length !== 4) {
+                          alert("পিন কোডটি অবশ্যই ঠিক ৪টি সংখ্যার হতে হবে।");
+                          return;
+                        }
+                        await handleUpdateProfileField('twoFactorPin', twoFactorPinInput);
+                        await handleUpdateProfileField('twoFactorEnabled', true);
+                        alert("৪-ডিজিটের সিকিউরিটি পিন সফলভাবে সেভ এবং দ্বি-স্তর লক সক্রিয় হয়েছে!");
+                        setActiveSettingSection('main');
+                      }}
+                      className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition shadow-md"
+                    >
+                      পিন সেভ করুন
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-Section: Story & Post Archive */}
+              {activeSettingSection === 'archive' && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-6 shadow-xs max-w-md mx-auto">
+                  <div className="w-16 h-16 bg-cyan-50 dark:bg-cyan-950/40 rounded-full flex items-center justify-center mx-auto text-cyan-600 border-4 border-cyan-100 dark:border-cyan-900/50">
+                    <Calendar size={28} />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">স্টোরি ও পোস্ট আর্কাইভ সেটিংস</h3>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      আর্কাইভ অপশন চালু রাখলে ২৪ ঘণ্টা পর পর আপনার শেয়ার করা স্টোরি বা পোস্টগুলো স্বয়ংক্রিয়ভাবে একটি আর্কাইভে সংরক্ষিত হবে যা শুধুমাত্র আপনি দেখতে পাবেন।
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800/80 rounded-2xl flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">স্বয়ংক্রিয় আর্কাইভ সংরক্ষণ</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer" 
+                        // @ts-ignore
+                        checked={profile.storyArchiveEnabled !== false} 
+                        // @ts-ignore
+                        onChange={async () => {
+                          // @ts-ignore
+                          const nextVal = profile.storyArchiveEnabled === false ? true : false;
+                          await handleUpdateProfileField('storyArchiveEnabled', nextVal);
+                        }} 
+                      />
+                      <div className="w-9 h-5 bg-slate-200 peer-focus:outline-hidden rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-600"></div>
+                    </label>
+                  </div>
+
+                  <button 
+                    onClick={() => setActiveSettingSection('main')}
+                    className="w-full py-2.5 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white transition"
+                  >
+                    সেভ ও সম্পন্ন করুন
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -99,6 +99,8 @@ export interface UserProfile {
   updatedAt?: string;
   selectedDistrict?: string;
   savedServices?: string[];
+  isLocked?: boolean;
+  showActiveStatus?: boolean;
   subAdminScope?: {
     districtId?: string;
     categoryId?: string;
