@@ -205,6 +205,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
                 { id: 'local_info', label: 'স্থানীয় তথ্য', icon: Info },
                 { id: 'question', label: 'প্রশ্ন ও জিজ্ঞাসা', icon: HelpCircle },
                 { id: 'service_recommendation', label: 'সেবা পর্যালোচনা', icon: ThumbsUp },
+                { id: 'personal_blog', label: 'ব্যক্তিগত/ব্লগ', icon: FileEdit },
                 { id: 'location_based', label: 'স্থান কেন্দ্রিক', icon: MapPin }
               ].map(type => {
                 const Icon = type.icon;
@@ -258,12 +259,13 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
           {/* DISTRICT & UPAZILA SELECT */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="font-bold text-slate-700 block mb-1">জেলা</label>
+              <label className="font-bold text-slate-700 block mb-1">জেলা (ঐচ্ছিক)</label>
               <select
                 value={districtId}
                 onChange={e => setDistrictId(e.target.value)}
                 className="w-full bg-slate-50/70 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-600 focus:bg-white focus:outline-none cursor-pointer"
               >
+                <option value="">নির্বাচন করুন</option>
                 {districts.map(d => (
                   <option key={d.id} value={d.id}>
                     {d.name} ({d.nameEn})
@@ -287,12 +289,13 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
           {/* CATEGORY & LOCATION NAME */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="font-bold text-slate-700 block mb-1">ক্যাটাগরি</label>
+              <label className="font-bold text-slate-700 block mb-1">ক্যাটাগরি (ঐচ্ছিক)</label>
               <select
                 value={categoryId}
                 onChange={e => setCategoryId(e.target.value)}
                 className="w-full bg-slate-50/70 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-600 focus:bg-white focus:outline-none cursor-pointer"
               >
+                <option value="">নির্বাচন করুন</option>
                 {categories.map(c => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -302,7 +305,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
             </div>
 
             <div>
-              <label className="font-bold text-slate-700 block mb-1">স্থানের নাম / ল্যান্ডমার্ক</label>
+              <label className="font-bold text-slate-700 block mb-1">স্থানের নাম (ঐচ্ছিক)</label>
               <input
                 type="text"
                 value={locationName}
@@ -315,7 +318,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
 
           {/* HASHTAGS */}
           <div>
-            <label className="font-bold text-slate-700 block mb-1">হ্যাশট্যাগ (স্পেস দিয়ে লিখুন)</label>
+            <label className="font-bold text-slate-700 block mb-1">হ্যাশট্যাগ (ঐচ্ছিক - স্পেস দিয়ে)</label>
             <input
               type="text"
               value={hashtagsStr}

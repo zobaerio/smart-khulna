@@ -331,6 +331,7 @@ export const initialCategories: Category[] = [
   { id: 'tourism', name: 'পর্যটন', nameEn: 'Tourism', iconName: 'Compass' },
   { id: 'emergency', name: 'জরুরি সেবা', nameEn: 'Emergency Service', iconName: 'AlertTriangle' },
   { id: 'citizen', name: 'নাগরিক সেবা', nameEn: 'Citizen Service', iconName: 'User' },
+  { id: 'personal_blog', name: 'ব্যক্তিগত বা ব্লগ পোস্ট', nameEn: 'Personal or Blog Post', iconName: 'BookOpen' },
   { id: 'other', name: 'অন্যান্য সেবা', nameEn: 'Other Services', iconName: 'Grid' },
 ];
 

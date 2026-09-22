@@ -86,6 +86,7 @@ interface EnhancedProfileViewProps {
   savedPostIds: string[];
   followingUids: string[];
   onStartMessage: (uid: string, name: string, email: string, avatar?: string) => void;
+  onOpenSettings?: () => void;
 }
 
 type ProfileTab = 'posts' | 'about' | 'photos' | 'services' | 'followers';
@@ -124,13 +125,15 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
   likedPostIds,
   savedPostIds,
   followingUids,
-  onStartMessage
+  onStartMessage,
+  onOpenSettings
 }) => {
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showGuidelinesModal, setShowGuidelinesModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [visitors, setVisitors] = useState<ProfileVisitor[]>([]);
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
 
   // Fetch visitors for own profile
   useEffect(() => {
@@ -169,9 +172,24 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
   ];
 
   const handleCoverChange = () => {
-    const url = window.prompt('কভার ফটোর ইউআরএল দিন (URL):');
-    if (url) onUpdateCover(url);
+    onEdit();
   };
+
+  const filteredFollowers = useMemo(() => {
+    if (!memberSearchQuery) return followers;
+    return followers.filter(f => 
+      f.name.toLowerCase().includes(memberSearchQuery.toLowerCase()) || 
+      (f.profession || '').toLowerCase().includes(memberSearchQuery.toLowerCase())
+    );
+  }, [followers, memberSearchQuery]);
+
+  const filteredFollowing = useMemo(() => {
+    if (!memberSearchQuery) return following;
+    return following.filter(f => 
+      f.name.toLowerCase().includes(memberSearchQuery.toLowerCase()) || 
+      (f.profession || '').toLowerCase().includes(memberSearchQuery.toLowerCase())
+    );
+  }, [following, memberSearchQuery]);
 
   return (
     <div className="bg-white dark:bg-slate-950 min-h-screen">
@@ -240,7 +258,7 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                       <button 
                         onClick={() => {
                           setShowMoreMenu(false);
-                          onEdit();
+                          if (onOpenSettings) onOpenSettings();
                         }}
                         className="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2.5 transition"
                       >
@@ -471,7 +489,10 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                     <Edit2 size={16} />
                     প্রোফাইল এডিট
                   </button>
-                  <button className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition">
+                  <button 
+                    onClick={onOpenSettings}
+                    className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition"
+                  >
                     <Settings size={18} className="text-slate-700 dark:text-slate-300" />
                   </button>
                 </>
@@ -813,71 +834,89 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
               exit={{ opacity: 0, y: -10 }}
               className="space-y-6"
             >
-              {/* Followers Section */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2 px-1">
-                  <Users size={16} className="text-emerald-600" />
-                  ফলোয়ার ({followers.length})
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {followers.length > 0 ? (
-                    followers.map(f => (
-                      <div 
-                        key={f.uid} 
-                        onClick={() => onUserClick(f.uid, f.name, f.email || '', f.avatar)}
-                        className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-emerald-200 transition cursor-pointer"
-                      >
-                        <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200">
-                          {f.avatar && <img src={f.avatar} alt="" className="w-full h-full object-cover" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{f.name}</p>
-                          <p className="text-[10px] text-slate-500 truncate">{f.profession || 'নাগরিক'}</p>
-                        </div>
-                        <button className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-400">
-                          <MoreVertical size={14} />
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="col-span-full p-8 text-center text-slate-400 text-xs italic">
-                      এখনো কোনো ফলোয়ার নেই
-                    </div>
-                  )}
-                </div>
+              {/* Search Bar for Followers/Following */}
+              <div className="relative mb-2 px-1">
+                <Users size={16} className="absolute left-4 top-3 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="নাম অথবা পেশা দিয়ে খুঁজুন..."
+                  value={memberSearchQuery}
+                  onChange={(e) => setMemberSearchQuery(e.target.value)}
+                  className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm"
+                />
               </div>
 
-              {/* Following Section */}
-              <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-                <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2 px-1">
-                  <UserPlus size={16} className="text-emerald-600" />
-                  যাদের ফলো করছেন ({following.length})
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {following.length > 0 ? (
-                    following.map(f => (
-                      <div 
-                        key={f.uid} 
-                        onClick={() => onUserClick(f.uid, f.name, f.email || '', f.avatar)}
-                        className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-emerald-200 transition cursor-pointer"
-                      >
-                        <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200">
-                          {f.avatar && <img src={f.avatar} alt="" className="w-full h-full object-cover" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{f.name}</p>
-                          <p className="text-[10px] text-slate-500 truncate">{f.profession || 'নাগরিক'}</p>
-                        </div>
-                        <button className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-400">
-                          <MoreVertical size={14} />
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="col-span-full p-8 text-center text-slate-400 text-xs italic">
-                      কাউকে ফলো করা হচ্ছে না
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+                {/* Followers Section */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center justify-between gap-2 px-1 border-b border-slate-100 dark:border-slate-800 pb-2">
+                    <div className="flex items-center gap-2">
+                      <Users size={16} className="text-emerald-600" />
+                      ফলোয়ার ({filteredFollowers.length})
                     </div>
-                  )}
+                  </h3>
+                  <div className="space-y-2">
+                    {filteredFollowers.length > 0 ? (
+                      filteredFollowers.map(f => (
+                        <div 
+                          key={f.uid} 
+                          onClick={() => onUserClick(f.uid, f.name, f.email || '', f.avatar)}
+                          className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-emerald-200 hover:shadow-sm transition cursor-pointer"
+                        >
+                          <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 ring-2 ring-emerald-50/50">
+                            {f.avatar && <img src={f.avatar} alt="" className="w-full h-full object-cover" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{f.name}</p>
+                            <p className="text-[10px] text-slate-500 truncate">{f.profession || 'নাগরিক'}</p>
+                          </div>
+                          <button className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-slate-400">
+                            <MoreVertical size={14} />
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-8 text-center text-slate-400 text-xs italic bg-slate-50/50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                        এখনো কোনো ফলোয়ার নেই
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Following Section */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center justify-between gap-2 px-1 border-b border-slate-100 dark:border-slate-800 pb-2">
+                    <div className="flex items-center gap-2">
+                      <UserPlus size={16} className="text-emerald-600" />
+                      যাদের ফলো করছেন ({filteredFollowing.length})
+                    </div>
+                  </h3>
+                  <div className="space-y-2">
+                    {filteredFollowing.length > 0 ? (
+                      filteredFollowing.map(f => (
+                        <div 
+                          key={f.uid} 
+                          onClick={() => onUserClick(f.uid, f.name, f.email || '', f.avatar)}
+                          className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-emerald-200 hover:shadow-sm transition cursor-pointer"
+                        >
+                          <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 ring-2 ring-emerald-50/50">
+                            {f.avatar && <img src={f.avatar} alt="" className="w-full h-full object-cover" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{f.name}</p>
+                            <p className="text-[10px] text-slate-500 truncate">{f.profession || 'নাগরিক'}</p>
+                          </div>
+                          <button className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-slate-400">
+                            <MoreVertical size={14} />
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-8 text-center text-slate-400 text-xs italic bg-slate-50/50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                        কাউকে ফলো করা হচ্ছে না
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </motion.div>

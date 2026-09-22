@@ -3,12 +3,11 @@
 @variant dark (&:where(.dark, .dark *));
 
 @theme {
+  --animate-marquee: marquee 30s linear infinite;
+
   @keyframes marquee {
     from { transform: translateX(100%); }
     to { transform: translateX(-100%); }
-  }
-  .animate-marquee {
-    animation: marquee 30s linear infinite;
   }
 }
 

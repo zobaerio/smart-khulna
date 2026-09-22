@@ -1,6 +1,6 @@
 // SMART KHULNA COMMUNITY & MESSAGING TYPES
 
-export type PostType = 'general' | 'question' | 'local_info' | 'service_recommendation' | 'location_based';
+export type PostType = 'general' | 'question' | 'local_info' | 'service_recommendation' | 'location_based' | 'personal_blog';
 
 export type VerifiedBadgeType = 'none' | 'govt_official' | 'emergency_service' | 'hospital' | 'admin' | 'verified_citizen';
 

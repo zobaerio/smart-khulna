@@ -148,6 +148,8 @@ import { UserProfileModal } from './components/community/UserProfileModal';
 import { NotificationCenter } from './components/community/NotificationCenter';
 import { CommunityModerationDashboard } from './components/community/CommunityModerationDashboard';
 import { ReportModal } from './components/community/ReportModal';
+import { EditProfileModal } from './components/community/EditProfileModal';
+import { ProfileSettingsModal } from './components/community/ProfileSettingsModal';
 import { getSafeAvatarUrl } from './lib/avatarHelper';
 
 // Category Color Scheme Mapping for Compact Visual Cards
@@ -278,6 +280,7 @@ export default function App() {
   const [filterUpazila, setFilterUpazila] = useState('');
   const [showFiltersModal, setShowFiltersModal] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
   const [editDisplayName, setEditDisplayName] = useState('');
@@ -904,8 +907,8 @@ export default function App() {
     }
   };
 
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleUpdateProfile = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!auth.currentUser) return;
     setIsSavingProfile(true);
     try {
@@ -1636,14 +1639,20 @@ export default function App() {
   }, [services, targetProfileUid]);
 
   const targetFollowers = useMemo(() => {
-    return allCommunityUsers.filter(u => u.uid !== targetProfileUid).slice(0, 6);
+    if (!targetProfileUid) return [];
+    // In a real app, we'd fetch these from Firestore. 
+    // For now, we'll show users who have this targetProfileUid in their following list (if we had that data)
+    // or just show a subset of users to make it feel populated.
+    return allCommunityUsers.filter(u => u.uid !== targetProfileUid).slice(0, 12);
   }, [allCommunityUsers, targetProfileUid]);
 
   const targetFollowing = useMemo(() => {
+    if (!targetProfileUid) return [];
     if (targetProfileUid === currentUser?.uid) {
       return allCommunityUsers.filter(u => followingUids.includes(u.uid));
     }
-    return allCommunityUsers.filter(u => u.uid !== targetProfileUid).slice(2, 5);
+    // For other users, show a subset
+    return allCommunityUsers.filter(u => u.uid !== targetProfileUid).slice(5, 10);
   }, [allCommunityUsers, targetProfileUid, currentUser, followingUids]);
 
   const handleSavePost = async (postData: Partial<CommunityPost>) => {
@@ -2681,12 +2690,15 @@ export default function App() {
         </div>
 
       {/* PRIMARY INTERACTIVE PORTAL (Mobile viewport layout on small screens, expands nicely) */}
-      <div className="flex-1 flex flex-col min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 relative pb-16 md:pb-0 overflow-hidden">
+      <div className="flex-1 flex flex-col h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 relative pb-16 md:pb-0 overflow-hidden">
         
         {/* STICKY TOP HEADER (Phase 1 Redesign) */}
-        <header className="sticky top-0 left-0 right-0 w-full bg-white dark:bg-slate-950 backdrop-blur-md border-b border-emerald-100 dark:border-slate-800 z-50 shadow-sm">
+        <header className="flex-shrink-0 bg-white dark:bg-slate-950 backdrop-blur-md border-b border-emerald-100 dark:border-slate-800 z-50 shadow-sm">
           {/* Top Scrolling Marquee */}
-          <div className="bg-emerald-950 text-emerald-300 py-1 px-4 overflow-hidden whitespace-nowrap border-b border-emerald-900/50">
+          <div className="bg-emerald-950 text-emerald-300 py-1 px-4 overflow-hidden whitespace-nowrap border-b border-emerald-900/50 flex items-center gap-3">
+            <div className="flex-shrink-0 bg-emerald-800 text-white text-[8px] font-black px-2 py-0.5 rounded-sm uppercase tracking-tighter shadow-sm border border-emerald-700 animate-pulse">
+              নোটিশ
+            </div>
             <div className="animate-marquee inline-block text-[9px] font-bold uppercase tracking-widest">
               স্মার্ট খুলনা জেলা ডিজিটাল নাগরিক সেবা ডিরেক্টরি প্ল্যাটফর্মে আপনাকে স্বাগতম • জেলার সকল তথ্য ও সরকারি সেবা এখন হাতের মুঠোয় • স্মার্ট খুলনা অ্যাপ ব্যবহার করে দ্রুত সেবা গ্রহণ করুন • ২৪/৭ নাগরিক সহায়তা এবং কমিউনিটি সোশ্যাল ফিড
             </div>
@@ -2765,13 +2777,9 @@ export default function App() {
       </header>
 
         {/* MAIN PAGE CONTAINER */}
-        <main className={`flex-1 overflow-hidden relative flex flex-col ${
-          activeTab === 'home' ? 'p-4 overflow-y-auto' : ''
-        }`}>
+        <main className={`flex-1 overflow-hidden relative flex flex-col`}>
           <div className={`flex-1 flex flex-col ${
-            (activeTab === 'messages' || activeTab === 'profile') ? 'h-full' : 'space-y-5'
-          } ${
-            (activeTab !== 'messages' && activeTab !== 'profile' && activeTab !== 'home') ? 'p-4 overflow-y-auto' : ''
+            (activeTab === 'messages' || activeTab === 'profile') ? 'h-full overflow-hidden' : 'p-4 overflow-y-auto space-y-5'
           }`}>
 
             {/* TAB VIEW - HOME */}
@@ -3832,6 +3840,7 @@ export default function App() {
                       setEditingPost(post);
                       setShowCreatePostModal(true);
                     }}
+                    onOpenSettings={() => setShowSettingsModal(true)}
                     commentsMap={communityComments}
                     likedPostIds={likedCommunityPostIds}
                     savedPostIds={savedCommunityPostIds}
@@ -4259,6 +4268,54 @@ export default function App() {
           onSubmitReport={handleSubmitReport}
         />
       )}
+
+      {/* MODAL: EDIT PROFILE */}
+      <EditProfileModal
+        isOpen={isEditingProfile}
+        onClose={() => setIsEditingProfile(false)}
+        onSave={() => handleUpdateProfile()}
+        isSaving={isSavingProfile}
+        districts={initialDistricts}
+        displayName={editDisplayName}
+        setDisplayName={setEditDisplayName}
+        photoURL={editPhotoURL}
+        setPhotoURL={setEditPhotoURL}
+        coverPhoto={editCoverPhoto}
+        setCoverPhoto={setEditCoverPhoto}
+        phone={editPhone}
+        setPhone={setEditPhone}
+        bio={editBio}
+        setBio={setEditBio}
+        profession={editProfession}
+        setProfession={setEditProfession}
+        bloodGroup={editBloodGroup}
+        setBloodGroup={setEditBloodGroup}
+        district={editDistrict}
+        setDistrict={setEditDistrict}
+        upazila={editUpazila}
+        setUpazila={setEditUpazila}
+        address={editAddress}
+        setAddress={setEditAddress}
+        facebook={editFacebook}
+        setFacebook={setEditFacebook}
+        twitter={editTwitter}
+        setTwitter={setEditTwitter}
+        instagram={editInstagram}
+        setInstagram={setEditInstagram}
+        linkedin={editLinkedin}
+        setLinkedin={setEditLinkedin}
+        website={editWebsite}
+        setWebsite={setEditWebsite}
+      />
+
+      {/* MODAL: PROFILE SETTINGS */}
+      <ProfileSettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        onLogout={handleLogout}
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
+      />
 
     </div>
   );
