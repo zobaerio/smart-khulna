@@ -28,7 +28,7 @@ import { initialBloodDonors, initialBloodBanks, divisionUpazilasByDistrict } fro
 import { District, UserProfile } from '../dbData';
 import { getSafeAvatarUrl } from '../lib/avatarHelper';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, getDocs } from 'firebase/firestore';
-import { db } from '../firebase-blueprint';
+import { db } from '../firebase';
 
 interface BloodDonationSectionProps {
   districts: District[];
@@ -620,7 +620,7 @@ export const BloodDonationSection: React.FC<BloodDonationSectionProps> = ({
                             {donor.name}
                           </h4>
                           {donor.verifiedDonor && (
-                            <ShieldCheck size={14} className="text-emerald-600 shrink-0" title="ভেরিফাইড ডোনার" />
+                            <ShieldCheck size={14} className="text-emerald-600 shrink-0" />
                           )}
                           {isMe && (
                             <span className="text-[9px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">

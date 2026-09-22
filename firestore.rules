@@ -168,6 +168,13 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && resource.data.follower_id == request.auth.uid;
     }
 
+    // 14. Profile Visitors: Owner can read, visitors can create
+    match /profiles/{targetUid}/visitors/{visitorUid} {
+      allow read: if isAuthenticated() && request.auth.uid == targetUid;
+      allow create, update: if isAuthenticated() && request.auth.uid == visitorUid;
+      allow delete: if false;
+    }
+
     // Default deny all other paths
     match /{document=**} {
       allow read, write: if false;

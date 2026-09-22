@@ -80,6 +80,7 @@ export interface UserProfile {
   email: string;
   phone?: string;
   avatar?: string;
+  coverPhoto?: string;
   bio?: string;
   profession?: string;
   bloodGroup?: string;

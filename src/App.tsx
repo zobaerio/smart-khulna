@@ -74,6 +74,7 @@ import {
   Moon,
   Menu
 } from 'lucide-react';
+import { EnhancedProfileView } from './components/community/EnhancedProfileView';
 import { compressImage } from './lib/imageCompressor';
 import { auth, googleProvider, db } from './firebase';
 import { signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged, updateProfile, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
@@ -140,6 +141,7 @@ import {
   initialSampleNotifications
 } from './data/initialCommunityData';
 import { CommunityFeed } from './components/community/CommunityFeed';
+import { BloodDonationSection } from './components/BloodDonationSection';
 import { MessagingCenter } from './components/community/MessagingCenter';
 import { CreatePostModal } from './components/community/CreatePostModal';
 import { UserProfileModal } from './components/community/UserProfileModal';
@@ -193,6 +195,7 @@ const IconComponent = ({ name, className, size = 20, strokeWidth = 1.5 }: { name
 export default function App() {
   // Navigation & View State
   const [activeTab, setActiveTab] = useState<'home' | 'services' | 'community' | 'messages' | 'profile' | 'add' | 'saved' | 'download'>('home');
+  const [servicesSubTab, setServicesSubTab] = useState<'directory' | 'blood'>('directory');
   const [adminView, setAdminView] = useState<'dashboard' | 'submissions' | 'emergencies' | 'services' | 'logs' | 'settings' | 'downloads' | 'community_moderation' | null>(null);
 
   // Cross-Platform App & PWA Logic
@@ -281,6 +284,8 @@ export default function App() {
   const [editPhotoURL, setEditPhotoURL] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editBio, setEditBio] = useState('');
+  const [editCoverPhoto, setEditCoverPhoto] = useState('');
+  const [viewingProfileUid, setViewingProfileUid] = useState<string | null>(null);
   const [editProfession, setEditProfession] = useState('');
   const [editBloodGroup, setEditBloodGroup] = useState('');
   const [editDistrict, setEditDistrict] = useState('khulna');
@@ -528,6 +533,8 @@ export default function App() {
               linkedin: data.linkedin || localCached?.linkedin || '',
               website: data.website || localCached?.website || '',
               role: isSuperAdminEmail ? ('super_admin' as const) : (data.role || localCached?.role || 'user'),
+              subAdminPermissions: data.subAdminPermissions || localCached?.subAdminPermissions,
+              subAdminScope: data.subAdminScope || localCached?.subAdminScope,
               savedServices: data.savedServices || localCached?.savedServices || []
             };
             
@@ -906,6 +913,7 @@ export default function App() {
       const userDocRef = doc(db, 'profiles', uid);
       const finalName = editDisplayName.trim() || 'ব্যবহারকারী';
       const finalAvatar = editPhotoURL.trim() || userProfile?.avatar || auth.currentUser.photoURL || '';
+      const finalCover = editCoverPhoto.trim() || userProfile?.coverPhoto || '';
 
       // Safely update Firebase Auth state (avoid large base64 crash on photoURL token)
       try {
@@ -922,6 +930,7 @@ export default function App() {
         name: finalName,
         email: auth.currentUser.email || '',
         avatar: finalAvatar,
+        coverPhoto: finalCover,
         phone: editPhone.trim(),
         bio: editBio.trim(),
         profession: editProfession.trim(),
@@ -1497,6 +1506,146 @@ export default function App() {
     return conversations.reduce((acc, c) => acc + (c.unreadCounts?.[currentUser.uid] || 0), 0);
   }, [conversations, currentUser]);
 
+  const handleFollow = async (targetUid: string) => {
+    if (!requireAuth('ফলো')) return;
+    if (targetUid === currentUser.uid) return;
+    
+    try {
+      const followId = `${currentUser.uid}_${targetUid}`;
+      await setDoc(doc(db, 'follows', followId), {
+        followerUid: currentUser.uid,
+        followingUid: targetUid,
+        createdAt: new Date().toISOString()
+      });
+      setFollowingUids(prev => [...prev, targetUid]);
+      // Update counts locally
+      setAllCommunityUsers(prev => prev.map(u => {
+        if (u.uid === targetUid) return { ...u, followersCount: (u.followersCount || 0) + 1, isFollowing: true };
+        if (u.uid === currentUser.uid) return { ...u, followingCount: (u.followingCount || 0) + 1 };
+        return u;
+      }));
+      await logAction('ফলো', `আপনি ${targetUid} কে ফলো করা শুরু করেছেন`);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleUnfollow = async (targetUid: string) => {
+    if (!currentUser) return;
+    try {
+      const followId = `${currentUser.uid}_${targetUid}`;
+      await deleteDoc(doc(db, 'follows', followId));
+      setFollowingUids(prev => prev.filter(uid => uid !== targetUid));
+      // Update counts locally
+      setAllCommunityUsers(prev => prev.map(u => {
+        if (u.uid === targetUid) return { ...u, followersCount: Math.max(0, (u.followersCount || 0) - 1), isFollowing: false };
+        if (u.uid === currentUser.uid) return { ...u, followingCount: Math.max(0, (u.followingCount || 0) - 1) };
+        return u;
+      }));
+      await logAction('আনফলো', `আপনি ${targetUid} কে আনফলো করেছেন`);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleUpdateCover = async (url: string) => {
+    if (!currentUser || !userProfile) return;
+    try {
+      await updateDoc(doc(db, 'profiles', currentUser.uid), { coverPhoto: url });
+      setUserProfile({ ...userProfile, coverPhoto: url });
+      setAllCommunityUsers(prev => prev.map(u => u.uid === currentUser.uid ? { ...u, coverPhoto: url } : u));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleViewProfile = (uid: string) => {
+    setViewingProfileUid(uid);
+    setActiveTab('profile');
+
+    // Log Profile Visit
+    if (currentUser && uid !== currentUser.uid) {
+      const visitId = `${uid}_${currentUser.uid}`;
+      const visitPath = `profiles/${uid}/visitors/${currentUser.uid}`;
+      setDoc(doc(db, 'profiles', uid, 'visitors', currentUser.uid), {
+        id: visitId,
+        targetUid: uid,
+        visitorUid: currentUser.uid,
+        visitorName: userProfile?.name || currentUser.displayName || 'অজানা নাগরিক',
+        visitorAvatar: userProfile?.avatar || currentUser.photoURL || '',
+        timestamp: new Date().toISOString()
+      }).catch(err => console.error('Profile visit log failed:', err));
+    }
+  };
+
+  const targetProfileUid = viewingProfileUid || currentUser?.uid;
+  const targetProfile = useMemo(() => {
+    if (!targetProfileUid) return null;
+    const profile = allCommunityUsers.find(u => u.uid === targetProfileUid);
+    
+    // Enhanced profile with counts
+    const postsCount = communityPosts.filter(p => p.authorId === targetProfileUid).length;
+    
+    if (profile) {
+      return {
+        ...profile,
+        postsCount: profile.postsCount || postsCount,
+        isFollowing: followingUids.includes(targetProfileUid)
+      };
+    }
+    
+    // Fallback for current user
+    if (targetProfileUid === currentUser?.uid) {
+      return {
+        uid: currentUser.uid,
+        name: userProfile?.name || currentUser.displayName || 'সম্মানিত নাগরিক',
+        email: currentUser.email || '',
+        avatar: userProfile?.avatar || currentUser.photoURL || '',
+        bio: userProfile?.bio || '',
+        coverPhoto: userProfile?.coverPhoto || '',
+        phone: userProfile?.phone || '',
+        profession: userProfile?.profession || '',
+        bloodGroup: userProfile?.bloodGroup || '',
+        district: userProfile?.district || userProfile?.selectedDistrict || selectedDistrict,
+        upazila: userProfile?.upazila || '',
+        address: userProfile?.address || '',
+        socialLinks: {
+          facebook: userProfile?.facebook,
+          twitter: userProfile?.twitter,
+          instagram: userProfile?.instagram,
+          linkedin: userProfile?.linkedin,
+          website: userProfile?.website
+        },
+        joinedDate: userProfile?.joinedDate || new Date().toISOString(),
+        badge: userProfile?.role === 'super_admin' ? 'admin' : (userProfile?.role === 'sub_admin' ? 'govt_official' : 'none'),
+        postsCount,
+        followersCount: 0, 
+        followingCount: followingUids.length,
+        isFollowing: false
+      } as PublicUserProfile;
+    }
+    return null;
+  }, [targetProfileUid, allCommunityUsers, currentUser, userProfile, selectedDistrict, communityPosts, followingUids]);
+
+  const targetPosts = useMemo(() => {
+    return communityPosts.filter(p => p.authorId === targetProfileUid).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [communityPosts, targetProfileUid]);
+
+  const targetServices = useMemo(() => {
+    return services.filter(s => s.created_by === targetProfileUid);
+  }, [services, targetProfileUid]);
+
+  const targetFollowers = useMemo(() => {
+    return allCommunityUsers.filter(u => u.uid !== targetProfileUid).slice(0, 6);
+  }, [allCommunityUsers, targetProfileUid]);
+
+  const targetFollowing = useMemo(() => {
+    if (targetProfileUid === currentUser?.uid) {
+      return allCommunityUsers.filter(u => followingUids.includes(u.uid));
+    }
+    return allCommunityUsers.filter(u => u.uid !== targetProfileUid).slice(2, 5);
+  }, [allCommunityUsers, targetProfileUid, currentUser, followingUids]);
+
   const handleSavePost = async (postData: Partial<CommunityPost>) => {
     if (!currentUser) return;
     const currentUid = currentUser.uid;
@@ -1767,107 +1916,6 @@ export default function App() {
     }
   };
 
-  const handleViewProfile = async (
-    authorId: string,
-    authorName: string,
-    authorEmail: string,
-    authorAvatar?: string
-  ) => {
-    // 1. If it's the current user, build from active session userProfile
-    if (currentUser && authorId === currentUser.uid) {
-      const myProfile: PublicUserProfile = {
-        uid: currentUser.uid,
-        name: userProfile?.name || currentUser.displayName || authorName || 'ব্যবহারকারী',
-        email: userProfile?.email || currentUser.email || authorEmail || '',
-        avatar: userProfile?.avatar || currentUser.photoURL || authorAvatar || '',
-        bio: userProfile?.bio || 'স্মার্ট খুলনা ডিজিটাল প্ল্যাটফর্ম ব্যবহারকারী।',
-        district: userProfile?.district || userProfile?.selectedDistrict || selectedDistrict,
-        upazila: userProfile?.upazila || '',
-        address: userProfile?.address || '',
-        phone: userProfile?.phone || '',
-        profession: userProfile?.profession || '',
-        bloodGroup: userProfile?.bloodGroup || '',
-        followersCount: (userProfile as any)?.followersCount || 0,
-        followingCount: (userProfile as any)?.followingCount || followingUids.length,
-        postsCount: communityPosts.filter(p => p.authorId === authorId).length,
-        badge: userProfile?.role === 'super_admin' ? 'admin' : ((userProfile as any)?.badge || 'none'),
-        joinedDate: userProfile?.joinedDate || (userProfile as any)?.createdAt || new Date().toISOString(),
-        socialLinks: {
-          facebook: userProfile?.facebook || '',
-          twitter: userProfile?.twitter || '',
-          instagram: userProfile?.instagram || '',
-          linkedin: userProfile?.linkedin || '',
-          website: userProfile?.website || ''
-        }
-      };
-      setSelectedProfileUser(myProfile);
-      setShowUserProfileModal(true);
-      return;
-    }
-
-    // 2. Find in allCommunityUsers list or construct base
-    let targetUser = allCommunityUsers.find(u => u.uid === authorId);
-    if (!targetUser) {
-      targetUser = {
-        uid: authorId,
-        name: authorName,
-        email: authorEmail,
-        avatar: authorAvatar || '',
-        district: selectedDistrict,
-        bio: 'স্মার্ট খুলনা কমিউনিটি সদস্য।',
-        followersCount: 0,
-        followingCount: 0,
-        postsCount: communityPosts.filter(p => p.authorId === authorId).length,
-        badge: 'none',
-        joinedDate: new Date().toISOString()
-      };
-    } else {
-      targetUser = {
-        ...targetUser,
-        avatar: targetUser.avatar || authorAvatar || '',
-        postsCount: communityPosts.filter(p => p.authorId === authorId).length
-      };
-    }
-
-    setSelectedProfileUser(targetUser);
-    setShowUserProfileModal(true);
-
-    // 3. Fetch latest doc from Firestore to guarantee freshest profile photo & bio
-    try {
-      const docSnap = await getDoc(doc(db, 'profiles', authorId));
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        const freshUser: PublicUserProfile = {
-          uid: authorId,
-          name: data.name || authorName,
-          email: data.email || authorEmail,
-          avatar: data.avatar || authorAvatar || '',
-          bio: data.bio || targetUser.bio || 'স্মার্ট খুলনা কমিউনিটি সদস্য।',
-          district: data.district || data.selectedDistrict || targetUser.district,
-          upazila: data.upazila || '',
-          address: data.address || '',
-          phone: data.phone || '',
-          profession: data.profession || '',
-          bloodGroup: data.bloodGroup || '',
-          followersCount: typeof data.followersCount === 'number' ? data.followersCount : targetUser.followersCount,
-          followingCount: typeof data.followingCount === 'number' ? data.followingCount : targetUser.followingCount,
-          postsCount: communityPosts.filter(p => p.authorId === authorId).length,
-          badge: data.role === 'super_admin' ? 'admin' : (data.badge || 'none'),
-          joinedDate: data.joinedDate || data.createdAt || targetUser.joinedDate,
-          socialLinks: data.socialLinks || {
-            facebook: data.facebook || '',
-            twitter: data.twitter || '',
-            instagram: data.instagram || '',
-            linkedin: data.linkedin || '',
-            website: data.website || ''
-          }
-        };
-        setSelectedProfileUser(freshUser);
-      }
-    } catch (e) {
-      console.warn("Could not fetch remote profile details:", e);
-    }
-  };
 
   const handleToggleFollow = async (targetUid: string) => {
     if (!requireAuth('Follow')) return;
@@ -2332,41 +2380,43 @@ export default function App() {
 
       {/* MOBILE DRAWER (Slide-out Navigation Menu) */}
       {isDrawerOpen && (
-        <div className="fixed inset-0 z-50 flex md:hidden">
+        <div className="fixed inset-0 z-[60] flex md:hidden">
           {/* Overlay Backdrop with fade-in */}
           <div
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-300"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300"
             onClick={() => setIsDrawerOpen(false)}
           ></div>
 
           {/* Drawer content with slide-in animation */}
-          <div className="relative flex w-full max-w-xs flex-1 flex-col bg-slate-900 text-slate-100 p-6 shadow-2xl transition-transform duration-300 transform translate-x-0 border-r border-slate-800">
-            {/* Close Button */}
-            <button
-              onClick={() => setIsDrawerOpen(false)}
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition cursor-pointer"
-              aria-label="Close menu"
-            >
-              <X size={20} />
-            </button>
+          <div className="relative flex w-full max-w-xs flex-col bg-slate-900 text-slate-100 p-0 shadow-2xl border-r border-slate-800 h-full overflow-hidden animate-in slide-in-from-left duration-300">
+            {/* Header Area */}
+            <div className="p-6 border-b border-slate-800 bg-slate-900/50 backdrop-blur-md">
+              <button
+                onClick={() => setIsDrawerOpen(false)}
+                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition cursor-pointer z-10"
+                aria-label="Close menu"
+              >
+                <X size={22} />
+              </button>
 
-            {/* Sidebar Branding */}
-            <div className="flex items-center gap-3 mb-6 mt-2">
-              <div className="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg border border-lime-400 shrink-0">
-                <span className="text-lg font-black text-white">K</span>
+              {/* Sidebar Branding */}
+              <div className="flex items-center gap-3 mb-4 mt-2">
+                <div className="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg border border-lime-400 shrink-0">
+                  <span className="text-lg font-black text-white">K</span>
+                </div>
+                <div>
+                  <h2 className="text-base font-bold tracking-tight text-white font-serif">স্মার্ট খুলনা</h2>
+                  <p className="text-[9px] text-lime-400 font-medium">Smart Khulna local platform</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-base font-bold tracking-tight text-white font-serif">স্মার্ট খুলনা</h2>
-                <p className="text-[9px] text-lime-400 font-medium">Smart Khulna local platform</p>
-              </div>
+
+              <p className="text-[11px] text-slate-400 leading-relaxed font-serif">
+                খুলনা বিভাগের সকল জেলা, জরুরি যোগাযোগ, স্বাস্থ্যসেবা ও পেশাজীবীদের তথ্য নিয়ে সম্পূর্ণ ডিজিটালাইজড লোকাল-সার্ভিস ডিরেক্টরি।
+              </p>
             </div>
 
-            <p className="text-[11px] text-slate-400 leading-relaxed mb-4 font-serif">
-              খুলনা বিভাগের সকল জেলা, জরুরি যোগাযোগ, স্বাস্থ্যসেবা ও পেশাজীবীদের তথ্য নিয়ে সম্পূর্ণ ডিজিটালাইজড লোকাল-সার্ভিস ডিরেক্টরি।
-            </p>
-
-            {/* Navigation Links */}
-            <div className="space-y-1.5 flex-1 overflow-y-auto mb-4 scrollbar-none">
+            {/* Navigation Links - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-800">
               <button
                 onClick={() => {
                   navigateTo('home');
@@ -2630,84 +2680,99 @@ export default function App() {
           </div>
         </div>
 
-        {/* PRIMARY INTERACTIVE PORTAL (Mobile viewport layout on small screens, expands nicely) */}
-        <div className="flex-1 flex flex-col min-h-[85vh] bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 relative pb-16 md:pb-0">
-          
-          {/* MOBILE HEADER (Visually aligned to the Netrokona Reference Screenshot) */}
-          <header className="sticky top-0 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-emerald-100 dark:border-slate-800 px-4 py-3 flex items-center justify-between z-40 shadow-sm">
+      {/* PRIMARY INTERACTIVE PORTAL (Mobile viewport layout on small screens, expands nicely) */}
+      <div className="flex-1 flex flex-col min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 relative pb-16 md:pb-0 overflow-hidden">
+        
+        {/* STICKY TOP HEADER (Phase 1 Redesign) */}
+        <header className="sticky top-0 left-0 right-0 w-full bg-white dark:bg-slate-950 backdrop-blur-md border-b border-emerald-100 dark:border-slate-800 z-50 shadow-sm">
+          {/* Top Scrolling Marquee */}
+          <div className="bg-emerald-950 text-emerald-300 py-1 px-4 overflow-hidden whitespace-nowrap border-b border-emerald-900/50">
+            <div className="animate-marquee inline-block text-[9px] font-bold uppercase tracking-widest">
+              স্মার্ট খুলনা জেলা ডিজিটাল নাগরিক সেবা ডিরেক্টরি প্ল্যাটফর্মে আপনাকে স্বাগতম • জেলার সকল তথ্য ও সরকারি সেবা এখন হাতের মুঠোয় • স্মার্ট খুলনা অ্যাপ ব্যবহার করে দ্রুত সেবা গ্রহণ করুন • ২৪/৭ নাগরিক সহায়তা এবং কমিউনিটি সোশ্যাল ফিড
+            </div>
+          </div>
+
+          <div className="px-4 py-2.5 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setIsDrawerOpen(true)}
-                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-850 rounded-lg text-slate-700 dark:text-slate-300 md:hidden cursor-pointer"
-                aria-label="Open menu"
-              >
-                <Menu size={20} />
-              </button>
-              <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigateTo('home')}>
+            <button
+              onClick={() => setIsDrawerOpen(true)}
+              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-850 rounded-lg text-slate-700 dark:text-slate-300 md:hidden cursor-pointer"
+              aria-label="Open menu"
+            >
+              <Menu size={20} />
+            </button>
+            <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigateTo('home')}>
               <div className="w-9 h-9 bg-emerald-700 rounded-xl flex items-center justify-center text-white font-black text-sm border border-lime-400 shrink-0 shadow-inner">
                 K
               </div>
-              <div>
+              <div className="hidden xs:block">
                 <div className="flex items-center gap-1">
-                  <span className="text-base font-extrabold text-emerald-950 dark:text-emerald-300 tracking-tight font-serif">স্মার্ট খুলনা</span>
-                  <span className="text-[9px] bg-lime-100 dark:bg-lime-900/30 text-emerald-800 dark:text-emerald-300 font-bold px-1 rounded">Beta</span>
+                  <span className="text-base font-extrabold text-emerald-950 dark:text-emerald-300 tracking-tight font-serif uppercase">Smart Khulna</span>
+                  <span className="text-[9px] bg-emerald-600 text-white font-bold px-1 rounded shadow-xs">OFFICIAL</span>
                 </div>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 block -mt-1 font-serif">খুলনা বিভাগের সকল সেবা একসাথে</span>
+                <div className="flex items-center gap-1.5 -mt-0.5">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-serif font-bold whitespace-nowrap">খুলনা জেলা ডিজিটাল নাগরিক সেবা ডিরেক্টরি</span>
+                  <span className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full" />
+                  <span className="text-[9px] text-emerald-700 dark:text-emerald-500 font-bold">স্মার্ট খুলনা পোর্টাল</span>
+                </div>
               </div>
             </div>
-            </div>
+          </div>
 
-            <div className="flex items-center gap-1.5">
-              {/* Install PWA Prompt Button if Installable */}
-              {isInstallable ? (
-                <button
-                  onClick={installPWA}
-                  className="text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-1.5 px-2.5 rounded-full flex items-center gap-1 shadow-sm transition animate-pulse cursor-pointer"
-                  title="অ্যাপ ইনস্টল করুন"
-                >
-                  <Download size={13} />
-                  <span>ইনস্টল করুন</span>
-                </button>
-              ) : isInstalled ? (
-                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-1 rounded-full hidden sm:flex items-center gap-1">
-                  <CheckCircle size={10} /> ইনস্টলড
+          <div className="flex items-center gap-1 sm:gap-2">
+            {/* Install PWA Prompt Button */}
+            {isInstallable && (
+              <button
+                onClick={installPWA}
+                className="text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-1.5 px-2.5 rounded-full flex items-center gap-1 shadow-sm transition animate-pulse cursor-pointer"
+                title="অ্যাপ ইনস্টল করুন"
+              >
+                <Download size={13} />
+                <span className="hidden xs:inline">ইনস্টল করুন</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => setViewingDistrictId(viewingDistrictId ? null : 'all')}
+              className="text-[10px] sm:text-xs bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold py-1.5 px-2 sm:px-3 rounded-full flex items-center gap-1 transition"
+            >
+              <Map size={12} />
+              <span>সকল</span> <span className="hidden sm:inline">জেলা</span>
+            </button>
+
+            <button
+              onClick={() => setDarkMode(prev => !prev)}
+              className="p-1.5 sm:p-2 text-emerald-900 hover:bg-emerald-50 dark:text-emerald-100 dark:hover:bg-slate-800 rounded-full cursor-pointer transition-colors"
+              title={darkMode ? "লাইট মোড" : "ডার্ক মোড"}
+            >
+              {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+
+            <button
+              onClick={() => setShowNotificationCenter(prev => !prev)}
+              className="p-1.5 sm:p-2 text-emerald-900 hover:bg-emerald-50 dark:text-emerald-100 dark:hover:bg-slate-800 rounded-full relative cursor-pointer transition-colors"
+              title="বিজ্ঞপ্তি কেন্দ্র"
+            >
+              <Bell size={18} />
+              {totalUnreadNotifications > 0 && (
+                <span className="absolute top-1 right-1 px-1 min-w-3.5 h-3.5 bg-red-500 text-white rounded-full text-[8px] font-bold flex items-center justify-center border-2 border-white dark:border-slate-950">
+                  {totalUnreadNotifications}
                 </span>
-              ) : null}
+              )}
+            </button>
+          </div>
+        </div>
+      </header>
 
-
-
-              <button
-                onClick={() => setViewingDistrictId(viewingDistrictId ? null : 'all')}
-                className="text-xs bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold py-1.5 px-2.5 rounded-full flex items-center gap-1 transition"
-              >
-                <Map size={12} />
-                <span className="hidden sm:inline">সকল</span> জেলা
-              </button>
-              <button
-                onClick={() => setDarkMode(prev => !prev)}
-                className="p-2 text-emerald-900 hover:bg-emerald-50 dark:text-emerald-100 dark:hover:bg-slate-800 rounded-full cursor-pointer"
-                title={darkMode ? "লাইট মোড" : "ডার্ক মোড"}
-              >
-                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
-              </button>
-
-              <button
-                onClick={() => setShowNotificationCenter(prev => !prev)}
-                className="p-2 text-emerald-900 hover:bg-emerald-50 rounded-full relative cursor-pointer"
-                title="বিজ্ঞপ্তি কেন্দ্র"
-              >
-                <Bell size={18} />
-                {totalUnreadNotifications > 0 && (
-                  <span className="absolute top-1 right-1 px-1 min-w-3.5 h-3.5 bg-red-500 text-white rounded-full text-[8px] font-bold flex items-center justify-center border border-white">
-                    {totalUnreadNotifications}
-                  </span>
-                )}
-              </button>
-            </div>
-          </header>
-
-          {/* MAIN PAGE CONTAINER */}
-          <main className="flex-1 p-4 overflow-y-auto space-y-5">
+        {/* MAIN PAGE CONTAINER */}
+        <main className={`flex-1 overflow-hidden relative flex flex-col ${
+          activeTab === 'home' ? 'p-4 overflow-y-auto' : ''
+        }`}>
+          <div className={`flex-1 flex flex-col ${
+            (activeTab === 'messages' || activeTab === 'profile') ? 'h-full' : 'space-y-5'
+          } ${
+            (activeTab !== 'messages' && activeTab !== 'profile' && activeTab !== 'home') ? 'p-4 overflow-y-auto' : ''
+          }`}>
 
             {/* TAB VIEW - HOME */}
             {activeTab === 'home' && !viewingDistrictId && (
@@ -3137,7 +3202,7 @@ export default function App() {
                   <h2 className="text-base font-extrabold text-emerald-950 font-serif">খুলনা বিভাগের সকল জেলা ({initialDistricts.length}টি)</h2>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {initialDistricts.map(dist => {
                     const cnt = getServiceCountForDistrict(dist.id);
                     return (
@@ -3277,129 +3342,188 @@ export default function App() {
             {/* TAB VIEW - SERVICES BROWSER DIRECTORY */}
             {activeTab === 'services' && (
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-base font-extrabold text-slate-900 font-serif">ডিজিটাল সেবা নির্দেশিকা</h2>
-                    <p className="text-xs text-slate-500">
-                      {initialDistricts.find(d => d.id === selectedDistrict)?.name} জেলায় {filteredServices.length}টি সেবা তালিকাভুক্ত আছে।
-                    </p>
-                  </div>
+                {/* Services Sub-Tabs */}
+                <div className="flex items-center gap-2 bg-slate-100/50 p-1 rounded-xl w-fit border border-slate-200/50">
                   <button
-                    onClick={() => setShowFiltersModal(true)}
-                    className="flex items-center gap-1 text-xs bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 text-emerald-900 font-bold py-1.5 px-3 rounded-lg"
-                  >
-                    <Filter size={14} />
-                    ফিল্টার
-                  </button>
-                </div>
-
-                {/* Category Grid Filter matching Home page style */}
-                <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                  <button
-                    onClick={() => setFilterCategory('all')}
-                    className={`p-2 rounded-2xl flex flex-col items-center justify-center text-center transition cursor-pointer aspect-square min-h-[76px] group ${
-                      filterCategory === 'all'
-                        ? 'bg-emerald-700 text-white shadow-md border border-emerald-800'
-                        : 'bg-white hover:bg-emerald-50/30 text-slate-800 border border-slate-100 hover:border-emerald-200'
+                    onClick={() => setServicesSubTab('directory')}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                      servicesSubTab === 'directory'
+                        ? 'bg-emerald-700 text-white shadow-sm'
+                        : 'text-slate-600 hover:bg-white'
                     }`}
                   >
-                    <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl ${filterCategory === 'all' ? 'bg-emerald-800 text-white' : 'bg-emerald-50 text-emerald-700'} flex items-center justify-center mb-1 transition shrink-0`}>
-                      <Grid size={18} />
-                    </div>
-                    <span className="text-[10px] sm:text-[11px] font-bold text-center leading-tight line-clamp-2 w-full px-0.5">
-                      সব ক্যাটাগরি
-                    </span>
+                    <Building2 size={13} /> ডিজিটাল সেবা
                   </button>
-                  {initialCategories.map(cat => {
-                    const style = getCategoryStyle(cat.id);
-                    const isSelected = filterCategory === cat.id;
-                    return (
-                      <button
-                        key={cat.id}
-                        onClick={() => setFilterCategory(cat.id)}
-                        className={`p-2 rounded-2xl flex flex-col items-center justify-center text-center transition cursor-pointer aspect-square min-h-[76px] group ${
-                          isSelected
-                            ? 'bg-emerald-700 text-white shadow-md border border-emerald-800'
-                            : 'bg-white hover:bg-emerald-50/30 text-slate-800 border border-slate-100 hover:border-emerald-200'
-                        }`}
-                      >
-                        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl ${isSelected ? 'bg-emerald-800 text-white' : `${style.bg} ${style.text}`} flex items-center justify-center mb-1 group-hover:scale-105 transition shrink-0 shadow-2xs`}>
-                          <IconComponent name={cat.iconName} className={isSelected ? 'text-white' : style.text} />
-                        </div>
-                        <span className={`text-[10px] sm:text-[11px] font-bold text-center leading-tight line-clamp-2 w-full px-0.5 ${isSelected ? 'text-white' : 'text-slate-800'}`}>
-                          {cat.name}
-                        </span>
-                      </button>
-                    );
-                  })}
+                  <button
+                    onClick={() => setServicesSubTab('blood')}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                      servicesSubTab === 'blood'
+                        ? 'bg-rose-600 text-white shadow-sm'
+                        : 'text-slate-600 hover:bg-white'
+                    }`}
+                  >
+                    <Droplets size={13} /> রক্তদান সেবা
+                  </button>
                 </div>
 
-                {/* Services List Display */}
-                {filteredServices.length === 0 ? (
-                  <div className="bg-white border border-slate-100 rounded-2xl p-8 text-center space-y-3 shadow-sm">
-                    <AlertTriangle className="text-slate-400 mx-auto" size={32} />
-                    <p className="text-xs font-bold text-slate-600">কোনো তথ্য বা সেবা খুঁজে পাওয়া যায়নি</p>
-                    <p className="text-[11px] text-slate-400">ফিল্টার পরিবর্তন করে অথবা অন্য কোনো জেলায় অনুসন্ধান করুন।</p>
-                    <button
-                      onClick={() => {
-                        setFilterCategory('all');
-                        setFilterVerifiedOnly(false);
-                        setFilterUpazila('');
-                        setSearchQuery('');
-                      }}
-                      className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold py-1.5 px-4 rounded-lg transition mt-2 cursor-pointer"
-                    >
-                      রিসেট ফিল্টার
-                    </button>
-                  </div>
+                {servicesSubTab === 'blood' ? (
+                  <BloodDonationSection
+                    districts={initialDistricts}
+                    selectedDistrict={selectedDistrict}
+                    currentUser={currentUser}
+                    userProfile={userProfile}
+                    onUpdateUserProfile={async (data) => setUserProfile(prev => prev ? {...prev, ...data} : null)}
+                    onViewProfile={handleViewProfile}
+                    onStartMessage={handleStartMessage}
+                    onOpenCreatePost={(prefill) => {
+                      if (!requireAuth('রক্তদান পোস্ট')) return;
+                      setEditingPost(prefill as any);
+                      setShowCreatePostModal(true);
+                    }}
+                    onRequireAuth={requireAuth}
+                  />
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                    {filteredServices.map(service => {
-                      const cat = initialCategories.find(c => c.id === service.category_id);
-                      const style = getCategoryStyle(service.category_id);
-                      return (
-                        <div
-                          key={service.id}
-                          onClick={() => setSelectedService(service)}
-                          className="bg-white hover:bg-emerald-50/20 border border-slate-100 hover:border-emerald-200 p-3 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-sm transition cursor-pointer group"
-                        >
+                  <>
+                    {filterCategory === 'all' ? (
+                      <div className="space-y-4 animate-in fade-in duration-500">
+                        <div className="flex items-center justify-between">
                           <div>
-                            <div className="flex items-center justify-between mb-2">
-                              <div className={`w-10 h-10 rounded-xl ${style.bg} ${style.text} flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition`}>
-                                {service.photos && service.photos[0] ? (
-                                  <img src={service.photos[0]} alt={service.name} className="w-full h-full object-cover rounded-xl" />
-                                ) : (
-                                  <IconComponent name={cat?.iconName || 'Grid'} className={style.text} />
-                                )}
-                              </div>
-                              {service.is_verified && (
-                                <span className="bg-blue-50 text-blue-800 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                                  <CheckCircle size={9} className="fill-blue-500 text-white" />
-                                  ভেরিফাইড
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold uppercase inline-block mb-1">
-                              {cat?.name || 'সেবা'}
-                            </span>
-                            <h3 className="text-xs font-extrabold text-slate-900 line-clamp-2 leading-tight">{service.name}</h3>
-                            <p className="text-[10px] text-slate-500 line-clamp-1 mt-1">ঠিকানা: {service.address}</p>
+                            <h2 className="text-base font-extrabold text-slate-900 font-serif">ডিজিটাল সেবা নির্দেশিকা</h2>
+                            <p className="text-[11px] text-slate-500 font-bold">
+                              {initialDistricts.find(d => d.id === selectedDistrict)?.name} জেলা • ক্যাটাগরি নির্বাচন করুন
+                            </p>
                           </div>
-                          
-                          <div className="flex items-center justify-between text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-50">
-                            <span className="flex items-center gap-0.5 truncate max-w-[80px]">
-                              <Clock size={10} className="text-emerald-700 shrink-0" />
-                              <span className="truncate">{service.opening_hours}</span>
-                            </span>
-                            <span className="text-emerald-700 font-extrabold flex items-center gap-0.5 group-hover:translate-x-0.5 transition">
-                              দেখুন
-                              <ChevronRight size={11} />
-                            </span>
+                          <button
+                            onClick={() => setShowFiltersModal(true)}
+                            className="flex items-center gap-1 text-[11px] bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold py-1.5 px-3 rounded-lg shadow-sm"
+                          >
+                            <Filter size={14} />
+                            ফিল্টার
+                          </button>
+                        </div>
+
+                        {/* 4-Column Compact Category Grid */}
+                        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-1.5 sm:gap-2">
+                          {initialCategories.map(cat => {
+                            const style = getCategoryStyle(cat.id);
+                            return (
+                              <button
+                                key={cat.id}
+                                onClick={() => setFilterCategory(cat.id)}
+                                className="bg-white hover:bg-emerald-50/40 border border-slate-100 hover:border-emerald-200 p-1.5 py-3 rounded-xl flex flex-col items-center justify-center text-center transition cursor-pointer group shadow-2xs hover:shadow-sm"
+                              >
+                                <div className={`w-8 h-8 rounded-lg ${style.bg} ${style.text} flex items-center justify-center mb-1.5 group-hover:scale-110 transition duration-300 shrink-0`}>
+                                  <IconComponent name={cat.iconName} size={22} className={style.text} />
+                                </div>
+                                <span className="text-[9px] sm:text-[10px] font-extrabold text-slate-700 leading-[1.1] line-clamp-2 w-full px-0.5">
+                                  {cat.name}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                        {/* Detail Header with Back Button */}
+                        <div className="flex items-center justify-between sticky top-0 bg-slate-50/80 backdrop-blur-xs py-2 z-10 -mx-1 px-1">
+                          <button 
+                            onClick={() => setFilterCategory('all')}
+                            className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-white hover:bg-emerald-50 px-3 py-1.5 rounded-full transition border border-emerald-100 shadow-sm"
+                          >
+                            <ChevronLeft size={16} /> ফিরে যান
+                          </button>
+                          <button
+                            onClick={() => setShowFiltersModal(true)}
+                            className="p-1.5 bg-white hover:bg-slate-50 text-slate-600 rounded-lg transition border border-slate-200 shadow-xs"
+                          >
+                            <Filter size={16} />
+                          </button>
+                        </div>
+
+                        <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-12 h-12 rounded-2xl ${getCategoryStyle(filterCategory).bg} ${getCategoryStyle(filterCategory).text} flex items-center justify-center shadow-xs`}>
+                              <IconComponent name={initialCategories.find(c => c.id === filterCategory)?.iconName || 'Grid'} size={28} />
+                            </div>
+                            <div>
+                              <h2 className="text-base font-extrabold text-slate-900 leading-tight">
+                                {initialCategories.find(c => c.id === filterCategory)?.name}
+                              </h2>
+                              <p className="text-[11px] text-slate-500 font-bold">
+                                {initialDistricts.find(d => d.id === selectedDistrict)?.name} জেলা • {filteredServices.length}টি সেবা পাওয়া গেছে
+                              </p>
+                            </div>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
+
+                        {/* Services List Display */}
+                        {filteredServices.length === 0 ? (
+                          <div className="bg-white border border-slate-100 rounded-2xl p-10 text-center space-y-3 shadow-sm">
+                            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2">
+                              <AlertTriangle className="text-slate-300" size={32} />
+                            </div>
+                            <p className="text-sm font-bold text-slate-600">বর্তমানে কোনো সেবা পাওয়া যায়নি</p>
+                            <p className="text-[11px] text-slate-400">এই ক্যাটাগরিতে বর্তমানে কোনো সেবা তালিকাভুক্ত করা নেই।</p>
+                            <button
+                              onClick={() => setFilterCategory('all')}
+                              className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold py-2 px-6 rounded-full transition mt-4 shadow-md cursor-pointer"
+                            >
+                              অন্য ক্যাটাগরি দেখুন
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                            {filteredServices.map(service => {
+                              const cat = initialCategories.find(c => c.id === service.category_id);
+                              const style = getCategoryStyle(service.category_id);
+                              return (
+                                <div
+                                  key={service.id}
+                                  onClick={() => setSelectedService(service)}
+                                  className="bg-white hover:bg-emerald-50/20 border border-slate-100 hover:border-emerald-200 p-3 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-sm transition cursor-pointer group"
+                                >
+                                  <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className={`w-10 h-10 rounded-xl ${style.bg} ${style.text} flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition`}>
+                                        {service.photos && service.photos[0] ? (
+                                          <img src={service.photos[0]} alt={service.name} className="w-full h-full object-cover rounded-xl" />
+                                        ) : (
+                                          <IconComponent name={cat?.iconName || 'Grid'} className={style.text} />
+                                        )}
+                                      </div>
+                                      {service.is_verified && (
+                                        <span className="bg-blue-50 text-blue-800 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                                          <CheckCircle size={9} className="fill-blue-500 text-white" />
+                                          ভেরিফাইড
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold uppercase inline-block mb-1">
+                                      {cat?.name || 'সেবা'}
+                                    </span>
+                                    <h3 className="text-xs font-extrabold text-slate-900 line-clamp-2 leading-tight">{service.name}</h3>
+                                    <p className="text-[10px] text-slate-500 line-clamp-1 mt-1">{service.address}</p>
+                                  </div>
+                                  
+                                  <div className="flex items-center justify-between text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-50">
+                                    <span className="flex items-center gap-0.5 truncate max-w-[80px]">
+                                      <Clock size={10} className="text-emerald-700 shrink-0" />
+                                      <span className="truncate">{service.opening_hours}</span>
+                                    </span>
+                                    <span className="text-emerald-700 font-extrabold flex items-center gap-0.5 group-hover:translate-x-0.5 transition">
+                                      বিস্তারিত
+                                      <ChevronRight size={11} />
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -3426,7 +3550,7 @@ export default function App() {
                   </div>
                 ) : (
                   <form onSubmit={handleSubmitService} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-bold text-slate-700 mb-1">প্রতিষ্ঠানের নাম <span className="text-red-500">*</span></label>
                         <input
@@ -3614,832 +3738,107 @@ export default function App() {
             {/* TAB VIEW - PROFILE & ADMIN CONTROL PANEL PANEL */}
             {activeTab === 'profile' && (
               <div className="space-y-4">
-                {/* 1. AUTH GUEST OR USER CARD */}
-                {!currentUser ? (
-                  <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-sm text-left">
-                    <div className="text-center">
-                      <User className="text-emerald-700 mx-auto mb-2" size={40} />
-                      <h3 className="text-sm font-bold text-slate-900">স্মার্ট খুলনা অ্যাকাউন্ট</h3>
-                      <p className="text-xs text-slate-500 mt-1">গুগল দিয়ে অথবা ইমেইল দিয়ে রেজিস্টার বা লগইন করুন।</p>
-                    </div>
-
-                    <button
-                      onClick={handleGoogleLogin}
-                      className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-sm cursor-pointer"
-                    >
-                      <Sparkles size={14} className="text-lime-300" />
-                      Google অ্যাকাউন্ট দিয়ে লগইন করুন
-                    </button>
-
-                    <div className="relative flex py-1 items-center">
-                      <div className="flex-grow border-t border-slate-200"></div>
-                      <span className="flex-shrink mx-4 text-slate-400 text-[10px]">অথবা ইমেইল দিয়ে</span>
-                      <div className="flex-grow border-t border-slate-200"></div>
-                    </div>
-
-                    {/* Toggle Login vs Register */}
-                    <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-bold text-center">
-                      <button
-                        type="button"
-                        onClick={() => setEmailAuthMode('login')}
-                        className={`flex-1 py-1.5 rounded-lg transition cursor-pointer ${emailAuthMode === 'login' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'}`}
-                      >
-                        লগইন
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEmailAuthMode('register')}
-                        className={`flex-1 py-1.5 rounded-lg transition cursor-pointer ${emailAuthMode === 'register' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'}`}
-                      >
-                        রেজিস্ট্রেশন
-                      </button>
-                    </div>
-
-                    <form onSubmit={handleEmailAuth} className="space-y-3">
-                      {emailAuthMode === 'register' && (
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">আপনার নাম</label>
-                          <input
-                            type="text"
-                            value={authName}
-                            onChange={(e) => setAuthName(e.target.value)}
-                            required
-                            placeholder="পূর্ণ নাম লিখুন"
-                            className="w-full border border-slate-200 p-2 rounded-xl text-xs focus:ring-1 focus:ring-emerald-700 outline-none bg-white"
-                          />
-                        </div>
-                      )}
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">ইমেইল ঠিকানা</label>
-                        <input
-                          type="email"
-                          value={authEmail}
-                          onChange={(e) => setAuthEmail(e.target.value)}
-                          required
-                          placeholder="example@gmail.com"
-                          className="w-full border border-slate-200 p-2 rounded-xl text-xs focus:ring-1 focus:ring-emerald-700 outline-none bg-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">পাসওয়ার্ড</label>
-                        <input
-                          type="password"
-                          value={authPassword}
-                          onChange={(e) => setAuthPassword(e.target.value)}
-                          required
-                          minLength={6}
-                          placeholder="কমপক্ষে ৬ অক্ষরের পাসওয়ার্ড"
-                          className="w-full border border-slate-200 p-2 rounded-xl text-xs focus:ring-1 focus:ring-emerald-700 outline-none bg-white"
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition cursor-pointer shadow-sm"
-                      >
-                        {emailAuthMode === 'register' ? 'অ্যাকাউন্ট তৈরি করুন (Register)' : 'লগইন করুন (Login)'}
-                      </button>
-                    </form>
-                    <p className="text-[10px] text-slate-400 text-center">আমরা আপনার তথ্যের গোপনীয়তা ও সুরক্ষা নিশ্চিত করি।</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {/* PROFILE HEADER CARD */}
-                    <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950 text-white rounded-2xl p-5 sm:p-6 shadow-md border border-emerald-900/40 relative overflow-hidden">
-                      <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
-                      
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
-                        <div className="flex items-start sm:items-center gap-3.5">
-                          <div className="relative group">
-                            {userProfile?.avatar || currentUser.photoURL ? (
-                              <img
-                                src={userProfile?.avatar || currentUser.photoURL}
-                                alt="Profile Avatar"
-                                className="w-16 h-16 rounded-full object-cover border-2 border-emerald-400/80 shadow-md shrink-0 bg-slate-800"
-                              />
-                            ) : (
-                              <div className="w-16 h-16 bg-emerald-800 border-2 border-emerald-400/50 rounded-full flex items-center justify-center font-bold text-white text-xl uppercase shrink-0 shadow-inner">
-                                {(userProfile?.name || currentUser.displayName || 'U').substring(0, 2)}
-                              </div>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsEditingProfile(true);
-                                setEditDisplayName(userProfile?.name || currentUser.displayName || '');
-                                setEditPhotoURL(userProfile?.avatar || currentUser.photoURL || '');
-                                setEditPhone(userProfile?.phone || '');
-                                setEditBio(userProfile?.bio || '');
-                                setEditProfession(userProfile?.profession || '');
-                                setEditBloodGroup(userProfile?.bloodGroup || '');
-                                setEditDistrict(userProfile?.district || userProfile?.selectedDistrict || selectedDistrict);
-                                setEditUpazila(userProfile?.upazila || '');
-                                setEditAddress(userProfile?.address || '');
-                                setEditFacebook(userProfile?.facebook || '');
-                                setEditTwitter(userProfile?.twitter || '');
-                                setEditInstagram(userProfile?.instagram || '');
-                                setEditLinkedin(userProfile?.linkedin || '');
-                                setEditWebsite(userProfile?.website || '');
-                              }}
-                              className="absolute bottom-0 right-0 p-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full shadow-md transition cursor-pointer"
-                              title="ছবি পরিবর্তন করুন"
-                            >
-                              <Camera size={12} />
-                            </button>
-                          </div>
-
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="text-base sm:text-lg font-bold text-white font-serif">
-                                {userProfile?.name || currentUser.displayName || 'সম্মানিত নাগরিক'}
-                              </h3>
-                              <span className="inline-block bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-bold px-2 py-0.5 rounded text-[10px] uppercase">
-                                {userProfile?.role === 'super_admin' ? 'সুপার এডমিন' : userProfile?.role === 'sub_admin' ? 'সাব-এডমিন' : userProfile?.role === 'moderator' ? 'মডারেটর' : 'নাগরিক'}
-                              </span>
-                            </div>
-
-                            <p className="text-xs text-slate-300 flex items-center gap-1.5">
-                              <span>{currentUser.email}</span>
-                              {userProfile?.phone && (
-                                <>
-                                  <span className="text-slate-500">•</span>
-                                  <span className="text-emerald-300 font-medium">{userProfile.phone}</span>
-                                </>
-                              )}
-                            </p>
-
-                            <div className="flex items-center gap-2 flex-wrap pt-0.5 text-[11px]">
-                              {(userProfile?.district || userProfile?.selectedDistrict) && (
-                                <span className="bg-white/10 text-slate-200 px-2 py-0.5 rounded flex items-center gap-1">
-                                  <MapPin size={11} className="text-emerald-400" />
-                                  {initialDistricts.find(d => d.id === (userProfile?.district || userProfile?.selectedDistrict))?.name || userProfile?.district || selectedDistrict}
-                                  {userProfile?.upazila ? ` • ${userProfile.upazila}` : ''}
-                                </span>
-                              )}
-                              {userProfile?.profession && (
-                                <span className="bg-emerald-500/20 text-emerald-200 border border-emerald-500/30 px-2 py-0.5 rounded flex items-center gap-1 font-medium">
-                                  <Briefcase size={11} />
-                                  {userProfile.profession}
-                                </span>
-                              )}
-                              {userProfile?.bloodGroup && (
-                                <span className="bg-rose-500/20 text-rose-200 border border-rose-500/30 px-2 py-0.5 rounded flex items-center gap-1 font-bold">
-                                  <Droplets size={11} className="text-rose-400" />
-                                  {userProfile.bloodGroup}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 self-end sm:self-center">
-                          <button
-                            onClick={() => {
-                              const willEdit = !isEditingProfile;
-                              setIsEditingProfile(willEdit);
-                              if (willEdit) {
-                                setEditDisplayName(userProfile?.name || currentUser.displayName || '');
-                                setEditPhotoURL(userProfile?.avatar || currentUser.photoURL || '');
-                                setEditPhone(userProfile?.phone || '');
-                                setEditBio(userProfile?.bio || '');
-                                setEditProfession(userProfile?.profession || '');
-                                setEditBloodGroup(userProfile?.bloodGroup || '');
-                                setEditDistrict(userProfile?.district || userProfile?.selectedDistrict || selectedDistrict);
-                                setEditUpazila(userProfile?.upazila || '');
-                                setEditAddress(userProfile?.address || '');
-                                setEditFacebook(userProfile?.facebook || '');
-                                setEditTwitter(userProfile?.twitter || '');
-                                setEditInstagram(userProfile?.instagram || '');
-                                setEditLinkedin(userProfile?.linkedin || '');
-                                setEditWebsite(userProfile?.website || '');
-                              }
-                            }}
-                            className="px-3.5 py-2 bg-emerald-600/80 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs border border-emerald-500/40"
-                          >
-                            <Edit2 size={13} />
-                            <span>{isEditingProfile ? 'সম্পাদনা বন্ধ' : 'প্রোফাইল পরিবর্তন'}</span>
-                          </button>
-                          <button
-                            onClick={handleLogout}
-                            className="p-2 bg-white/10 hover:bg-rose-600/80 text-white rounded-xl transition cursor-pointer"
-                            title="লগআউট"
-                          >
-                            <LogOut size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* SAVE SUCCESS NOTIFICATION */}
-                    {profileSaveSuccess && (
-                      <div className="p-3.5 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs animate-in fade-in">
-                        <CheckCircle size={16} className="text-emerald-700 shrink-0" />
-                        <span>আপনার প্রোফাইল ছবি, নাম ও যাবতীয় তথ্য ডাটাবেজে সফলভাবে সংরক্ষণ করা হয়েছে!</span>
-                      </div>
-                    )}
-
-                    {/* PROFILE DETAILS OVERVIEW (READ-ONLY) */}
-                    {!isEditingProfile && (
-                      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                          <h4 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                            <User size={15} className="text-emerald-700" />
-                            নাগরিক প্রোফাইল তথ্যাবলী
-                          </h4>
-                          <span className="text-[11px] text-slate-400">সর্বশেষ আপডেট: {userProfile?.updatedAt ? new Date(userProfile.updatedAt).toLocaleDateString('bn-BD') : 'আজ'}</span>
-                        </div>
-
-                        {/* Grid details */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
-                            <span className="text-[11px] font-bold text-slate-400 block uppercase">পূর্ণ নাম</span>
-                            <span className="font-bold text-slate-900 text-sm">{userProfile?.name || currentUser.displayName || 'নাম প্রদান করা হয়নি'}</span>
-                          </div>
-
-                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
-                            <span className="text-[11px] font-bold text-slate-400 block uppercase">মোবাইল ফোন নম্বর</span>
-                            <span className="font-bold text-emerald-800 text-sm">
-                              {userProfile?.phone ? userProfile.phone : <span className="text-slate-400 font-normal italic">নম্বর যোগ করা হয়নি</span>}
-                            </span>
-                          </div>
-
-                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
-                            <span className="text-[11px] font-bold text-slate-400 block uppercase">পেশা / পদবী</span>
-                            <span className="font-semibold text-slate-800">
-                              {userProfile?.profession ? userProfile.profession : <span className="text-slate-400 font-normal italic">পেশা উল্লেখ নেই</span>}
-                            </span>
-                          </div>
-
-                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
-                            <span className="text-[11px] font-bold text-slate-400 block uppercase">রক্তের গ্রুপ</span>
-                            <span className="font-bold text-rose-700">
-                              {userProfile?.bloodGroup ? (
-                                <span className="bg-rose-50 px-2 py-0.5 rounded border border-rose-200">🩸 {userProfile.bloodGroup}</span>
-                              ) : (
-                                <span className="text-slate-400 font-normal italic">রক্তের গ্রুপ দেওয়া নেই</span>
-                              )}
-                            </span>
-                          </div>
-
-                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
-                            <span className="text-[11px] font-bold text-slate-400 block uppercase">জেলা ও উপজেলা</span>
-                            <span className="font-semibold text-slate-800">
-                              {initialDistricts.find(d => d.id === (userProfile?.district || userProfile?.selectedDistrict))?.name || userProfile?.district || 'খুলনা'}
-                              {userProfile?.upazila ? ` • ${userProfile.upazila}` : ''}
-                            </span>
-                          </div>
-
-                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
-                            <span className="text-[11px] font-bold text-slate-400 block uppercase">ঠিকানা</span>
-                            <span className="text-slate-700">
-                              {userProfile?.address || <span className="text-slate-400 italic">ঠিকানা দেওয়া হয়নি</span>}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Bio */}
-                        {userProfile?.bio && (
-                          <div className="p-3.5 bg-emerald-50/50 border border-emerald-100 rounded-xl text-xs space-y-1">
-                            <span className="text-[11px] font-bold text-emerald-900 block">নিজের সম্পর্কে (Bio):</span>
-                            <p className="text-slate-700 leading-relaxed whitespace-pre-line">{userProfile.bio}</p>
-                          </div>
-                        )}
-
-                        {/* Social profiles if available */}
-                        {(userProfile?.facebook || userProfile?.twitter || userProfile?.instagram || userProfile?.linkedin || userProfile?.website) && (
-                          <div className="pt-2 border-t border-slate-100">
-                            <span className="text-[11px] font-bold text-slate-500 block mb-2">সংযুক্ত সামাজিক যোগাযোগ মাধ্যম:</span>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {userProfile.facebook && (
-                                <a
-                                  href={userProfile.facebook}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold flex items-center gap-1 transition"
-                                >
-                                  <span>Facebook</span>
-                                  <ExternalLink size={11} />
-                                </a>
-                              )}
-                              {userProfile.twitter && (
-                                <a
-                                  href={userProfile.twitter}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg text-xs font-bold flex items-center gap-1 transition"
-                                >
-                                  <span>Twitter / X</span>
-                                  <ExternalLink size={11} />
-                                </a>
-                              )}
-                              {userProfile.instagram && (
-                                <a
-                                  href={userProfile.instagram}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="px-3 py-1.5 bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 rounded-lg text-xs font-bold flex items-center gap-1 transition"
-                                >
-                                  <span>Instagram</span>
-                                  <ExternalLink size={11} />
-                                </a>
-                              )}
-                              {userProfile.linkedin && (
-                                <a
-                                  href={userProfile.linkedin}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-xs font-bold flex items-center gap-1 transition"
-                                >
-                                  <span>LinkedIn</span>
-                                  <ExternalLink size={11} />
-                                </a>
-                              )}
-                              {userProfile.website && (
-                                <a
-                                  href={userProfile.website}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-bold flex items-center gap-1 transition"
-                                >
-                                  <Globe size={12} />
-                                  <span>Website</span>
-                                  <ExternalLink size={11} />
-                                </a>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* EDIT PROFILE FORM */}
-                    {isEditingProfile && (
-                      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                          <div>
-                            <h4 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                              <Edit2 size={15} className="text-emerald-700" />
-                              প্রোফাইল তথ্য ও ছবি সম্পাদনা
-                            </h4>
-                            <p className="text-[11px] text-slate-500">আপনার ছবি, নাম এবং অন্যান্য ঐচ্ছিক তথ্য পূরণ করে সংরক্ষণ করুন।</p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setIsEditingProfile(false)}
-                            className="text-xs text-slate-400 hover:text-slate-700 font-bold cursor-pointer"
-                          >
-                            বাতিল
-                          </button>
-                        </div>
-
-                        <form onSubmit={handleUpdateProfile} className="space-y-4">
-                          {/* 1. PHOTO & NAME SECTION */}
-                          <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3">
-                            <span className="text-[11px] font-bold text-emerald-950 uppercase block tracking-wider">
-                              ১. ছবি ও মৌলিক পরিচিতি
-                            </span>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
-                              <div>
-                                <label className="block text-[11px] font-bold text-slate-700 mb-1.5">
-                                  প্রোফাইল ছবি (ফাইল আপলোড)
-                                </label>
-                                <div className="flex items-center gap-3">
-                                  <div className="w-14 h-14 rounded-full border-2 border-emerald-500 bg-white overflow-hidden shrink-0 flex items-center justify-center shadow-xs">
-                                    {editPhotoURL ? (
-                                      <img src={editPhotoURL} alt="Preview" className="w-full h-full object-cover" />
-                                    ) : (
-                                      <User size={24} className="text-slate-400" />
-                                    )}
-                                  </div>
-                                  <div className="flex-1">
-                                    <input
-                                      type="file"
-                                      accept="image/*"
-                                      onChange={handleAvatarFileChange}
-                                      className="w-full text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-700 file:text-white hover:file:bg-emerald-800 cursor-pointer"
-                                    />
-                                    <p className="text-[10px] text-slate-400 mt-1">অটো-কম্প্রেশন সক্ষম (ম্যাক্সিমাম ৮ MB)</p>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div>
-                                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                  অথবা ছবির সরাসরি URL
-                                </label>
-                                <input
-                                  type="url"
-                                  value={editPhotoURL.startsWith('data:') ? '' : editPhotoURL}
-                                  onChange={(e) => setEditPhotoURL(e.target.value)}
-                                  placeholder="https://example.com/avatar.jpg"
-                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                              <div>
-                                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                  পূর্ণ নাম <span className="text-rose-500">*</span>
-                                </label>
-                                <input
-                                  type="text"
-                                  value={editDisplayName}
-                                  onChange={(e) => setEditDisplayName(e.target.value)}
-                                  required
-                                  placeholder="যেমন: মোঃ জুবায়ের হাসান"
-                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                  মোবাইল ফোন নম্বর
-                                </label>
-                                <input
-                                  type="tel"
-                                  value={editPhone}
-                                  onChange={(e) => setEditPhone(e.target.value)}
-                                  placeholder="যেমন: 017XXXXXXXX"
-                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* 2. PROFESSION & BLOOD GROUP */}
-                          <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3">
-                            <span className="text-[11px] font-bold text-emerald-950 uppercase block tracking-wider">
-                              ২. পেশা ও রক্তের গ্রুপ
-                            </span>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div>
-                                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                  পেশা / পদবী
-                                </label>
-                                <input
-                                  type="text"
-                                  value={editProfession}
-                                  onChange={(e) => setEditProfession(e.target.value)}
-                                  placeholder="যেমন: শিক্ষক, ডাক্তার, সফটওয়্যার ইঞ্জিনিয়ার, ছাত্র"
-                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                  রক্তের গ্রুপ
-                                </label>
-                                <select
-                                  value={editBloodGroup}
-                                  onChange={(e) => setEditBloodGroup(e.target.value)}
-                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none cursor-pointer"
-                                >
-                                  <option value="">-- রক্তের গ্রুপ নির্বাচন করুন --</option>
-                                  <option value="A+">A+ (এ পজিটিভ)</option>
-                                  <option value="A-">A- (এ নেগেটিভ)</option>
-                                  <option value="B+">B+ (বি পজিটিভ)</option>
-                                  <option value="B-">B- (বি নেগেটিভ)</option>
-                                  <option value="O+">O+ (ও পজিটিভ)</option>
-                                  <option value="O-">O- (ও নেগেটিভ)</option>
-                                  <option value="AB+">AB+ (এবি পজিটিভ)</option>
-                                  <option value="AB-">AB- (এবি নেগেটিভ)</option>
-                                </select>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* 3. LOCATION & ADDRESS */}
-                          <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3">
-                            <span className="text-[11px] font-bold text-emerald-950 uppercase block tracking-wider">
-                              ৩. জেলা ও স্থায়ী/বর্তমান ঠিকানা
-                            </span>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div>
-                                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                  আপনার জেলা (খুলনা বিভাগ)
-                                </label>
-                                <select
-                                  value={editDistrict}
-                                  onChange={(e) => setEditDistrict(e.target.value)}
-                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none cursor-pointer"
-                                >
-                                  {initialDistricts.map(d => (
-                                    <option key={d.id} value={d.id}>
-                                      {d.name} ({d.nameEn})
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-
-                              <div>
-                                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                  উপজেলা / থানা
-                                </label>
-                                <input
-                                  type="text"
-                                  value={editUpazila}
-                                  onChange={(e) => setEditUpazila(e.target.value)}
-                                  placeholder="যেমন: সোনাডাঙ্গা, ডুমুরিয়া, সদর"
-                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
-                                />
-                              </div>
-                            </div>
-
-                            <div>
-                              <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                পূর্ণ ঠিকানা (গ্রাম/মহল্লা, সড়ক)
-                              </label>
-                              <input
-                                type="text"
-                                value={editAddress}
-                                onChange={(e) => setEditAddress(e.target.value)}
-                                placeholder="যেমন: বাড়ি নং ১২, রোড নং ৩, বয়রা, খুলনা"
-                                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
-                              />
-                            </div>
-                          </div>
-
-                          {/* 4. BIO SECTION */}
-                          <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-2">
-                            <span className="text-[11px] font-bold text-emerald-950 uppercase block tracking-wider">
-                              ৪. পরিচিতি / নিজের সম্পর্কে (Bio)
-                            </span>
-                            <textarea
-                              value={editBio}
-                              onChange={(e) => setEditBio(e.target.value)}
-                              rows={3}
-                              className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none resize-none"
-                              placeholder="নিজের সম্পর্কে সংক্ষেপে কিছু লিখুন যা কমিউনিটি ব্যবহারকারীরা দেখতে পাবেন..."
-                            />
-                          </div>
-
-                          {/* 5. SOCIAL MEDIA & WEB LINKS */}
-                          <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3">
-                            <span className="text-[11px] font-bold text-emerald-950 uppercase block tracking-wider">
-                              ৫. সামাজিক যোগাযোগ মাধ্যম ও পোর্টফোলিও লিংক
-                            </span>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div>
-                                <label className="block text-[11px] font-bold text-slate-700 mb-1">ফেসবুক লিংক</label>
-                                <input
-                                  type="url"
-                                  value={editFacebook}
-                                  onChange={(e) => setEditFacebook(e.target.value)}
-                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
-                                  placeholder="https://facebook.com/username"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="block text-[11px] font-bold text-slate-700 mb-1">টুইটার / এক্স (Twitter/X)</label>
-                                <input
-                                  type="url"
-                                  value={editTwitter}
-                                  onChange={(e) => setEditTwitter(e.target.value)}
-                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
-                                  placeholder="https://x.com/username"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="block text-[11px] font-bold text-slate-700 mb-1">ইনস্টাগ্রাম (Instagram)</label>
-                                <input
-                                  type="url"
-                                  value={editInstagram}
-                                  onChange={(e) => setEditInstagram(e.target.value)}
-                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
-                                  placeholder="https://instagram.com/username"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="block text-[11px] font-bold text-slate-700 mb-1">লিঙ্কডইন (LinkedIn)</label>
-                                <input
-                                  type="url"
-                                  value={editLinkedin}
-                                  onChange={(e) => setEditLinkedin(e.target.value)}
-                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
-                                  placeholder="https://linkedin.com/in/username"
-                                />
-                              </div>
-
-                              <div className="sm:col-span-2">
-                                <label className="block text-[11px] font-bold text-slate-700 mb-1">ব্যক্তিগত ওয়েবসাইট / পোর্টফোলিও</label>
-                                <input
-                                  type="url"
-                                  value={editWebsite}
-                                  onChange={(e) => setEditWebsite(e.target.value)}
-                                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-white focus:ring-1 focus:ring-emerald-700 outline-none"
-                                  placeholder="https://yourwebsite.com"
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* SUBMIT BUTTONS */}
-                          <div className="flex items-center gap-3 pt-2">
-                            <button
-                              type="submit"
-                              disabled={isSavingProfile}
-                              className="flex-1 bg-emerald-700 hover:bg-emerald-800 disabled:bg-emerald-400 text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm"
-                            >
-                              {isSavingProfile ? (
-                                <>
-                                  <Loader2 size={16} className="animate-spin" />
-                                  <span>তথ্য ডাটাবেজে সংরক্ষণ হচ্ছে...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle size={16} />
-                                  <span>সকল তথ্য ও ছবি সংরক্ষণ করুন</span>
-                                </>
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setIsEditingProfile(false)}
-                              className="px-5 py-3 border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer"
-                            >
-                              বাতিল
-                            </button>
-                          </div>
-                        </form>
-                      </div>
-                    )}
+                {(userProfile?.role === 'super_admin' || userProfile?.role === 'sub_admin') && adminView && (
+                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <AdminPanelComplete
+                      currentUserRole={userProfile.role as 'super_admin' | 'sub_admin'}
+                      currentUserEmail={currentUser?.email || ''}
+                      currentUserId={currentUser?.uid}
+                      currentUserPermissions={userProfile.subAdminPermissions}
+                      subAdminScope={userProfile.subAdminScope}
+                      districts={initialDistricts}
+                      categories={initialCategories}
+                      services={services}
+                      banners={banners}
+                      communityPosts={communityPosts}
+                      submissions={submissions}
+                      communityReports={communityReports}
+                      communityUsers={allCommunityUsers}
+                      auditLogs={auditLogs}
+                      releaseConfig={releaseConfig}
+                      onAddService={handleAddServiceFromAdmin}
+                      onUpdateService={handleUpdateServiceFromAdmin}
+                      onDeleteService={handleDeleteServiceFromAdmin}
+                      onApproveSubmission={handleApproveSubmission}
+                      onRejectSubmission={handleRejectSubmission}
+                      onAddBanner={handleAddBanner}
+                      onUpdateBanner={handleUpdateBanner}
+                      onDeleteBanner={handleDeleteBanner}
+                      onToggleBannerStatus={handleToggleBannerStatus}
+                      onResolveReport={handleResolveReport}
+                      onDismissReport={handleDismissReport}
+                      onHidePost={handleHidePost}
+                      onRestorePost={handleRestorePost}
+                      onDeletePost={handleDeletePost}
+                      onUpdateUserRole={handleUpdateUserRole}
+                      onBanUser={handleBanUser}
+                      onSaveReleaseConfig={(config) => setReleaseConfig(config)}
+                      onClose={() => setAdminView(null)}
+                    />
                   </div>
                 )}
-
-                {/* Quick Community Posting Card inside Profile */}
-                <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-4 flex items-center justify-between shadow-xs">
-                  <div>
-                    <h4 className="text-xs font-bold text-emerald-950">কমিউনিটি পোস্ট তৈরি করুন</h4>
-                    <p className="text-[11px] text-slate-600 mt-0.5">আপনার সেবা, অভিজ্ঞতা বা প্রশ্ন সরাসরি ফিডে শেয়ার করুন।</p>
-                  </div>
-                  <button
-                    onClick={() => {
+                
+                {!adminView && targetProfile && (
+                  <EnhancedProfileView
+                    profile={targetProfile}
+                    currentUserUid={currentUser?.uid}
+                    isOwnProfile={currentUser?.uid === targetProfile.uid}
+                    onEdit={() => {
+                      setIsEditingProfile(true);
+                      setEditDisplayName(targetProfile.name || '');
+                      setEditPhotoURL(targetProfile.avatar || '');
+                      setEditPhone(targetProfile.phone || '');
+                      setEditBio(targetProfile.bio || '');
+                      setEditProfession(targetProfile.profession || '');
+                      setEditBloodGroup(targetProfile.bloodGroup || '');
+                      setEditDistrict(targetProfile.district || selectedDistrict);
+                      setEditUpazila(targetProfile.upazila || '');
+                      setEditAddress(targetProfile.address || '');
+                      setEditFacebook(targetProfile.socialLinks?.facebook || '');
+                      setEditTwitter(targetProfile.socialLinks?.twitter || '');
+                      setEditInstagram(targetProfile.socialLinks?.instagram || '');
+                      setEditLinkedin(targetProfile.socialLinks?.linkedin || '');
+                      setEditWebsite(targetProfile.socialLinks?.website || '');
+                    }}
+                    onMessage={(uid: string, name: string, avatar?: string) => handleStartMessage(uid, name, '', avatar)}
+                    onFollow={handleFollow}
+                    onUnfollow={handleUnfollow}
+                    onBack={() => setViewingProfileUid(null)}
+                    posts={targetPosts}
+                    services={targetServices}
+                    districts={initialDistricts}
+                    categories={initialCategories}
+                    followers={targetFollowers}
+                    following={targetFollowing}
+                    onPostClick={() => {}}
+                    onServiceClick={(s) => setSelectedService(s)}
+                    onUserClick={(uid) => handleViewProfile(uid)}
+                    onUpdateCover={handleUpdateCover}
+                    onLogout={handleLogout}
+                    onToggleLike={handleToggleLikePost}
+                    onToggleSave={handleToggleSavePost}
+                    onAddComment={handleAddComment}
+                    onAddReply={handleAddReply}
+                    onDeleteComment={handleDeleteComment}
+                    onSharePost={handleShareCommunityPost}
+                    onOpenCreatePost={() => {
                       if (!requireAuth('পোস্ট তৈরি')) return;
                       setEditingPost(null);
                       setShowCreatePostModal(true);
                     }}
-                    className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2 px-3 rounded-xl text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer shrink-0"
-                  >
-                    <Plus size={14} />
-                    <span>পোস্ট করুন</span>
-                  </button>
-                </div>
-
-                {/* MY POSTS MANAGER INSIDE PROFILE */}
-                {currentUser && (
-                  <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                      <div className="flex items-center gap-2">
-                        <MessageSquare className="text-emerald-700" size={16} />
-                        <h4 className="text-xs font-bold text-slate-900">আমার কমিউনিটি পোস্টসমূহ ({communityPosts.filter(p => p.authorId === currentUser.uid).length})</h4>
-                      </div>
-                      <button
-                        onClick={() => setActiveTab('community')}
-                        className="text-[11px] text-emerald-700 font-bold hover:underline cursor-pointer"
-                      >
-                        কমিউনিটি ফিড দেখুন
-                      </button>
-                    </div>
-
-                    {communityPosts.filter(p => p.authorId === currentUser.uid).length === 0 ? (
-                      <p className="text-xs text-slate-500 text-center py-3">আপনি এখনো কোনো পোস্ট করেননি। উপরের বোতামে ক্লিক করে নতুন পোস্ট করুন।</p>
-                    ) : (
-                      <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
-                        {communityPosts.filter(p => p.authorId === currentUser.uid).map(post => (
-                          <div key={post.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                            <div className="flex items-start justify-between gap-2">
-                              <p className="text-xs text-slate-900 line-clamp-2 font-medium">{post.content}</p>
-                              <div className="flex items-center gap-1 shrink-0">
-                                <button
-                                  onClick={() => {
-                                    setEditingPost(post);
-                                    setShowCreatePostModal(true);
-                                  }}
-                                  className="p-1 text-slate-500 hover:text-emerald-700 hover:bg-white rounded transition cursor-pointer"
-                                  title="সম্পাদনা করুন"
-                                >
-                                  <Edit2 size={13} />
-                                </button>
-                                <button
-                                  onClick={() => handleRemovePost(post.id, 'ব্যবহারকারী দ্বারা পোস্ট মুছে ফেলা')}
-                                  className="p-1 text-slate-500 hover:text-red-600 hover:bg-white rounded transition cursor-pointer"
-                                  title="মুছে ফেলুন"
-                                >
-                                  <Trash2 size={13} />
-                                </button>
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-150">
-                              <span>লাইক: {post.likesCount} • মন্তব্য: {post.commentsCount}</span>
-                              <span>{new Date(post.createdAt).toLocaleDateString('bn-BD')}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* 2. COMPREHENSIVE ADMIN & SUB-ADMIN MANAGEMENT HUB */}
-                {currentUser && userProfile && (userProfile.role === 'super_admin' || userProfile.role === 'sub_admin') && (
-                  <AdminPanelComplete
-                    currentUserRole={userProfile.role === 'super_admin' ? 'super_admin' : 'sub_admin'}
-                    currentUserEmail={currentUser.email || ''}
-                    subAdminScopeDistrict={userProfile.role === 'sub_admin' ? userProfile.selectedDistrict : undefined}
-                    districts={initialDistricts}
-                    categories={initialCategories}
-                    services={services}
-                    submissions={submissions}
-                    emergencyContacts={emergencyContacts}
-                    communityPosts={communityPosts}
-                    communityReports={communityReports}
-                    communityUsers={allCommunityUsers}
-                    auditLogs={auditLogs}
-                    releaseConfig={releaseConfig}
-                    banners={banners}
-                    onAddBanner={handleAddBanner}
-                    onUpdateBanner={handleUpdateBanner}
-                    onDeleteBanner={handleDeleteBanner}
-                    onToggleBannerStatus={handleToggleBannerStatus}
-                    onApproveSubmission={handleApproveSubmission}
-                    onRejectSubmission={handleRejectSubmission}
-                    onAddService={handleAddServiceFromAdmin}
-                    onUpdateService={handleUpdateServiceFromAdmin}
-                    onDeleteService={handleDeleteServiceFromAdmin}
-                    onAddEmergency={handleAddEmergency}
-                    onDeleteEmergency={handleDeleteEmergency}
-                    onSaveReleaseConfig={handleSaveReleaseConfig}
-                    onHidePost={handleHidePost}
-                    onRestorePost={handleRestorePost}
-                    onRemovePost={handleRemovePost}
-                    onBanUser={handleBanUser}
-                    onUpdateUserRole={handleUpdateUserRole}
-                    onDeleteUser={handleDeleteUser}
-                    onResolveReport={handleResolveReport}
-                    onDismissReport={handleDismissReport}
-                    onClearLogs={() => setAuditLogs([])}
+                    onReport={handleReport}
+                    onDeletePost={handleDeletePost}
+                    onEditPost={(post) => {
+                      setEditingPost(post);
+                      setShowCreatePostModal(true);
+                    }}
+                    commentsMap={communityComments}
+                    likedPostIds={likedCommunityPostIds}
+                    savedPostIds={savedCommunityPostIds}
+                    followingUids={followingUids}
+                    onStartMessage={handleStartMessage}
                   />
                 )}
-
-                {/* QUICK APP DOWNLOAD & PWA INSTALL CARD FOR USERS */}
-                <div className="bg-gradient-to-br from-emerald-50 to-lime-50/60 border border-emerald-200 p-4 rounded-2xl shadow-xs space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-700 text-white flex items-center justify-center">
-                        <Smartphone size={16} />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-emerald-950 font-serif">স্মার্ট খুলনা মোবাইল ও ডেস্কটপ অ্যাপ</h4>
-                        <p className="text-[10px] text-slate-600">Android • iOS • Windows • Mac • Web</p>
-                      </div>
-                    </div>
-                    <span className="text-[9px] bg-emerald-700 text-white font-mono px-2 py-0.5 rounded-full font-bold">
-                      v{releaseConfig.currentVersion}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-600 leading-relaxed">
-                    অ্যাপ ইনস্টল করে ইন্টারনেট সংযোগ ছাড়াই দ্রুত জরুরি রক্তদাতা, ফায়ার সার্ভিস এবং হাসপাতালের তথ্য এক্সেস করুন।
-                  </p>
-                  <div className="flex items-center gap-2">
-                    {isInstallable && (
-                      <button
-                        onClick={installPWA}
-                        className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2 px-3.5 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
-                      >
-                        <Download size={13} />
-                        অ্যাপ ইনস্টল করুন
-                      </button>
-                    )}
-                    <button
-                      onClick={() => navigateTo('download')}
-                      className="bg-white hover:bg-slate-50 text-emerald-900 border border-emerald-300 font-bold py-2 px-3.5 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer"
-                    >
-                      <ExternalLink size={13} />
-                      সকল ডাউনলোড অপশন
-                    </button>
-                  </div>
-                </div>
-
-                {/* USER BIO / HELPFUL NOTES */}
-                <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm text-xs space-y-3 leading-relaxed">
-                  <h4 className="font-bold text-slate-900 flex items-center gap-1">
-                    <Info size={16} className="text-emerald-700" />
-                    খুলনা বিভাগীয় পোর্টালে তথ্য সংগ্রহের নিয়মাবলী
-                  </h4>
-                  <p className="text-slate-600">
-                    স্মার্ট খুলনা খুলনা বিভাগের সকল ডিজিটাল নাগরিক সুযোগ সুবিধা একত্রিত করার একটি সম্পূর্ণ স্বাধীন পোর্টাল। নাগরিকগণ এখানে বিনামূল্যে স্বত্বাধিকারী অনুযায়ী নিজ ব্যবসা, ক্লিনিক, শিক্ষা প্রতিষ্ঠান বা পেশাদার কাজের পরিচিতি আপলোড করতে পারেন।
-                  </p>
-                  <p className="text-slate-600">
-                    আপনি কি মাঠ পর্যায়ে তথ্য সংগ্রাহক (Sub Admin) হিসেবে কাজ করতে ইচ্ছুক? দয়া করে আমাদের পরিচালনা পরিষদের সাথে যোগাযোগ করুন।
-                  </p>
-                </div>
               </div>
             )}
 
@@ -4495,34 +3894,36 @@ export default function App() {
 
             {/* TAB VIEW - MESSAGING CENTER */}
             {activeTab === 'messages' && (
-              <MessagingCenter
-                currentUserId={currentUser?.uid || null}
-                currentUserEmail={currentUser?.email || null}
-                currentUserName={currentUser?.displayName || null}
-                currentUserAvatar={currentUser?.photoURL || userProfile?.avatar || ''}
-                districts={initialDistricts}
-                allUsers={allCommunityUsers}
-                conversations={conversations}
-                activeConversationId={activeConversationId}
-                onSelectConversation={setActiveConversationId}
-                onSendMessage={handleSendMessage}
-                onDeleteMessage={handleDeleteMessage}
-                onDeleteConversation={handleDeleteConversation}
-                onStartConversationWithUser={(targetUser) => {
-                  handleStartMessage(targetUser.uid, targetUser.name, targetUser.email || '', targetUser.avatar);
-                }}
-                onBlockUser={handleBlockUser}
-                onReportUser={(targetUid, name) => {
-                  handleReport('user', targetUid, name);
-                }}
-                onRequireAuth={() => requireAuth('বার্তা আদান-প্রদান')}
-                messagesMap={messagesMap}
-                blockedUserIds={blockedUserIds}
-                onViewProfile={handleViewProfile}
-              />
+              <div className="h-full overflow-hidden p-2 sm:p-4">
+                <MessagingCenter
+                  currentUserId={currentUser?.uid || null}
+                  currentUserEmail={currentUser?.email || null}
+                  currentUserName={currentUser?.displayName || null}
+                  currentUserAvatar={currentUser?.photoURL || userProfile?.avatar || ''}
+                  districts={initialDistricts}
+                  allUsers={allCommunityUsers}
+                  conversations={conversations}
+                  activeConversationId={activeConversationId}
+                  onSelectConversation={setActiveConversationId}
+                  onSendMessage={handleSendMessage}
+                  onDeleteMessage={handleDeleteMessage}
+                  onDeleteConversation={handleDeleteConversation}
+                  onStartConversationWithUser={(targetUser) => {
+                    handleStartMessage(targetUser.uid, targetUser.name, targetUser.email || '', targetUser.avatar);
+                  }}
+                  onBlockUser={handleBlockUser}
+                  onReportUser={(targetUid, name) => {
+                    handleReport('user', targetUid, name);
+                  }}
+                  onRequireAuth={() => requireAuth('বার্তা আদান-প্রদান')}
+                  messagesMap={messagesMap}
+                  blockedUserIds={blockedUserIds}
+                  onViewProfile={handleViewProfile}
+                />
+              </div>
             )}
-
-          </main>
+          </div>
+        </main>
 
 
 

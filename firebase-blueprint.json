@@ -189,9 +189,27 @@
         "created_at": { "type": "string" }
       },
       "required": ["id", "follower_id", "following_id", "created_at"]
+    },
+    "ProfileVisit": {
+      "title": "ProfileVisit",
+      "description": "Log of a user visiting another user's profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "targetUid": { "type": "string" },
+        "visitorUid": { "type": "string" },
+        "visitorName": { "type": "string" },
+        "visitorAvatar": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "targetUid", "visitorUid", "visitorName", "timestamp"]
     }
   },
   "firestore": {
+    "/profiles/{targetUid}/visitors/{visitorUid}": {
+      "schema": "ProfileVisit",
+      "description": "History of users who visited this profile"
+    },
     "/likes/{likeId}": {
       "schema": "Like",
       "description": "Likes on posts, mapped by userId_postId"

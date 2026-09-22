@@ -203,6 +203,7 @@ export interface PublicUserProfile {
   name: string;
   email: string;
   avatar?: string;
+  coverPhoto?: string;
   bio?: string;
   phone?: string;
   profession?: string;

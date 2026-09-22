@@ -95,17 +95,36 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
   const [lightboxAttachment, setLightboxAttachment] = useState<MessageAttachment | null>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const activeConv = conversations.find(c => c.id === activeConversationId);
   const currentMessages = activeConversationId ? messagesMap[activeConversationId] || [] : [];
+  const lastMessageCount = useRef(currentMessages.length);
 
-  // Scroll to bottom when new messages arrive
+  // Scroll to bottom when conversation changes or new message from self
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [currentMessages, activeConversationId]);
+    const isNewMessage = currentMessages.length > lastMessageCount.current;
+    const lastMsg = currentMessages[currentMessages.length - 1];
+    const isFromMe = lastMsg?.senderId === currentUserId;
+
+    // 1. Always scroll to bottom when changing conversations
+    if (activeConversationId !== scrollContainerRef.current?.getAttribute('data-active-conv')) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+      scrollContainerRef.current?.setAttribute('data-active-conv', activeConversationId || '');
+    } else if (currentMessages.length > (lastMessageCount.current || 0)) {
+      const container = scrollContainerRef.current;
+      if (container) {
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 250;
+        if (isFromMe || isNearBottom) {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    }
+    lastMessageCount.current = currentMessages.length;
+  }, [currentMessages.length, activeConversationId, currentUserId]);
 
   useEffect(() => {
     if (activeConversationId) {
@@ -279,10 +298,10 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden h-[calc(100vh-12rem)] min-h-[520px] flex flex-col md:flex-row">
+    <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden h-full flex flex-col md:flex-row">
       {/* LEFT COLUMN: CONVERSATION LIST */}
       <div
-        className={`w-full md:w-80 lg:w-96 border-r border-slate-200 flex flex-col bg-slate-50/50 ${
+        className={`w-full md:w-80 lg:w-96 border-r border-slate-200 flex flex-col bg-slate-50/50 h-full ${
           mobileShowChat ? 'hidden md:flex' : 'flex'
         }`}
       >
@@ -509,7 +528,10 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
             </div>
 
             {/* MESSAGES STREAM */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50/30">
+            <div
+              ref={scrollContainerRef}
+              className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50/30"
+            >
               {/* SECURITY NOTICE */}
               <div className="max-w-md mx-auto p-2 bg-emerald-50/70 border border-emerald-200/70 rounded-xl text-center text-[10px] text-emerald-900 flex items-center justify-center gap-1.5">
                 <ShieldCheck size={12} className="text-emerald-700" />

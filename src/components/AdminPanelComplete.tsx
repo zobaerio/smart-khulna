@@ -31,12 +31,13 @@ import {
   Sparkles,
   Award,
   AlertCircle,
+  LogOut,
   Image as ImageIcon
 } from 'lucide-react';
 import { getSafeAvatarUrl } from '../lib/avatarHelper';
 import { collection, getDocs, doc, updateDoc, deleteDoc, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
-import { District, Category, Service, AuditLog, UserProfile, Banner } from '../dbData';
+import { District, Category, Service, AuditLog, UserProfile, Banner, SubAdminPermissions } from '../dbData';
 import { CommunityPost, CommunityReport } from '../types/community';
 import { AdminDownloadsCMS } from './AdminDownloadsCMS';
 import { AdminBannersCMS } from './AdminBannersCMS';
@@ -45,6 +46,7 @@ interface AdminPanelCompleteProps {
   currentUserRole: 'super_admin' | 'sub_admin';
   currentUserEmail: string;
   currentUserId?: string;
+  currentUserPermissions?: SubAdminPermissions;
   subAdminScopeDistrict?: string;
   subAdminScope?: {
     districtId?: string;
@@ -92,6 +94,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
   currentUserRole,
   currentUserEmail,
   currentUserId,
+  currentUserPermissions,
   subAdminScopeDistrict,
   subAdminScope,
   districts,
@@ -153,6 +156,16 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
   const [isEditingUserRole, setIsEditingUserRole] = useState(false);
   const [targetUserNewRole, setTargetUserNewRole] = useState<'super_admin' | 'sub_admin' | 'moderator' | 'user'>('user');
   const [targetUserDistrictScope, setTargetUserDistrictScope] = useState<string>('khulna');
+  const [targetUserPermissions, setTargetUserPermissions] = useState<SubAdminPermissions>({
+    canManageServices: true,
+    canManageSubmissions: true,
+    canModeratePosts: true,
+    canManageReports: true,
+    canManageBanners: false,
+    canManageDownloads: false,
+    canViewUsers: false,
+    canViewLogs: false
+  });
 
   // State for Service Management
   const [serviceSearchQuery, setServiceSearchQuery] = useState('');
@@ -221,6 +234,11 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
       };
       if (targetUserNewRole === 'sub_admin') {
         updateData.subAdminScope = { districtId: targetUserDistrictScope };
+        updateData.subAdminPermissions = targetUserPermissions;
+      } else {
+        // Clear permissions if not sub-admin
+        updateData.subAdminPermissions = null;
+        updateData.subAdminScope = null;
       }
       await updateDoc(userRef, updateData);
 
@@ -405,13 +423,24 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
           </div>
         </div>
 
-        <button
-          onClick={fetchUsers}
-          className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
-        >
-          <RefreshCw size={13} className={isLoadingUsers ? 'animate-spin' : ''} />
-          <span>রিলোড ডেটা</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={fetchUsers}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
+          >
+            <RefreshCw size={13} className={isLoadingUsers ? 'animate-spin' : ''} />
+            <span>রিলোড ডেটা</span>
+          </button>
+
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition border border-rose-100 cursor-pointer shadow-xs"
+            title="অ্যাডমিন প্যানেল থেকে বের হন"
+          >
+            <LogOut size={13} />
+            <span>বন্ধ করুন</span>
+          </button>
+        </div>
       </div>
 
       {/* NAVIGATION TABS */}
@@ -433,7 +462,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
             activeTab === 'users'
               ? 'bg-slate-900 text-white shadow-xs'
               : 'bg-slate-50 hover:bg-slate-100 text-slate-600'
-          }`}
+          } ${!isSuperAdmin && !currentUserPermissions?.canViewUsers ? 'hidden' : ''}`}
         >
           <Users size={14} /> ইউজার ম্যানেজমেন্ট ({usersList.length})
         </button>
@@ -457,7 +486,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
             activeTab === 'posts'
               ? 'bg-slate-900 text-white shadow-xs'
               : 'bg-slate-50 hover:bg-slate-100 text-slate-600'
-          }`}
+          } ${!isSuperAdmin && !currentUserPermissions?.canModeratePosts ? 'hidden' : ''}`}
         >
           <FileText size={14} /> কমিউনিটি পোস্ট ({effectivePosts.length})
         </button>
@@ -468,7 +497,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
             activeTab === 'banners'
               ? 'bg-emerald-800 text-white shadow-xs'
               : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900'
-          }`}
+          } ${!isSuperAdmin && !currentUserPermissions?.canManageBanners ? 'hidden' : ''}`}
         >
           <ImageIcon size={14} /> জেলা ব্যানার CMS ({banners.length})
         </button>
@@ -479,7 +508,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
             activeTab === 'services'
               ? 'bg-slate-900 text-white shadow-xs'
               : 'bg-slate-50 hover:bg-slate-100 text-slate-600'
-          }`}
+          } ${!isSuperAdmin && !currentUserPermissions?.canManageServices ? 'hidden' : ''}`}
         >
           <Building2 size={14} /> জেলা সেবা ও তথ্য CMS ({services.length})
         </button>
@@ -490,7 +519,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
             activeTab === 'submissions'
               ? 'bg-slate-900 text-white shadow-xs'
               : 'bg-slate-50 hover:bg-slate-100 text-slate-600'
-          }`}
+          } ${!isSuperAdmin && !currentUserPermissions?.canManageSubmissions ? 'hidden' : ''}`}
         >
           <FileSpreadsheet size={14} /> পেন্ডিং সেবা ({submissions.filter(s => s.status === 'PENDING').length})
         </button>
@@ -501,12 +530,12 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
             activeTab === 'reports'
               ? 'bg-slate-900 text-white shadow-xs'
               : 'bg-slate-50 hover:bg-slate-100 text-slate-600'
-          }`}
+          } ${!isSuperAdmin && !currentUserPermissions?.canManageReports ? 'hidden' : ''}`}
         >
           <ShieldAlert size={14} className="text-amber-500" /> রিপোর্ট ও মডারেশন ({effectiveReports.filter(r => r.status === 'pending').length})
         </button>
 
-        {isSuperAdmin && (
+        {isSuperAdmin || currentUserPermissions?.canManageDownloads ? (
           <button
             onClick={() => setActiveTab('downloads')}
             className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
@@ -517,7 +546,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
           >
             <Smartphone size={14} /> রিলিজ ও ডাউনলোড CMS
           </button>
-        )}
+        ) : null}
 
         <button
           onClick={() => setActiveTab('logs')}
@@ -525,7 +554,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
             activeTab === 'logs'
               ? 'bg-slate-900 text-white shadow-xs'
               : 'bg-slate-50 hover:bg-slate-100 text-slate-600'
-          }`}
+          } ${!isSuperAdmin && !currentUserPermissions?.canViewLogs ? 'hidden' : ''}`}
         >
           <Lock size={14} /> অডিট লগ ({auditLogs.length})
         </button>
@@ -772,20 +801,58 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                   </select>
 
                   {targetUserNewRole === 'sub_admin' && (
-                    <div className="space-y-1 pt-2">
-                      <label className="block font-bold text-slate-700">সাব-এডমিনের আওতাভুক্ত জেলা:</label>
-                      <select
-                        value={targetUserDistrictScope}
-                        onChange={e => setTargetUserDistrictScope(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 p-2 rounded-xl"
-                      >
-                        {districts.map(d => (
-                          <option key={d.id} value={d.id}>
-                            {d.name} জেলা
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    <>
+                      <div className="space-y-1 pt-2">
+                        <label className="block font-bold text-slate-700">সাব-এডমিনের আওতাভুক্ত জেলা:</label>
+                        <select
+                          value={targetUserDistrictScope}
+                          onChange={e => setTargetUserDistrictScope(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 p-2 rounded-xl"
+                        >
+                          <option value="all">সকল জেলা (Global)</option>
+                          {districts.map(d => (
+                            <option key={d.id} value={d.id}>
+                              {d.name} জেলা
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2 pt-3">
+                        <label className="block font-bold text-slate-700">সাব-এডমিন পারমিশন:</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                          {Object.keys(targetUserPermissions).map((key) => {
+                            const permissionKey = key as keyof SubAdminPermissions;
+                            const labels: Record<string, string> = {
+                              canManageServices: 'সেবা পরিচালনা',
+                              canManageSubmissions: 'সাবমিশন যাচাই',
+                              canModeratePosts: 'পোস্ট মডারেশন',
+                              canManageReports: 'রিপোর্ট সমাধান',
+                              canManageBanners: 'ব্যানার CMS',
+                              canManageDownloads: 'ডাউনলোড CMS',
+                              canViewUsers: 'ইউজার লিস্ট দেখা',
+                              canViewLogs: 'লগ দেখা'
+                            };
+                            return (
+                              <label key={key} className="flex items-center gap-2 cursor-pointer group">
+                                <input
+                                  type="checkbox"
+                                  checked={targetUserPermissions[permissionKey]}
+                                  onChange={e => setTargetUserPermissions(prev => ({
+                                    ...prev,
+                                    [permissionKey]: e.target.checked
+                                  }))}
+                                  className="w-4 h-4 rounded text-emerald-700 focus:ring-emerald-500 cursor-pointer"
+                                />
+                                <span className="text-[11px] font-medium text-slate-600 group-hover:text-emerald-800 transition">
+                                  {labels[key] || key}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
 
