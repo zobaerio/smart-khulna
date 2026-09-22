@@ -2473,7 +2473,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-slate-50 dark:bg-slate-950 text-slate-800 flex flex-col items-center font-sans">
+    <div className="h-full max-h-full w-full overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-800 flex flex-col items-center font-sans">
       {/* Animated Branded Launch Screen on cold start */}
       {showSplash && (
         <SplashScreen
@@ -2718,7 +2718,7 @@ export default function App() {
 
 
       {/* Main Responsive Layout Wrapper */}
-      <div className="w-full max-w-5xl flex-1 bg-white shadow-xl flex flex-col md:flex-row relative">
+      <div className="w-full max-w-5xl flex-1 h-full max-h-full bg-white shadow-xl flex flex-col md:flex-row relative overflow-hidden">
         
         {/* SIDE PANEL / DESKTOP PREVIEW FRAME (Visible only on medium/large screens) */}
         <div className="hidden md:flex md:w-80 bg-slate-900 text-slate-100 p-6 flex-col justify-between shrink-0 border-r border-slate-800 overflow-y-auto max-h-screen sticky top-0 scrollbar-thin scrollbar-thumb-slate-800">
@@ -2858,7 +2858,7 @@ export default function App() {
         </div>
 
       {/* PRIMARY INTERACTIVE PORTAL (Mobile viewport layout on small screens, expands nicely) */}
-      <div className="flex-1 flex flex-col h-[100dvh] max-h-[100dvh] bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 relative overflow-hidden">
+      <div className="flex-1 flex flex-col h-full max-h-full min-h-0 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 relative overflow-hidden">
         
         {/* STICKY TOP HEADER (Ultra-Premium Production-Ready Civic Tech Header) */}
         <SmartKhulnaHeader
@@ -4059,7 +4059,13 @@ export default function App() {
 
 
           {/* PERSISTENT BOTTOM NAVIGATION (5 Tab structure: Home, Services, Community, Messages, Profile) */}
-          <nav className="bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 py-2 px-3 flex justify-around items-center shrink-0 z-30 shadow-lg md:hidden">
+          <nav
+            id="main-bottom-navigation"
+            className="sticky bottom-0 left-0 right-0 w-full bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800/90 pt-2 px-3 flex justify-around items-center shrink-0 z-40 shadow-lg md:hidden"
+            style={{
+              paddingBottom: 'max(0.65rem, calc(env(safe-area-inset-bottom, 0px) + 0.35rem))',
+            }}
+          >
             <button
               onClick={() => {
                 setActiveTab('home');
