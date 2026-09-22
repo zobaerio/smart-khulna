@@ -29,6 +29,7 @@ interface CommunityFeedProps {
   likedPostIds: string[];
   savedPostIds: string[];
   followingUids: string[];
+  onToggleFollow: (authorId: string) => void;
   onToggleLike: (postId: string) => void;
   onToggleSave: (postId: string) => void;
   onAddComment: (postId: string, text: string) => void;
@@ -39,11 +40,11 @@ interface CommunityFeedProps {
   onOpenCreatePost: () => void;
   onDeletePost?: (postId: string) => void;
   onEditPost?: (post: CommunityPost) => void;
-  onViewProfile: (authorId: string, authorName: string, authorEmail: string) => void;
+  onViewProfile: (authorId: string, authorName: string, authorEmail: string, authorAvatar?: string) => void;
   onStartMessage: (authorId: string, authorName: string, authorEmail: string, authorAvatar?: string) => void;
 }
 
-type FeedFilterType = 'all' | 'my_district' | 'following' | 'popular' | 'recent' | 'saved';
+type FeedFilterType = 'all' | 'my_posts' | 'my_district' | 'following' | 'popular' | 'recent' | 'saved';
 
 export const CommunityFeed: React.FC<CommunityFeedProps> = ({
   posts,
@@ -58,6 +59,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
   likedPostIds,
   savedPostIds,
   followingUids,
+  onToggleFollow,
   onToggleLike,
   onToggleSave,
   onAddComment,
@@ -95,7 +97,9 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
       }
 
       // Tab filter
-      if (activeFilter === 'my_district') {
+      if (activeFilter === 'my_posts') {
+        if (post.authorId !== currentUserId) return false;
+      } else if (activeFilter === 'my_district') {
         if (post.districtId !== selectedDistrict) return false;
       } else if (activeFilter === 'following') {
         if (!followingUids.includes(post.authorId)) return false;
@@ -224,6 +228,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
             {[
               { id: 'all', label: 'সবার পোস্ট', icon: Compass },
+              ...(currentUserId ? [{ id: 'my_posts', label: 'আমার পোস্ট', icon: FileText }] : []),
               { id: 'my_district', label: 'আমার জেলার পোস্ট', icon: MapPin },
               { id: 'following', label: 'আমি যাদের Follow করি', icon: Users },
               { id: 'popular', label: 'জনপ্রিয়', icon: Flame },
@@ -301,6 +306,9 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
                 comments={commentsMap[post.id] || []}
                 isLiked={likedPostIds.includes(post.id)}
                 isSaved={savedPostIds.includes(post.id)}
+                isFollowing={followingUids.includes(post.authorId)}
+                onToggleFollow={onToggleFollow}
+                onSelectHashtag={(tag) => setSearchQuery(tag)}
                 onToggleLike={onToggleLike}
                 onToggleSave={onToggleSave}
                 onAddComment={onAddComment}

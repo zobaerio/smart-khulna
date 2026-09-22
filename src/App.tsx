@@ -146,6 +146,7 @@ import { UserProfileModal } from './components/community/UserProfileModal';
 import { NotificationCenter } from './components/community/NotificationCenter';
 import { CommunityModerationDashboard } from './components/community/CommunityModerationDashboard';
 import { ReportModal } from './components/community/ReportModal';
+import { getSafeAvatarUrl } from './lib/avatarHelper';
 
 // Category Color Scheme Mapping for Compact Visual Cards
 const getCategoryStyle = (catId: string) => {
@@ -680,11 +681,10 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Sync and fetch all community user profiles
+  // Sync and fetch all community user profiles in real-time
   useEffect(() => {
-    const fetchAllUsers = async () => {
-      try {
-        const snap = await getDocs(collection(db, 'profiles'));
+    try {
+      const unsub = onSnapshot(collection(db, 'profiles'), (snap) => {
         if (!snap.empty) {
           const usersList = snap.docs.map(doc => {
             const data = doc.data();
@@ -700,10 +700,11 @@ export default function App() {
               district: data.district || data.selectedDistrict || '',
               upazila: data.upazila || '',
               address: data.address || '',
-              joinedDate: data.joinedDate || new Date().toISOString(),
-              postsCount: data.postsCount || 0,
-              followersCount: data.followersCount || 0,
-              followingCount: data.followingCount || 0,
+              joinedDate: data.joinedDate || data.createdAt || new Date().toISOString(),
+              postsCount: typeof data.postsCount === 'number' ? data.postsCount : 0,
+              followersCount: typeof data.followersCount === 'number' ? data.followersCount : 0,
+              followingCount: typeof data.followingCount === 'number' ? data.followingCount : 0,
+              badge: data.role === 'super_admin' ? 'admin' : (data.badge || 'none'),
               socialLinks: data.socialLinks || {
                 facebook: data.facebook || '',
                 twitter: data.twitter || '',
@@ -715,12 +716,14 @@ export default function App() {
           });
           setAllCommunityUsers(usersList);
         }
-      } catch (err) {
-        console.warn("Could not load community users from Firestore:", err);
-      }
-    };
-    fetchAllUsers();
-  }, [currentUser]);
+      }, (err) => {
+        console.warn("Could not listen to community users from Firestore:", err);
+      });
+      return () => unsub();
+    } catch (err) {
+      console.warn("Real-time community profiles setup error:", err);
+    }
+  }, []);
 
   // User-specific Likes, Follows, Saved Posts and Conversations Loader/Sync
   useEffect(() => {
@@ -1024,6 +1027,21 @@ export default function App() {
         });
         return nextState;
       });
+
+      // Asynchronously update existing posts authored by this user in Firestore
+      try {
+        const postsQuery = query(collection(db, 'posts'), where('authorId', '==', uid));
+        getDocs(postsQuery).then(snap => {
+          snap.docs.forEach(docSnap => {
+            updateDoc(docSnap.ref, {
+              authorName: fullUpdatedProfile.name,
+              authorAvatar: fullUpdatedProfile.avatar
+            }).catch(() => {});
+          });
+        }).catch(() => {});
+      } catch (e) {
+        // ignore background sync
+      }
 
       setIsEditingProfile(false);
       setProfileSaveSuccess(true);
@@ -1482,9 +1500,9 @@ export default function App() {
   const handleSavePost = async (postData: Partial<CommunityPost>) => {
     if (!currentUser) return;
     const currentUid = currentUser.uid;
-    const currentName = currentUser.displayName || 'ব্যবহারকারী';
+    const currentName = userProfile?.name || currentUser.displayName || 'ব্যবহারকারী';
     const currentEmail = currentUser.email || '';
-    const currentAvatar = currentUser.photoURL;
+    const currentAvatar = userProfile?.avatar || currentUser.photoURL || '';
 
     if (editingPost) {
       setCommunityPosts(prev => prev.map(p => {
@@ -1749,24 +1767,106 @@ export default function App() {
     }
   };
 
-  const handleViewProfile = (authorId: string, authorName: string, authorEmail: string) => {
+  const handleViewProfile = async (
+    authorId: string,
+    authorName: string,
+    authorEmail: string,
+    authorAvatar?: string
+  ) => {
+    // 1. If it's the current user, build from active session userProfile
+    if (currentUser && authorId === currentUser.uid) {
+      const myProfile: PublicUserProfile = {
+        uid: currentUser.uid,
+        name: userProfile?.name || currentUser.displayName || authorName || 'ব্যবহারকারী',
+        email: userProfile?.email || currentUser.email || authorEmail || '',
+        avatar: userProfile?.avatar || currentUser.photoURL || authorAvatar || '',
+        bio: userProfile?.bio || 'স্মার্ট খুলনা ডিজিটাল প্ল্যাটফর্ম ব্যবহারকারী।',
+        district: userProfile?.district || userProfile?.selectedDistrict || selectedDistrict,
+        upazila: userProfile?.upazila || '',
+        address: userProfile?.address || '',
+        phone: userProfile?.phone || '',
+        profession: userProfile?.profession || '',
+        bloodGroup: userProfile?.bloodGroup || '',
+        followersCount: (userProfile as any)?.followersCount || 0,
+        followingCount: (userProfile as any)?.followingCount || followingUids.length,
+        postsCount: communityPosts.filter(p => p.authorId === authorId).length,
+        badge: userProfile?.role === 'super_admin' ? 'admin' : ((userProfile as any)?.badge || 'none'),
+        joinedDate: userProfile?.joinedDate || (userProfile as any)?.createdAt || new Date().toISOString(),
+        socialLinks: {
+          facebook: userProfile?.facebook || '',
+          twitter: userProfile?.twitter || '',
+          instagram: userProfile?.instagram || '',
+          linkedin: userProfile?.linkedin || '',
+          website: userProfile?.website || ''
+        }
+      };
+      setSelectedProfileUser(myProfile);
+      setShowUserProfileModal(true);
+      return;
+    }
+
+    // 2. Find in allCommunityUsers list or construct base
     let targetUser = allCommunityUsers.find(u => u.uid === authorId);
     if (!targetUser) {
       targetUser = {
         uid: authorId,
         name: authorName,
         email: authorEmail,
+        avatar: authorAvatar || '',
         district: selectedDistrict,
         bio: 'স্মার্ট খুলনা কমিউনিটি সদস্য।',
-        followersCount: 1,
-        followingCount: 1,
+        followersCount: 0,
+        followingCount: 0,
         postsCount: communityPosts.filter(p => p.authorId === authorId).length,
         badge: 'none',
         joinedDate: new Date().toISOString()
       };
+    } else {
+      targetUser = {
+        ...targetUser,
+        avatar: targetUser.avatar || authorAvatar || '',
+        postsCount: communityPosts.filter(p => p.authorId === authorId).length
+      };
     }
+
     setSelectedProfileUser(targetUser);
     setShowUserProfileModal(true);
+
+    // 3. Fetch latest doc from Firestore to guarantee freshest profile photo & bio
+    try {
+      const docSnap = await getDoc(doc(db, 'profiles', authorId));
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const freshUser: PublicUserProfile = {
+          uid: authorId,
+          name: data.name || authorName,
+          email: data.email || authorEmail,
+          avatar: data.avatar || authorAvatar || '',
+          bio: data.bio || targetUser.bio || 'স্মার্ট খুলনা কমিউনিটি সদস্য।',
+          district: data.district || data.selectedDistrict || targetUser.district,
+          upazila: data.upazila || '',
+          address: data.address || '',
+          phone: data.phone || '',
+          profession: data.profession || '',
+          bloodGroup: data.bloodGroup || '',
+          followersCount: typeof data.followersCount === 'number' ? data.followersCount : targetUser.followersCount,
+          followingCount: typeof data.followingCount === 'number' ? data.followingCount : targetUser.followingCount,
+          postsCount: communityPosts.filter(p => p.authorId === authorId).length,
+          badge: data.role === 'super_admin' ? 'admin' : (data.badge || 'none'),
+          joinedDate: data.joinedDate || data.createdAt || targetUser.joinedDate,
+          socialLinks: data.socialLinks || {
+            facebook: data.facebook || '',
+            twitter: data.twitter || '',
+            instagram: data.instagram || '',
+            linkedin: data.linkedin || '',
+            website: data.website || ''
+          }
+        };
+        setSelectedProfileUser(freshUser);
+      }
+    } catch (e) {
+      console.warn("Could not fetch remote profile details:", e);
+    }
   };
 
   const handleToggleFollow = async (targetUid: string) => {
@@ -2534,7 +2634,7 @@ export default function App() {
         <div className="flex-1 flex flex-col min-h-[85vh] bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 relative pb-16 md:pb-0">
           
           {/* MOBILE HEADER (Visually aligned to the Netrokona Reference Screenshot) */}
-          <header className="sticky top-0 bg-white dark:bg-slate-950 border-b border-emerald-100 dark:border-slate-800 px-4 py-3 flex items-center justify-between z-10 shadow-sm">
+          <header className="sticky top-0 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-emerald-100 dark:border-slate-800 px-4 py-3 flex items-center justify-between z-40 shadow-sm">
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setIsDrawerOpen(true)}
@@ -4370,6 +4470,7 @@ export default function App() {
                 likedPostIds={likedCommunityPostIds}
                 savedPostIds={savedCommunityPostIds}
                 followingUids={followingUids}
+                onToggleFollow={handleToggleFollow}
                 onToggleLike={handleToggleLikePost}
                 onToggleSave={handleToggleSavePost}
                 onAddComment={handleAddComment}
@@ -4417,6 +4518,7 @@ export default function App() {
                 onRequireAuth={() => requireAuth('বার্তা আদান-প্রদান')}
                 messagesMap={messagesMap}
                 blockedUserIds={blockedUserIds}
+                onViewProfile={handleViewProfile}
               />
             )}
 

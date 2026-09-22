@@ -14,11 +14,14 @@ import {
   Trash2,
   CornerDownRight,
   Edit2,
-  CheckCircle2
+  CheckCircle2,
+  UserPlus,
+  UserCheck
 } from 'lucide-react';
 import { CommunityPost, PostComment, VerifiedBadgeType } from '../../types/community';
 import { District } from '../../dbData';
 import { PostImageGrid } from './PostImageGrid';
+import { getSafeAvatarUrl } from '../../lib/avatarHelper';
 
 interface PostCardProps {
   post: CommunityPost;
@@ -29,6 +32,8 @@ interface PostCardProps {
   comments: PostComment[];
   isLiked: boolean;
   isSaved: boolean;
+  isFollowing?: boolean;
+  onToggleFollow?: (authorId: string) => void;
   onToggleLike: (postId: string) => void;
   onToggleSave: (postId: string) => void;
   onAddComment: (postId: string, text: string) => void;
@@ -38,8 +43,9 @@ interface PostCardProps {
   onReport: (type: 'post' | 'comment' | 'user', id: string, title: string) => void;
   onDeletePost?: (postId: string) => void;
   onEditPost?: (post: CommunityPost) => void;
-  onViewProfile: (authorId: string, authorName: string, authorEmail: string) => void;
+  onViewProfile: (authorId: string, authorName: string, authorEmail: string, authorAvatar?: string) => void;
   onStartMessage: (authorId: string, authorName: string, authorEmail: string, authorAvatar?: string) => void;
+  onSelectHashtag?: (tag: string) => void;
 }
 
 export const PostCard: React.FC<PostCardProps> = ({
@@ -49,6 +55,8 @@ export const PostCard: React.FC<PostCardProps> = ({
   comments,
   isLiked,
   isSaved,
+  isFollowing = false,
+  onToggleFollow,
   onToggleLike,
   onToggleSave,
   onAddComment,
@@ -60,6 +68,7 @@ export const PostCard: React.FC<PostCardProps> = ({
   onEditPost,
   onViewProfile,
   onStartMessage,
+  onSelectHashtag
 }) => {
   const [showComments, setShowComments] = useState(false);
   const [commentInput, setCommentInput] = useState('');
@@ -75,12 +84,50 @@ export const PostCard: React.FC<PostCardProps> = ({
   const rawLines = (post.content || '').split('\n');
   const isLongContent = rawLines.length > 4 || (post.content && post.content.length > 220);
 
+  const renderFormattedText = (text: string) => {
+    // Split by hashtags (#\S+) and mentions (@\S+)
+    const parts = text.split(/([#@][\p{L}\p{N}_-]+)/gu);
+    return parts.map((part, index) => {
+      if (part.startsWith('#')) {
+        return (
+          <span
+            key={index}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelectHashtag?.(part);
+            }}
+            className="text-emerald-700 dark:text-emerald-400 font-bold hover:underline cursor-pointer inline-flex items-center gap-0.5"
+            title={`${part} হ্যাশট্যাগের পোস্ট দেখুন`}
+          >
+            {part}
+          </span>
+        );
+      }
+      if (part.startsWith('@')) {
+        const username = part.slice(1);
+        return (
+          <span
+            key={index}
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewProfile('', username, '');
+            }}
+            className="text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer inline-flex items-center gap-0.5"
+            title={`${part} এর প্রোফাইল দেখুন`}
+          >
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
+
   const getTruncatedContent = () => {
-    if (!isLongContent || isExpanded) return post.content;
-    if (rawLines.length > 4) {
-      return rawLines.slice(0, 4).join('\n');
-    }
-    return post.content.slice(0, 200) + '...';
+    const textToShow = (!isLongContent || isExpanded)
+      ? post.content
+      : (rawLines.length > 4 ? rawLines.slice(0, 4).join('\n') : post.content.slice(0, 200) + '...');
+    return renderFormattedText(textToShow);
   };
 
   const handleCommentSubmit = (e: React.FormEvent) => {
@@ -154,25 +201,61 @@ export const PostCard: React.FC<PostCardProps> = ({
       <div className="p-4 pb-3 flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => onViewProfile(post.authorId, post.authorName, post.authorEmail)}
+            type="button"
+            onClick={() => onViewProfile(post.authorId, post.authorName, post.authorEmail, post.authorAvatar)}
             className="relative flex-shrink-0 cursor-pointer group"
+            title={`${post.authorName} এর প্রোফাইল দেখুন`}
           >
             <img
-              src={post.authorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80'}
+              src={getSafeAvatarUrl(post.authorAvatar, post.authorName, post.authorId)}
               alt={post.authorName}
-              className="w-11 h-11 rounded-full object-cover border border-emerald-100 group-hover:ring-2 ring-emerald-500 transition"
+              className="w-11 h-11 rounded-full object-cover border border-emerald-100 dark:border-slate-700 group-hover:ring-2 ring-emerald-500 transition bg-emerald-50 dark:bg-slate-800"
+              onError={(e) => {
+                e.currentTarget.src = getSafeAvatarUrl('', post.authorName, post.authorId);
+              }}
               referrerPolicy="no-referrer"
             />
           </button>
           <div>
             <div className="flex items-center gap-1.5 flex-wrap">
               <button
-                onClick={() => onViewProfile(post.authorId, post.authorName, post.authorEmail)}
-                className="text-sm font-bold text-slate-900 dark:text-slate-100 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer font-serif"
+                type="button"
+                onClick={() => onViewProfile(post.authorId, post.authorName, post.authorEmail, post.authorAvatar)}
+                className="text-sm font-bold text-slate-900 dark:text-slate-100 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer font-serif text-left"
+                title={`${post.authorName} এর প্রোফাইল দেখুন`}
               >
                 {post.authorName}
               </button>
               {renderBadge(post.authorBadge)}
+
+              {/* FOLLOW BUTTON RIGHT NEXT TO AUTHOR NAME */}
+              {currentUserId && post.authorId && currentUserId !== post.authorId && onToggleFollow && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleFollow(post.authorId);
+                  }}
+                  className={`ml-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold transition inline-flex items-center gap-1 cursor-pointer select-none ${
+                    isFollowing
+                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700'
+                      : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900 border border-emerald-300 dark:border-emerald-700'
+                  }`}
+                  title={isFollowing ? 'আনফলো করুন' : 'ফলো করুন'}
+                >
+                  {isFollowing ? (
+                    <>
+                      <UserCheck size={11} className="text-slate-500 dark:text-slate-400" />
+                      <span>ফলোয়িং</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={11} className="text-emerald-600 dark:text-emerald-400" />
+                      <span>ফলো</span>
+                    </>
+                  )}
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 flex-wrap">
               <span>{formatTimestamp(post.createdAt)}</span>
@@ -291,7 +374,15 @@ export const PostCard: React.FC<PostCardProps> = ({
               </span>
             )}
             {post.hashtags?.map((tag, i) => (
-              <span key={i} className="text-emerald-700 font-medium hover:underline cursor-pointer">
+              <span
+                key={i}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectHashtag?.(tag);
+                }}
+                className="text-emerald-700 dark:text-emerald-400 font-medium hover:underline cursor-pointer bg-emerald-50/70 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200/60 dark:border-emerald-800/60"
+                title={`${tag} হ্যাশট্যাগ দিয়ে পোস্ট খুঁজুন`}
+              >
                 {tag}
               </span>
             ))}
@@ -389,11 +480,29 @@ export const PostCard: React.FC<PostCardProps> = ({
               {comments.map(c => (
                 <div key={c.id} className="space-y-1.5">
                   <div className="bg-white dark:bg-slate-950 rounded-xl p-3 border border-slate-200/80 dark:border-slate-800/80 text-xs">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-1.5">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={() => onViewProfile(c.authorId, c.authorName, c.authorEmail)}
-                          className="font-bold text-slate-900 dark:text-slate-100 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer"
+                          type="button"
+                          onClick={() => onViewProfile(c.authorId, c.authorName, c.authorEmail, c.authorAvatar)}
+                          className="shrink-0 cursor-pointer group"
+                          title={`${c.authorName} এর প্রোফাইল দেখুন`}
+                        >
+                          <img
+                            src={getSafeAvatarUrl(c.authorAvatar, c.authorName, c.authorId)}
+                            alt={c.authorName}
+                            className="w-6 h-6 rounded-full object-cover border border-slate-200 dark:border-slate-700 group-hover:ring-1 ring-emerald-500 bg-emerald-50 dark:bg-slate-800"
+                            onError={(e) => {
+                              e.currentTarget.src = getSafeAvatarUrl('', c.authorName, c.authorId);
+                            }}
+                            referrerPolicy="no-referrer"
+                          />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onViewProfile(c.authorId, c.authorName, c.authorEmail, c.authorAvatar)}
+                          className="font-bold text-slate-900 dark:text-slate-100 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer text-left"
+                          title={`${c.authorName} এর প্রোফাইল দেখুন`}
                         >
                           {c.authorName}
                         </button>
@@ -444,7 +553,30 @@ export const PostCard: React.FC<PostCardProps> = ({
                         >
                           <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-1.5">
-                              <span className="font-bold text-slate-900 dark:text-slate-100">{rep.authorName}</span>
+                              <button
+                                type="button"
+                                onClick={() => onViewProfile(rep.authorId, rep.authorName, rep.authorEmail, rep.authorAvatar)}
+                                className="shrink-0 cursor-pointer"
+                                title={`${rep.authorName} এর প্রোফাইল দেখুন`}
+                              >
+                                <img
+                                  src={getSafeAvatarUrl(rep.authorAvatar, rep.authorName, rep.authorId)}
+                                  alt={rep.authorName}
+                                  className="w-5 h-5 rounded-full object-cover border border-slate-200 dark:border-slate-700 bg-emerald-50 dark:bg-slate-800"
+                                  onError={(e) => {
+                                    e.currentTarget.src = getSafeAvatarUrl('', rep.authorName, rep.authorId);
+                                  }}
+                                  referrerPolicy="no-referrer"
+                                />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onViewProfile(rep.authorId, rep.authorName, rep.authorEmail, rep.authorAvatar)}
+                                className="font-bold text-slate-900 dark:text-slate-100 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer text-left"
+                                title={`${rep.authorName} এর প্রোফাইল দেখুন`}
+                              >
+                                {rep.authorName}
+                              </button>
                               {renderBadge(rep.authorBadge)}
                               <span className="text-[10px] text-slate-400 dark:text-slate-500">• {formatTimestamp(rep.createdAt)}</span>
                             </div>

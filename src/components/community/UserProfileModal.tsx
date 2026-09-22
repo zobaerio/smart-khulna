@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { PublicUserProfile, CommunityPost, VerifiedBadgeType } from '../../types/community';
 import { District } from '../../dbData';
+import { getSafeAvatarUrl } from '../../lib/avatarHelper';
 
 interface UserProfileModalProps {
   user: PublicUserProfile | null;
@@ -54,6 +55,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const districtObj = districts.find(d => d.id === user.district);
   const isMe = currentUserId === user.uid;
+
+  const handleToggleFollow = () => {
+    if (user) {
+      onToggleFollow(user.uid);
+    }
+  };
 
   const renderBadge = (badge?: VerifiedBadgeType) => {
     if (!badge || badge === 'none') return null;
@@ -105,9 +112,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           <div className="flex justify-between items-end -mt-12 sm:-mt-14 mb-3">
             <div className="relative">
               <img
-                src={user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80'}
+                src={getSafeAvatarUrl(user.avatar, user.name, user.uid)}
                 alt={user.name}
                 className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-4 border-white shadow-md bg-white"
+                onError={(e) => {
+                  e.currentTarget.src = getSafeAvatarUrl('', user.name, user.uid);
+                }}
                 referrerPolicy="no-referrer"
               />
               {user.isOnline && (
@@ -122,7 +132,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             {!isMe && (
               <div className="flex items-center gap-1.5 flex-wrap justify-end">
                 <button
-                  onClick={() => onToggleFollow(user.uid)}
+                  onClick={handleToggleFollow}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                     isFollowing
                       ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
@@ -152,7 +162,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
                 <button
                   onClick={() => onReportUser(user.uid, user.name)}
-                  className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition"
+                  className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
                   title="ইউজার রিপোর্ট করুন"
                 >
                   <AlertTriangle size={15} />
@@ -160,7 +170,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
                 <button
                   onClick={() => onToggleBlock(user.uid)}
-                  className={`p-2 rounded-xl transition ${
+                  className={`p-2 rounded-xl transition cursor-pointer ${
                     isBlocked
                       ? 'text-rose-600 bg-rose-50'
                       : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
@@ -173,13 +183,40 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             )}
           </div>
 
-          {/* NAME & BADGES */}
+          {/* NAME, BADGES & FOLLOW/UNFOLLOW BUTTON */}
           <div>
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <h2 className="text-base sm:text-lg font-bold text-slate-900 font-serif">
                 {user.name}
               </h2>
               {renderBadge(user.badge)}
+
+              {/* Follow / Unfollow button next to username */}
+              {!isMe && (
+                <button
+                  type="button"
+                  onClick={handleToggleFollow}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition cursor-pointer shadow-xs ${
+                    isFollowing
+                      ? 'bg-slate-100 text-slate-700 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 border border-slate-300'
+                      : 'bg-emerald-700 hover:bg-emerald-800 text-white border border-emerald-600'
+                  }`}
+                  title={isFollowing ? 'আনফলো করুন' : 'ফলো করুন'}
+                  aria-label={isFollowing ? 'Unfollow user' : 'Follow user'}
+                >
+                  {isFollowing ? (
+                    <>
+                      <UserCheck size={12} className="text-emerald-700" />
+                      <span>আনফলো</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={12} />
+                      <span>ফলো</span>
+                    </>
+                  )}
+                </button>
+              )}
             </div>
 
             {/* Profession & Blood Group tags */}

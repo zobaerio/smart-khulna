@@ -33,6 +33,7 @@ import {
   AlertCircle,
   Image as ImageIcon
 } from 'lucide-react';
+import { getSafeAvatarUrl } from '../lib/avatarHelper';
 import { collection, getDocs, doc, updateDoc, deleteDoc, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { District, Category, Service, AuditLog, UserProfile, Banner } from '../dbData';
@@ -663,9 +664,12 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                       <tr key={u.uid} className="hover:bg-slate-50 transition">
                         <td className="p-3 flex items-center gap-2.5">
                           <img
-                            src={u.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80'}
+                            src={getSafeAvatarUrl(u.avatar, u.name, u.uid)}
                             alt={u.name}
                             className="w-8 h-8 rounded-full object-cover border border-slate-200"
+                            onError={(e) => {
+                              e.currentTarget.src = getSafeAvatarUrl('', u.name, u.uid);
+                            }}
                             referrerPolicy="no-referrer"
                           />
                           <div>

@@ -26,6 +26,7 @@ import {
   ModerationAction
 } from '../../types/community';
 import { District, Category } from '../../dbData';
+import { getSafeAvatarUrl } from '../../lib/avatarHelper';
 
 interface CommunityModerationDashboardProps {
   currentUserRole: 'super_admin' | 'sub_admin';
@@ -356,9 +357,13 @@ export const CommunityModerationDashboard: React.FC<CommunityModerationDashboard
             >
               <div className="flex items-center gap-3">
                 <img
-                  src={u.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80'}
+                  src={getSafeAvatarUrl(u.avatar, u.name, u.uid)}
                   alt={u.name}
-                  className="w-10 h-10 rounded-full object-cover"
+                  className="w-10 h-10 rounded-full object-cover border border-slate-200"
+                  onError={(e) => {
+                    e.currentTarget.src = getSafeAvatarUrl('', u.name, u.uid);
+                  }}
+                  referrerPolicy="no-referrer"
                 />
                 <div>
                   <h4 className="font-bold text-slate-900">{u.name}</h4>

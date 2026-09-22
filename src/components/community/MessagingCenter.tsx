@@ -36,6 +36,7 @@ import {
 } from '../../types/community';
 import { District } from '../../dbData';
 import { uploadChatImage, isSupabaseConfigured } from '../../lib/supabase';
+import { getSafeAvatarUrl } from '../../lib/avatarHelper';
 
 interface MessagingCenterProps {
   currentUserId: string | null;
@@ -56,6 +57,7 @@ interface MessagingCenterProps {
   onRequireAuth: () => void;
   messagesMap: { [convId: string]: ChatMessage[] };
   blockedUserIds: string[];
+  onViewProfile?: (uid: string, name: string, email: string, avatar?: string) => void;
 }
 
 export const MessagingCenter: React.FC<MessagingCenterProps> = ({
@@ -76,7 +78,8 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
   onReportUser,
   onRequireAuth,
   messagesMap,
-  blockedUserIds
+  blockedUserIds,
+  onViewProfile
 }) => {
   const [chatSearchQuery, setChatSearchQuery] = useState('');
   const [showNewChatModal, setShowNewChatModal] = useState(false);
@@ -344,9 +347,12 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                 >
                   <div className="relative flex-shrink-0">
                     <img
-                      src={other?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80'}
+                      src={getSafeAvatarUrl(other?.avatar, other?.name, other?.uid)}
                       alt={other?.name || 'User'}
-                      className="w-11 h-11 rounded-full object-cover border border-slate-200"
+                      className="w-11 h-11 rounded-full object-cover border border-slate-200 bg-emerald-50"
+                      onError={(e) => {
+                        e.currentTarget.src = getSafeAvatarUrl('', other?.name, other?.uid);
+                      }}
                       referrerPolicy="no-referrer"
                     />
                     {other?.isOnline && (
@@ -403,36 +409,54 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                   <ArrowLeft size={18} />
                 </button>
 
-                <div className="relative">
-                  <img
-                    src={otherParticipant.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80'}
-                    alt={otherParticipant.name}
-                    className="w-10 h-10 rounded-full object-cover border border-slate-200"
-                    referrerPolicy="no-referrer"
-                  />
-                  {otherParticipant.isOnline && (
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
-                  )}
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <h3 className="text-xs font-bold text-slate-900 font-serif">
-                      {otherParticipant.name}
-                    </h3>
-                    {otherParticipant.badge === 'admin' && (
-                      <span className="px-1.5 py-0.2 text-[9px] font-bold bg-emerald-100 text-emerald-800 rounded-md">
-                        এডমিন
-                      </span>
+                <div
+                  className={`flex items-center gap-2.5 ${onViewProfile ? 'cursor-pointer group' : ''}`}
+                  onClick={() => {
+                    if (onViewProfile && otherParticipant.uid) {
+                      onViewProfile(
+                        otherParticipant.uid,
+                        otherParticipant.name,
+                        otherParticipant.email || '',
+                        otherParticipant.avatar
+                      );
+                    }
+                  }}
+                  title={onViewProfile ? `${otherParticipant.name} এর প্রোফাইল দেখুন` : undefined}
+                >
+                  <div className="relative">
+                    <img
+                      src={getSafeAvatarUrl(otherParticipant.avatar, otherParticipant.name, otherParticipant.uid)}
+                      alt={otherParticipant.name}
+                      className="w-10 h-10 rounded-full object-cover border border-slate-200 group-hover:ring-2 ring-emerald-500 transition bg-emerald-50"
+                      onError={(e) => {
+                        e.currentTarget.src = getSafeAvatarUrl('', otherParticipant.name, otherParticipant.uid);
+                      }}
+                      referrerPolicy="no-referrer"
+                    />
+                    {otherParticipant.isOnline && (
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
                     )}
                   </div>
-                  <p className="text-[10px] text-slate-500">
-                    {otherParticipant.isOnline ? (
-                      <span className="text-emerald-600 font-medium">● অনলাইন আছেন</span>
-                    ) : (
-                      'অফলাইন'
-                    )}
-                  </p>
+
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="text-xs font-bold text-slate-900 font-serif group-hover:text-emerald-700 transition">
+                        {otherParticipant.name}
+                      </h3>
+                      {otherParticipant.badge === 'admin' && (
+                        <span className="px-1.5 py-0.2 text-[9px] font-bold bg-emerald-100 text-emerald-800 rounded-md">
+                          এডমিন
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-500">
+                      {otherParticipant.isOnline ? (
+                        <span className="text-emerald-600 font-medium">● অনলাইন আছেন</span>
+                      ) : (
+                        'অফলাইন'
+                      )}
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -736,15 +760,26 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                     key={targetUser.uid}
                     className="p-2.5 flex items-center justify-between hover:bg-slate-50 rounded-xl transition"
                   >
-                    <div className="flex items-center gap-2.5">
+                    <div
+                      className="flex items-center gap-2.5 cursor-pointer flex-1"
+                      onClick={() => {
+                        if (onViewProfile) {
+                          onViewProfile(targetUser.uid, targetUser.name, targetUser.email, targetUser.avatar);
+                        }
+                      }}
+                      title={`${targetUser.name} এর প্রোফাইল দেখুন`}
+                    >
                       <img
-                        src={targetUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80'}
+                        src={getSafeAvatarUrl(targetUser.avatar, targetUser.name, targetUser.uid)}
                         alt={targetUser.name}
-                        className="w-9 h-9 rounded-full object-cover border border-slate-200"
+                        className="w-9 h-9 rounded-full object-cover border border-slate-200 hover:ring-2 ring-emerald-500 bg-emerald-50"
+                        onError={(e) => {
+                          e.currentTarget.src = getSafeAvatarUrl('', targetUser.name, targetUser.uid);
+                        }}
                         referrerPolicy="no-referrer"
                       />
                       <div>
-                        <h4 className="font-bold text-slate-900">{targetUser.name}</h4>
+                        <h4 className="font-bold text-slate-900 hover:text-emerald-700 transition">{targetUser.name}</h4>
                         <p className="text-[10px] text-slate-500">
                           {targetUser.district ? `${targetUser.district} জেলা` : 'নাগরিক'}
                         </p>

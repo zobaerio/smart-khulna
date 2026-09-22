@@ -56,6 +56,7 @@ export interface CommunityPost {
   categoryId?: string;
   locationName?: string;
   hashtags?: string[];
+  mentions?: string[];
   status: 'published' | 'draft' | 'hidden' | 'reported' | 'removed';
   likesCount: number;
   likedBy: string[]; // UIDs
