@@ -24,9 +24,9 @@ service cloud.firestore {
 
     // 1. User Profiles: Public read for community directory, owner or admin write
     match /profiles/{userId} {
-      allow read: if isAuthenticated(); // Authenticated users can read (including their own)
-      allow update: if request.auth.uid == userId || isSuperAdmin();
-      allow create: if request.auth.uid == userId || isSuperAdmin();
+      allow read: if true; // Authenticated & guest users can read public community directory profiles
+      allow update: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+      allow create: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
       allow delete: if isSuperAdmin();
     }
 
@@ -83,7 +83,9 @@ service cloud.firestore {
           resource.data.senderId == request.auth.uid ||
           request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
         );
-        allow delete: if isAuthenticated() && resource.data.senderId == request.auth.uid;
+        allow delete: if isAuthenticated() && (
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
+        );
       }
     }
 

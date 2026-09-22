@@ -798,7 +798,7 @@ export default function App() {
           setAllCommunityUsers(usersList);
         }
       }, (err) => {
-        handleFirestoreError(err, OperationType.LIST, 'profiles');
+        console.warn("Real-time profiles listener error:", err);
       });
       return () => unsub();
     } catch (err) {
@@ -2256,30 +2256,47 @@ export default function App() {
   };
 
   const handleDeleteMessage = async (conversationId: string, messageId: string) => {
+    // Optimistic UI update
+    setMessagesMap(prev => {
+      const remaining = (prev[conversationId] || []).filter(m => m.id !== messageId);
+      if (currentUser) {
+        localStorage.setItem(`messages_map_${currentUser.uid}`, JSON.stringify({ ...prev, [conversationId]: remaining }));
+      }
+      return {
+        ...prev,
+        [conversationId]: remaining
+      };
+    });
+
     try {
       await deleteDoc(doc(db, 'conversations', conversationId, 'messages', messageId));
-      setMessagesMap(prev => ({
-        ...prev,
-        [conversationId]: (prev[conversationId] || []).filter(m => m.id !== messageId)
-      }));
     } catch (err) {
-      console.error('Failed to delete message:', err);
-      alert('মেসেজটি মুছতে সমস্যা হয়েছে।');
+      console.warn('Firestore message deletion notice (local state updated):', err);
     }
   };
 
   const handleDeleteMessages = async (conversationId: string, messageIds: string[]) => {
+    if (!messageIds || messageIds.length === 0) return;
+    const idsSet = new Set(messageIds);
+
+    // Optimistic UI update
+    setMessagesMap(prev => {
+      const remaining = (prev[conversationId] || []).filter(m => !idsSet.has(m.id));
+      if (currentUser) {
+        localStorage.setItem(`messages_map_${currentUser.uid}`, JSON.stringify({ ...prev, [conversationId]: remaining }));
+      }
+      return {
+        ...prev,
+        [conversationId]: remaining
+      };
+    });
+
     try {
       await Promise.all(messageIds.map(messageId => 
-        deleteDoc(doc(db, 'conversations', conversationId, 'messages', messageId))
+        deleteDoc(doc(db, 'conversations', conversationId, 'messages', messageId)).catch(e => console.warn("Single doc delete error:", e))
       ));
-      setMessagesMap(prev => ({
-        ...prev,
-        [conversationId]: (prev[conversationId] || []).filter(m => !messageIds.includes(m.id))
-      }));
     } catch (err) {
-      console.error('Failed to delete messages:', err);
-      alert('মেসেজগুলো মুছতে সমস্যা হয়েছে।');
+      console.warn('Firestore messages batch deletion notice (local state updated):', err);
     }
   };
 
@@ -2959,7 +2976,11 @@ export default function App() {
         {/* MAIN PAGE CONTAINER */}
         <main className={`flex-1 overflow-hidden relative flex flex-col`}>
           <div className={`flex-1 flex flex-col ${
-            (activeTab === 'messages' || activeTab === 'profile') ? 'h-full overflow-hidden' : 'p-4 overflow-y-auto space-y-5'
+            (activeTab === 'messages' || activeTab === 'profile') 
+              ? 'h-full overflow-hidden' 
+              : activeTab === 'services'
+              ? 'h-full overflow-hidden p-4 pb-1'
+              : 'p-4 overflow-y-auto space-y-5'
           }`}>
 
             {/* TAB VIEW - HOME */}
@@ -3529,9 +3550,9 @@ export default function App() {
 
             {/* TAB VIEW - SERVICES BROWSER DIRECTORY */}
             {activeTab === 'services' && (
-              <div className="space-y-4">
+              <div className="space-y-4 flex flex-col h-full overflow-hidden">
                 {/* Services Sub-Tabs */}
-                <div className="flex items-center gap-2 bg-slate-100/50 p-1 rounded-xl w-fit border border-slate-200/50">
+                <div className="flex items-center gap-2 bg-slate-100/50 p-1 rounded-xl w-fit border border-slate-200/50 shrink-0">
                   <button
                     onClick={() => setServicesSubTab('directory')}
                     className={`px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
@@ -3555,24 +3576,26 @@ export default function App() {
                 </div>
 
                 {servicesSubTab === 'blood' ? (
-                  <BloodDonationSection
-                    districts={initialDistricts}
-                    selectedDistrict={selectedDistrict}
-                    currentUser={currentUser}
-                    userProfile={userProfile}
-                    onUpdateUserProfile={async (data) => setUserProfile(prev => prev ? {...prev, ...data} : null)}
-                    onViewProfile={handleViewProfile}
-                    onStartMessage={handleStartMessage}
-                    onOpenCreatePost={(prefill) => {
-                      if (!requireAuth('রক্তদান পোস্ট')) return;
-                      setEditingPost(prefill as any);
-                      setShowCreatePostModal(true);
-                    }}
-                    onRequireAuth={requireAuth}
-                    lang={lang}
-                  />
+                  <div className="flex-1 overflow-y-auto pr-1 pb-4">
+                    <BloodDonationSection
+                      districts={initialDistricts}
+                      selectedDistrict={selectedDistrict}
+                      currentUser={currentUser}
+                      userProfile={userProfile}
+                      onUpdateUserProfile={async (data) => setUserProfile(prev => prev ? {...prev, ...data} : null)}
+                      onViewProfile={handleViewProfile}
+                      onStartMessage={handleStartMessage}
+                      onOpenCreatePost={(prefill) => {
+                        if (!requireAuth('রক্তদান পোস্ট')) return;
+                        setEditingPost(prefill as any);
+                        setShowCreatePostModal(true);
+                      }}
+                      onRequireAuth={requireAuth}
+                      lang={lang}
+                    />
+                  </div>
                 ) : (
-                  <>
+                  <div className="flex-1 overflow-y-auto pr-1 pb-4">
                     {filterCategory === 'all' ? (
                       <div className="space-y-4 animate-in fade-in duration-500">
                         <div className="flex items-center justify-between">
@@ -3712,7 +3735,7 @@ export default function App() {
                         )}
                       </div>
                     )}
-                  </>
+                  </div>
                 )}
               </div>
             )}

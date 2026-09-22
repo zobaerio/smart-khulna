@@ -11,6 +11,117 @@
   }
 }
 
+/* Chat Dynamic Animations */
+@keyframes rainFall {
+  0% {
+    transform: translateY(-20px) translateX(0);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateY(600px) translateX(-40px);
+    opacity: 0.2;
+  }
+}
+
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.3);
+  }
+}
+
+@keyframes floatBubble {
+  0% {
+    transform: translateY(100%) translateX(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.6;
+  }
+  80% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(-100px) translateX(20px);
+    opacity: 0;
+  }
+}
+
+@keyframes floatPetal {
+  0% {
+    transform: translate(0, -10px) rotate(0deg);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translate(25px, 250px) rotate(180deg);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translate(-15px, 500px) rotate(360deg);
+    opacity: 0.1;
+  }
+}
+
+@keyframes fireflyGlow {
+  0%, 100% {
+    transform: translate(0, 0) scale(0.9);
+    opacity: 0.3;
+  }
+  25% {
+    transform: translate(15px, -20px) scale(1.2);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate(-10px, -40px) scale(0.8);
+    opacity: 0.4;
+  }
+  75% {
+    transform: translate(20px, -15px) scale(1.1);
+    opacity: 0.85;
+  }
+}
+
+@keyframes auroraShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-rain {
+  animation: rainFall 1.2s linear infinite;
+}
+
+.animate-twinkle {
+  animation: twinkle 3s ease-in-out infinite;
+}
+
+.animate-bubble {
+  animation: floatBubble 6s ease-in infinite;
+}
+
+.animate-petal {
+  animation: floatPetal 8s linear infinite;
+}
+
+.animate-firefly {
+  animation: fireflyGlow 5s ease-in-out infinite;
+}
+
+.animate-aurora {
+  background-size: 200% 200%;
+  animation: auroraShift 12s ease infinite;
+}
+
 .icon-container {
   display: flex;
   align-items: center;

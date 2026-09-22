@@ -41,6 +41,7 @@ import {
 import { District } from '../../dbData';
 import { uploadChatImage, isSupabaseConfigured } from '../../lib/supabase';
 import { getSafeAvatarUrl } from '../../lib/avatarHelper';
+import { CHAT_THEMES, ChatThemeAnimationOverlay, ThemeSelectorModal } from './chatThemes';
 
 interface MessagingCenterProps {
   currentUserId: string | null;
@@ -98,71 +99,22 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
   // Selection and Bulk Deletion States
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    mode: 'single' | 'bulk';
+    messageId?: string;
+    messageIds?: string[];
+    textPreview?: string;
+  }>({ isOpen: false, mode: 'single' });
+  const [actionSuccessToast, setActionSuccessToast] = useState<string | null>(null);
   
   // Theme State
   const [chatTheme, setChatTheme] = useState<string>(() => {
     return localStorage.getItem(`chat_theme_${activeConversationId || 'global'}`) || 'classic';
   });
-  const [showThemePanel, setShowThemePanel] = useState(false);
+  const [showThemeModal, setShowThemeModal] = useState(false);
 
-  const THEMES: { [key: string]: { name: string; bgClass: string; myBubble: string; otherBubble: string; textMy: string; textOther: string; indicator: string } } = {
-    classic: {
-      name: 'Classic Green',
-      bgClass: 'bg-slate-50 dark:bg-slate-950',
-      myBubble: 'bg-emerald-700 text-white rounded-br-none',
-      otherBubble: 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 rounded-bl-none',
-      textMy: 'text-emerald-200',
-      textOther: 'text-slate-400',
-      indicator: 'bg-emerald-600'
-    },
-    blue: {
-      name: 'Ocean Blue',
-      bgClass: 'bg-sky-50/50 dark:bg-slate-950 bg-[radial-gradient(#e0f2fe_1px,transparent_1px)] dark:bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px]',
-      myBubble: 'bg-blue-600 text-white rounded-br-none shadow-sm',
-      otherBubble: 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 rounded-bl-none',
-      textMy: 'text-blue-100',
-      textOther: 'text-slate-400',
-      indicator: 'bg-blue-500'
-    },
-    purple: {
-      name: 'Lavender Purple',
-      bgClass: 'bg-purple-50/50 dark:bg-slate-950 bg-[radial-gradient(#f3e8ff_1px,transparent_1px)] dark:bg-[radial-gradient(#2e1065_1px,transparent_1px)] [background-size:16px_16px]',
-      myBubble: 'bg-purple-600 text-white rounded-br-none shadow-sm',
-      otherBubble: 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 rounded-bl-none',
-      textMy: 'text-purple-100',
-      textOther: 'text-slate-400',
-      indicator: 'bg-purple-500'
-    },
-    sunset: {
-      name: 'Sunset Glow',
-      bgClass: 'bg-orange-50/50 dark:bg-slate-950 bg-[linear-gradient(to_bottom,rgba(254,242,242,0.4),rgba(255,237,213,0.4))]',
-      myBubble: 'bg-orange-600 text-white rounded-br-none shadow-sm',
-      otherBubble: 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 rounded-bl-none',
-      textMy: 'text-orange-100',
-      textOther: 'text-slate-400',
-      indicator: 'bg-orange-500'
-    },
-    forest: {
-      name: 'Deep Forest',
-      bgClass: 'bg-emerald-950/10 dark:bg-slate-950/40',
-      myBubble: 'bg-teal-700 text-white rounded-br-none shadow-sm',
-      otherBubble: 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 rounded-bl-none',
-      textMy: 'text-teal-100',
-      textOther: 'text-slate-400',
-      indicator: 'bg-teal-600'
-    },
-    dark_neon: {
-      name: 'Dark Neon',
-      bgClass: 'bg-slate-900 dark:bg-slate-950 text-slate-100',
-      myBubble: 'bg-slate-800 text-emerald-400 border border-emerald-500/30 rounded-br-none shadow-md',
-      otherBubble: 'bg-slate-800 border border-slate-700 text-slate-200 rounded-bl-none shadow-xs',
-      textMy: 'text-emerald-300',
-      textOther: 'text-slate-400',
-      indicator: 'bg-emerald-500'
-    }
-  };
-
-  const activeTheme = THEMES[chatTheme] || THEMES.classic;
+  const activeTheme = CHAT_THEMES[chatTheme] || CHAT_THEMES.classic;
 
   useEffect(() => {
     if (activeConversationId) {
@@ -170,7 +122,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
       setChatTheme(savedTheme || 'classic');
       setIsSelectionMode(false);
       setSelectedMessageIds([]);
-      setShowThemePanel(false);
+      setShowThemeModal(false);
     }
   }, [activeConversationId]);
 
@@ -584,15 +536,12 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
 
                 {/* Theme Palette Toggle */}
                 <button
-                  onClick={() => setShowThemePanel(!showThemePanel)}
-                  className={`p-1.5 rounded-lg transition cursor-pointer ${
-                    showThemePanel 
-                      ? 'bg-blue-100 dark:bg-blue-950/40 text-blue-600' 
-                      : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/60'
-                  }`}
-                  title="চ্যাট থিম পরিবর্তন করুন"
+                  onClick={() => setShowThemeModal(true)}
+                  className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition cursor-pointer flex items-center gap-1"
+                  title="চ্যাট ওয়ালপেপার ও থিম পরিবর্তন করুন"
                 >
                   <Palette size={16} />
+                  <span className="hidden sm:inline text-[11px] font-bold text-slate-700 dark:text-slate-300">থিম</span>
                 </button>
 
                 <div className="relative">
@@ -608,10 +557,19 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                       <button
                         onClick={() => {
                           setShowChatMenu(false);
+                          setShowThemeModal(true);
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700 cursor-pointer font-medium"
+                      >
+                        <Palette size={13} className="text-blue-600" /> ওয়ালপেপার ও থিম গ্যালারি
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowChatMenu(false);
                           setIsSelectionMode(true);
                           setSelectedMessageIds([]);
                         }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700 cursor-pointer font-medium"
+                        className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700 cursor-pointer font-medium border-t border-slate-100"
                       >
                         <CheckSquare size={13} /> মেসেজ ডিলিট করুন (সিলেক্ট)
                       </button>
@@ -632,7 +590,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                             onBlockUser(otherParticipantUid);
                           }
                         }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-rose-50 text-rose-600 flex items-center gap-2 cursor-pointer font-medium"
+                        className="w-full text-left px-3.5 py-2 hover:bg-rose-50 text-rose-600 flex items-center gap-2 cursor-pointer font-medium border-t border-slate-100"
                       >
                         <Ban size={13} /> {isOtherBlocked ? 'আনব্লক করুন' : 'ব্লক করুন'}
                       </button>
@@ -653,48 +611,38 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
               </div>
             </div>
 
-            {/* INLINE THEME PANEL */}
-            {showThemePanel && (
-              <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in slide-in-from-top duration-200">
-                <div className="flex items-center gap-1.5">
-                  <Palette size={14} className="text-blue-600 dark:text-blue-400" />
-                  <span className="text-[11px] font-black text-slate-800 dark:text-slate-200">চ্যাট থিম নির্বাচন করুন:</span>
+            {/* ACTION SUCCESS TOAST */}
+            {actionSuccessToast && (
+              <div className="bg-emerald-600 text-white px-3.5 py-2 text-xs font-bold flex items-center justify-between animate-in slide-in-from-top duration-200">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={15} />
+                  <span>{actionSuccessToast}</span>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(THEMES).map(([id, t]) => (
-                    <button
-                      key={id}
-                      onClick={() => {
-                        setChatTheme(id);
-                        localStorage.setItem(`chat_theme_${activeConv.id}`, id);
-                      }}
-                      className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black transition flex items-center gap-1.5 border cursor-pointer ${
-                        chatTheme === id
-                          ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      <span className={`w-2.5 h-2.5 rounded-full ${t.indicator}`} />
-                      <span>{t.name}</span>
-                    </button>
-                  ))}
-                </div>
+                <button
+                  onClick={() => setActionSuccessToast(null)}
+                  className="p-0.5 hover:bg-emerald-700 rounded cursor-pointer"
+                >
+                  <X size={13} />
+                </button>
               </div>
             )}
 
             {/* MESSAGES STREAM */}
             <div
               ref={scrollContainerRef}
-              className={`flex-1 p-4 overflow-y-auto space-y-3 transition-all duration-300 ${activeTheme.bgClass}`}
+              className={`flex-1 p-4 overflow-y-auto space-y-3 transition-all duration-300 relative ${activeTheme.bgClass}`}
             >
+              {/* Dynamic Theme Ambient Animation Overlay */}
+              <ChatThemeAnimationOverlay animationType={activeTheme.animationType} />
+
               {/* SECURITY NOTICE */}
-              <div className="max-w-md mx-auto p-2 bg-emerald-50/70 border border-emerald-200/70 rounded-xl text-center text-[10px] text-emerald-900 flex items-center justify-center gap-1.5">
-                <ShieldCheck size={12} className="text-emerald-700" />
+              <div className="relative z-10 max-w-md mx-auto p-2 bg-emerald-50/80 dark:bg-emerald-950/60 backdrop-blur-xs border border-emerald-200/80 dark:border-emerald-800/60 rounded-xl text-center text-[10px] text-emerald-900 dark:text-emerald-200 flex items-center justify-center gap-1.5 shadow-xs">
+                <ShieldCheck size={12} className="text-emerald-700 dark:text-emerald-400" />
                 <span>আপনার বার্তা সম্পূর্ণ ব্যক্তিগত। এডমিন বা তৃতীয় পক্ষ বার্তা দেখতে পারবে না।</span>
               </div>
 
               {currentMessages.length === 0 ? (
-                <div className="text-center py-12 text-xs text-slate-400">
+                <div className="relative z-10 text-center py-12 text-xs text-slate-400">
                   এখনও কোনো মেসেজ পাঠানো হয়নি। একটি শুভেচ্ছা বার্তা পাঠান!
                 </div>
               ) : (
@@ -705,7 +653,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                   return (
                     <div
                       key={msg.id}
-                      className={`flex items-center gap-2.5 w-full ${isMine ? 'justify-end' : 'justify-start'} ${
+                      className={`relative z-10 flex items-center gap-2.5 w-full ${isMine ? 'justify-end' : 'justify-start'} ${
                         isSelectionMode 
                           ? 'cursor-pointer hover:bg-slate-500/5 dark:hover:bg-slate-200/5 p-1 rounded-xl transition-colors duration-150' 
                           : ''
@@ -747,12 +695,17 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                                   <img
                                     src={att.url}
                                     alt={att.name}
-                                    className="max-h-56 object-cover rounded-xl"
+                                    className="max-h-56 object-cover rounded-xl cursor-pointer hover:opacity-95 transition"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setLightboxAttachment(att);
+                                    }}
                                   />
                                 ) : (
                                   <a
                                     href={att.url}
                                     download={att.name}
+                                    onClick={(e) => e.stopPropagation()}
                                     className={`flex items-center gap-2 p-2 rounded-xl text-xs ${
                                       isMine
                                         ? 'bg-black/25 text-white hover:bg-black/40'
@@ -790,19 +743,22 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                           )}
                         </div>
 
-                        {/* DELETE SINGLE MESSAGE BUTTON */}
-                        {!isSelectionMode && (
+                        {/* DELETE SINGLE SENT MESSAGE BUTTON (Only for messages sent by the user) */}
+                        {!isSelectionMode && isMine && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (confirm("আপনি কি এই মেসেজটি ডিলিট করতে চান?")) {
-                                onDeleteMessage(activeConv.id, msg.id);
-                              }
+                              setDeleteModal({
+                                isOpen: true,
+                                mode: 'single',
+                                messageId: msg.id,
+                                textPreview: msg.text || (msg.attachments?.length ? 'ছবি/সংযুক্ত ফাইল' : 'মেসেজ')
+                              });
                             }}
-                            className={`absolute -top-2 ${isMine ? '-left-2' : '-right-2'} bg-slate-800/80 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition duration-150 cursor-pointer z-10`}
+                            className="absolute -top-2 -left-2 bg-slate-800/90 hover:bg-red-600 text-white p-1.5 rounded-full opacity-80 sm:opacity-0 group-hover:opacity-100 transition duration-150 cursor-pointer z-10 shadow-sm"
                             title="মেসেজ মুছুন"
                           >
-                            <Trash2 size={10} />
+                            <Trash2 size={11} />
                           </button>
                         )}
                       </div>
@@ -841,7 +797,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
 
             {/* INPUT FORM OR BULK SELECTION ACTION BAR */}
             {isSelectionMode ? (
-              <div className="p-4 border-t border-red-100 dark:border-red-950/40 bg-red-50/50 dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in slide-in-from-bottom duration-200">
+              <div className="p-4 border-t border-red-100 dark:border-red-950/40 bg-red-50/60 dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in slide-in-from-bottom duration-200">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-extrabold text-red-600 dark:text-red-400">
                     {selectedMessageIds.length}টি মেসেজ সিলেক্ট করা হয়েছে
@@ -867,27 +823,17 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
 
                   <button
                     type="button"
-                    onClick={async () => {
+                    onClick={() => {
                       if (selectedMessageIds.length === 0) {
                         alert("অনুগ্রহ করে অন্তত একটি মেসেজ সিলেক্ট করুন!");
                         return;
                       }
-                      if (confirm(`আপনি কি নিশ্চিতভাবে এই ${selectedMessageIds.length}টি মেসেজ ডিলিট করতে চান?`)) {
-                        try {
-                          if (onDeleteMessages) {
-                            onDeleteMessages(activeConv.id, selectedMessageIds);
-                          } else {
-                            // Loop delete if parent bulk delete prop is missing/not passed
-                            await Promise.all(selectedMessageIds.map(id => onDeleteMessage(activeConv.id, id)));
-                          }
-                          setSelectedMessageIds([]);
-                          setIsSelectionMode(false);
-                          alert("সফলভাবে মেসেজসমূহ মুছে ফেলা হয়েছে।");
-                        } catch (err) {
-                          console.error(err);
-                          alert("মেসেজগুলো মুছতে সমস্যা হয়েছে।");
-                        }
-                      }
+                      setDeleteModal({
+                        isOpen: true,
+                        mode: 'bulk',
+                        messageIds: selectedMessageIds,
+                        textPreview: `${selectedMessageIds.length}টি নির্বাচিত বার্তা`
+                      });
                     }}
                     className="flex-1 sm:flex-initial px-4 py-2 rounded-xl text-[10px] font-black bg-red-600 hover:bg-red-700 text-white transition flex items-center justify-center gap-1.5 shadow-md shadow-red-600/10 cursor-pointer"
                   >
@@ -1072,6 +1018,118 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                     </button>
                   </div>
                 ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* THEME SELECTION GALLERY MODAL */}
+      {showThemeModal && (
+        <ThemeSelectorModal
+          currentTheme={chatTheme}
+          onSelectTheme={(themeId) => {
+            setChatTheme(themeId);
+            if (activeConv) {
+              localStorage.setItem(`chat_theme_${activeConv.id}`, themeId);
+            }
+            setActionSuccessToast("চ্যাট থিম সফলভাবে পরিবর্তিত হয়েছে!");
+            setTimeout(() => setActionSuccessToast(null), 3000);
+          }}
+          onClose={() => setShowThemeModal(false)}
+        />
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {deleteModal.isOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-150 p-5 space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto">
+              <Trash2 size={24} />
+            </div>
+
+            <div className="text-center space-y-1.5">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white font-serif">
+                {deleteModal.mode === 'bulk' ? 'সিলেক্ট করা মেসেজ মুছবেন?' : 'মেসেজটি মুছবেন?'}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                {deleteModal.mode === 'bulk'
+                  ? `আপনি কি নিশ্চিতভাবে এই ${deleteModal.messageIds?.length || 0}টি বার্তা চ্যাট ইতিহাস থেকে মুছে ফেলতে চান? এটি স্থায়ীভাবে মুছে যাবে।`
+                  : 'আপনি কি নিশ্চিতভাবে এই বার্তাটি আপনার চ্যাট থেকে মুছে ফেলতে চান?'}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteModal({ isOpen: false, mode: 'single' })}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              >
+                বাতিল
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!activeConv) return;
+                  const convId = activeConv.id;
+                  try {
+                    if (deleteModal.mode === 'bulk' && deleteModal.messageIds?.length) {
+                      if (onDeleteMessages) {
+                        onDeleteMessages(convId, deleteModal.messageIds);
+                      } else {
+                        await Promise.all(deleteModal.messageIds.map(id => onDeleteMessage(convId, id)));
+                      }
+                      setSelectedMessageIds([]);
+                      setIsSelectionMode(false);
+                      setActionSuccessToast(`${deleteModal.messageIds.length}টি মেসেজ সফলভাবে মুছে ফেলা হয়েছে`);
+                    } else if (deleteModal.messageId) {
+                      onDeleteMessage(convId, deleteModal.messageId);
+                      setActionSuccessToast('মেসেজ মুছে ফেলা হয়েছে');
+                    }
+                    setDeleteModal({ isOpen: false, mode: 'single' });
+                    setTimeout(() => setActionSuccessToast(null), 3000);
+                  } catch (err) {
+                    console.error('Failed to delete message:', err);
+                    setDeleteModal({ isOpen: false, mode: 'single' });
+                  }
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 font-bold text-xs text-white shadow-md shadow-red-600/20 transition cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Trash2 size={14} /> হ্যাঁ, মুছুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ATTACHMENT LIGHTBOX MODAL */}
+      {lightboxAttachment && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setLightboxAttachment(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh] flex flex-col items-center">
+            <img
+              src={lightboxAttachment.url}
+              alt={lightboxAttachment.name}
+              className="max-h-[80vh] max-w-full rounded-2xl object-contain shadow-2xl"
+            />
+            <div className="mt-3 flex items-center gap-3" onClick={e => e.stopPropagation()}>
+              <a
+                href={lightboxAttachment.url}
+                download={lightboxAttachment.name}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <Download size={14} /> ছবি ডাউনলোড করুন
+              </a>
+              <button
+                onClick={() => setLightboxAttachment(null)}
+                className="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                বন্ধ করুন
+              </button>
             </div>
           </div>
         </div>

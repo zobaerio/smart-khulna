@@ -203,9 +203,30 @@
         "timestamp": { "type": "string" }
       },
       "required": ["id", "targetUid", "visitorUid", "visitorName", "timestamp"]
+    },
+    "BloodDonor": {
+      "title": "BloodDonor",
+      "description": "Voluntary blood donor registration in district",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "bloodGroup": { "type": "string" },
+        "district": { "type": "string" },
+        "upazila": { "type": "string" },
+        "phone": { "type": "string" },
+        "available": { "type": "boolean" },
+        "lastDonation": { "type": "string" }
+      },
+      "required": ["id", "userId", "name", "bloodGroup", "district", "phone"]
     }
   },
   "firestore": {
+    "/blood_donors/{donorId}": {
+      "schema": "BloodDonor",
+      "description": "Voluntary blood donors list accessible publicly for emergency blood search"
+    },
     "/profiles/{targetUid}/visitors/{visitorUid}": {
       "schema": "ProfileVisit",
       "description": "History of users who visited this profile"

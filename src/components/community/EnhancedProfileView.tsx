@@ -105,7 +105,7 @@ interface EnhancedProfileViewProps {
   onToggleDarkMode?: () => void;
 }
 
-type ProfileTab = 'posts' | 'about' | 'photos' | 'services' | 'followers';
+type ProfileTab = 'posts' | 'about' | 'photos' | 'services' | 'followers' | 'visitors';
 
 export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
   profile,
@@ -152,6 +152,7 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
   const [showGuidelinesModal, setShowGuidelinesModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [visitors, setVisitors] = useState<ProfileVisitor[]>([]);
+  const [showVisitorsModal, setShowVisitorsModal] = useState(false);
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [showFbSettings, setShowFbSettings] = useState(false);
   const [activeSettingSection, setActiveSettingSection] = useState<'main' | 'profile_lock' | 'active_status' | 'meta_verified' | 'blocking' | 'tagging' | 'two_factor' | 'archive' | 'search_visibility' | 'delete_account'>('main');
@@ -161,6 +162,28 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
   const [twoFactorPinInput, setTwoFactorPinInput] = useState('');
 
   const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  const formatVisitorTime = (timestamp: string) => {
+    if (!timestamp) return 'সম্প্রতি';
+    try {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffSec = Math.floor(diffMs / 1000);
+      const diffMin = Math.floor(diffSec / 60);
+      const diffHours = Math.floor(diffMin / 60);
+      const diffDays = Math.floor(diffHours / 24);
+
+      if (diffSec < 60) return 'এইমাত্র';
+      if (diffMin < 60) return `${diffMin} মিনিট আগে`;
+      if (diffHours < 24) return `${diffHours} ঘণ্টা আগে`;
+      if (diffDays === 1) return 'গতকাল';
+      if (diffDays < 7) return `${diffDays} দিন আগে`;
+      return date.toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' });
+    } catch {
+      return 'সম্প্রতি';
+    }
+  };
 
   // Handle click outside to close 3-dot dropdown without blocking page scrolling
   useEffect(() => {
@@ -200,16 +223,18 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
     }
   };
 
-  // Fetch visitors for own profile
+  // Fetch visitors for own profile (up to 50 recent visitors)
   useEffect(() => {
     if (!isOwnProfile || !profile.uid) return;
     
     const visitorsRef = collection(db, 'profiles', profile.uid, 'visitors');
-    const q = query(visitorsRef, orderBy('timestamp', 'desc'), limit(5));
+    const q = query(visitorsRef, orderBy('timestamp', 'desc'), limit(50));
     
     return onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => doc.data() as ProfileVisitor);
       setVisitors(docs);
+    }, (error) => {
+      console.warn("Real-time profile visitors listener error:", error);
     });
   }, [isOwnProfile, profile.uid]);
 
@@ -233,7 +258,8 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
     { label: 'পোস্ট', value: profile.postsCount || posts.length, tab: 'posts' as ProfileTab },
     { label: 'ফলোয়ার', value: profile.followersCount || followers.length, tab: 'followers' as ProfileTab },
     { label: 'ফলোয়িং', value: profile.followingCount || following.length, tab: 'followers' as ProfileTab },
-    { label: 'সেবা', value: services.length, tab: 'services' as ProfileTab }
+    { label: 'সেবা', value: services.length, tab: 'services' as ProfileTab },
+    ...(isOwnProfile ? [{ label: 'ভিজিটর', value: visitors.length, tab: 'visitors' as ProfileTab }] : [])
   ];
 
   const handleCoverChange = () => {
@@ -272,29 +298,38 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-1">
-          {/* Profile Visitors (TikTok-like) */}
-          {isOwnProfile && visitors.length > 0 && (
-            <div className="flex items-center -space-x-2 mr-2 overflow-hidden px-1 cursor-pointer group relative" title="প্রোফাইল ভিজিটর">
-              {visitors.map((v, i) => (
-                <div 
-                  key={v.id} 
-                  className="w-6 h-6 rounded-full border-2 border-white dark:border-slate-900 overflow-hidden bg-slate-100 flex-shrink-0"
-                  style={{ zIndex: 10 - i }}
-                >
-                  {v.visitorAvatar ? (
-                    <img src={v.visitorAvatar} alt={v.visitorName} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-slate-200 flex items-center justify-center">
-                      <Users size={10} className="text-slate-400" />
+          {/* Profile Visitors (TikTok-like & interactive) */}
+          {isOwnProfile && (
+            <button 
+              type="button"
+              onClick={() => setShowVisitorsModal(true)}
+              className="flex items-center -space-x-1.5 mr-1.5 px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800/80 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border border-slate-200 dark:border-slate-700/60 transition cursor-pointer group"
+              title="কারা আপনার প্রোফাইল ভিউ করেছে দেখুন"
+            >
+              {visitors.length > 0 ? (
+                <div className="flex items-center -space-x-2 mr-1">
+                  {visitors.slice(0, 3).map((v, i) => (
+                    <div 
+                      key={v.id} 
+                      className="w-5 h-5 rounded-full border-1.5 border-white dark:border-slate-900 overflow-hidden bg-slate-200 flex-shrink-0"
+                      style={{ zIndex: 10 - i }}
+                    >
+                      {v.visitorAvatar ? (
+                        <img src={v.visitorAvatar} alt={v.visitorName} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                          <Users size={8} className="text-slate-400" />
+                        </div>
+                      )}
                     </div>
-                  )}
+                  ))}
                 </div>
-              ))}
-              <div className="ml-3 pl-1.5 flex items-center gap-1 text-[9px] font-bold text-slate-500 group-hover:text-emerald-600 transition-colors">
-                <Eye size={10} />
-                <span>ভিজিটর</span>
+              ) : null}
+              <div className="flex items-center gap-1 text-[10px] font-bold text-slate-700 dark:text-slate-200 group-hover:text-emerald-600 transition-colors">
+                <Eye size={12} className="text-emerald-600" />
+                <span>ভিজিটর {visitors.length > 0 ? `(${visitors.length})` : ''}</span>
               </div>
-            </div>
+            </button>
           )}
 
           <div className="relative" ref={dropdownRef}>
@@ -312,10 +347,26 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                   initial={{ opacity: 0, scale: 0.95, y: -10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                  className="absolute right-0 top-10 w-52 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 py-1.5 z-50 overflow-hidden"
+                  className="absolute right-0 top-10 w-56 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 py-1.5 z-50 overflow-hidden"
                 >
                     {isOwnProfile ? (
                       <>
+                        <button 
+                          onClick={() => {
+                            setShowMoreMenu(false);
+                            setShowVisitorsModal(true);
+                          }}
+                          className="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-between transition"
+                        >
+                          <span className="flex items-center gap-2.5">
+                            <Eye size={15} className="text-blue-500" />
+                            প্রোফাইল ভিজিটরস
+                          </span>
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+                            {visitors.length}
+                          </span>
+                        </button>
+
                         <button 
                           onClick={() => {
                             setShowMoreMenu(false);
@@ -710,6 +761,7 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
             { id: 'photos', label: 'ছবি', icon: <ImageIcon size={18} /> },
             { id: 'services', label: 'সেবা', icon: <Award size={18} /> },
             { id: 'followers', label: 'ফলোয়ার', icon: <Users size={18} /> },
+            ...(isOwnProfile ? [{ id: 'visitors', label: `ভিজিটর (${visitors.length})`, icon: <Eye size={18} /> }] : [])
           ].map(tab => (
             <button
               key={tab.id}
@@ -1062,6 +1114,106 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                     )}
                   </div>
                 </div>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'visitors' && isOwnProfile && (
+            <motion.div 
+              key="visitors"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-4 max-w-2xl mx-auto"
+            >
+              <div className="bg-gradient-to-r from-blue-500/10 via-emerald-500/10 to-teal-500/10 border border-blue-200 dark:border-blue-900/40 rounded-3xl p-5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-600/20">
+                      <Eye size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-extrabold text-slate-900 dark:text-white font-serif">
+                        প্রোফাইল ভিউয়ার্স ও ভিজিটরস
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        মোট {visitors.length} জন নাগরিক সম্প্রতি আপনার প্রোফাইল দেখেছেন
+                      </p>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 bg-blue-600 text-white font-black text-xs rounded-full">
+                    {visitors.length} জন
+                  </span>
+                </div>
+                <div className="mt-3 pt-3 border-t border-blue-200/50 dark:border-blue-900/40 flex items-center gap-2 text-[11px] text-slate-600 dark:text-slate-400">
+                  <ShieldCheck size={14} className="text-emerald-600 shrink-0" />
+                  <span>এই তালিকাটি শুধুমাত্র আপনি দেখতে পাচ্ছেন। অন্য কোনো ব্যবহারকারী আপনার ভিজিটর তালিকা দেখতে পারে না।</span>
+                </div>
+              </div>
+
+              {/* Visitors List */}
+              <div className="space-y-2.5">
+                {visitors.length > 0 ? (
+                  visitors.map(v => (
+                    <div 
+                      key={v.id}
+                      className="flex items-center justify-between p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-emerald-200 dark:hover:border-emerald-900 hover:shadow-md transition group"
+                    >
+                      <div 
+                        onClick={() => onUserClick(v.visitorUid, v.visitorName, '', v.visitorAvatar)}
+                        className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
+                      >
+                        <div className="w-11 h-11 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 ring-2 ring-emerald-500/20 shrink-0">
+                          {v.visitorAvatar ? (
+                            <img src={v.visitorAvatar} alt={v.visitorName} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-slate-200 dark:bg-slate-700">
+                              <Users size={18} className="text-slate-400" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 transition">
+                            {v.visitorName}
+                          </p>
+                          <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                            <span className="flex items-center gap-1">
+                              <Eye size={11} className="text-blue-500" />
+                              {formatVisitorTime(v.timestamp)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button 
+                          onClick={() => onUserClick(v.visitorUid, v.visitorName, '', v.visitorAvatar)}
+                          className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-700 dark:text-slate-200 hover:text-emerald-600 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                        >
+                          <Users size={12} />
+                          প্রোফাইল
+                        </button>
+                        <button 
+                          onClick={() => onMessage(v.visitorUid, v.visitorName, v.visitorAvatar)}
+                          className="p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs transition shadow-sm cursor-pointer"
+                          title="মেসেজ পাঠান"
+                        >
+                          <MessageSquare size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="py-16 text-center space-y-3 bg-slate-50/50 dark:bg-slate-900/40 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 p-6">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-500 flex items-center justify-center mx-auto">
+                      <Eye size={28} />
+                    </div>
+                    <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">এখনও কোনো ভিজিটর নেই</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+                      কমিউনিটি ফিডে পোস্ট করুন অথবা অন্যদের পোস্টে মন্তব্য করুন, নাগরিকরা আপনার প্রোফাইল ভিউ করলে তাদের তালিকা এখানে সরাসরি দেখতে পাবেন।
+                    </p>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
@@ -1798,6 +1950,140 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                 </div>
               )}
             </div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* PROFILE VISITORS MODAL DIALOG */}
+      <AnimatePresence>
+        {showVisitorsModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs"
+              onClick={() => setShowVisitorsModal(false)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl relative z-10 flex flex-col max-h-[85vh] border border-slate-200 dark:border-slate-800"
+            >
+              {/* Modal Header */}
+              <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-600 text-white">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+                    <Eye size={18} />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-sm sm:text-base font-serif">
+                      প্রোফাইল ভিজিটরস (Profile Visitors)
+                    </h3>
+                    <p className="text-[11px] text-white/80">
+                      আপনার প্রোফাইল কারা ভিউ করেছেন ({visitors.length} জন)
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowVisitorsModal(false)} 
+                  className="p-1.5 hover:bg-white/20 rounded-full transition cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Privacy Notice Banner */}
+              <div className="px-4 py-2.5 bg-blue-50 dark:bg-blue-950/40 border-b border-blue-100 dark:border-blue-900/30 flex items-center gap-2 text-[11px] text-blue-700 dark:text-blue-300">
+                <ShieldCheck size={14} className="shrink-0" />
+                <span>এটি ব্যক্তিগত তালিকা — শুধুমাত্র আপনিই এটি দেখতে পারেন।</span>
+              </div>
+
+              {/* Visitors List Content */}
+              <div className="p-4 overflow-y-auto space-y-2.5 flex-1 divide-y divide-slate-100 dark:divide-slate-800/60">
+                {visitors.length > 0 ? (
+                  visitors.map(v => (
+                    <div 
+                      key={v.id}
+                      className="pt-2.5 first:pt-0 flex items-center justify-between gap-3 group"
+                    >
+                      <div 
+                        onClick={() => {
+                          setShowVisitorsModal(false);
+                          onUserClick(v.visitorUid, v.visitorName, '', v.visitorAvatar);
+                        }}
+                        className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
+                      >
+                        <div className="w-11 h-11 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 ring-2 ring-blue-500/20 shrink-0">
+                          {v.visitorAvatar ? (
+                            <img src={v.visitorAvatar} alt={v.visitorName} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-slate-200 dark:bg-slate-700">
+                              <Users size={18} className="text-slate-400" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition">
+                            {v.visitorName}
+                          </p>
+                          <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">
+                            <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium">
+                              <Eye size={10} />
+                              ভিজিট করেছেন: {formatVisitorTime(v.timestamp)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button 
+                          onClick={() => {
+                            setShowVisitorsModal(false);
+                            onUserClick(v.visitorUid, v.visitorName, '', v.visitorAvatar);
+                          }}
+                          className="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/50 text-slate-700 dark:text-slate-200 hover:text-blue-600 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                        >
+                          <Users size={12} />
+                          <span className="hidden sm:inline">প্রোফাইল</span>
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setShowVisitorsModal(false);
+                            onMessage(v.visitorUid, v.visitorName, v.visitorAvatar);
+                          }}
+                          className="p-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition shadow-sm cursor-pointer"
+                          title="মেসেজ পাঠান"
+                        >
+                          <MessageSquare size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="py-12 text-center space-y-3">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-500 flex items-center justify-center mx-auto">
+                      <Eye size={28} />
+                    </div>
+                    <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">এখনও কোনো ভিজিটর নেই</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
+                      কমিউনিটিতে নতুন পোস্ট শেয়ার করলে অথবা সেবা প্রদান করলে নাগরিকরা আপনার প্রোফাইল ভিউ করবেন।
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-3 bg-slate-50 dark:bg-slate-850 border-t border-slate-100 dark:border-slate-800">
+                <button 
+                  onClick={() => setShowVisitorsModal(false)}
+                  className="w-full py-2.5 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition cursor-pointer"
+                >
+                  বন্ধ করুন
+                </button>
+              </div>
+            </motion.div>
           </div>
         )}
       </AnimatePresence>
