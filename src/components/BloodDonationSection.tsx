@@ -40,6 +40,7 @@ interface BloodDonationSectionProps {
   onStartMessage: (authorId: string, authorName: string, authorEmail: string, authorAvatar?: string) => void;
   onOpenCreatePost?: (prefill?: { title?: string; content?: string; categoryId?: string; bloodGroup?: string }) => void;
   onRequireAuth: (actionName: string) => boolean;
+  lang?: 'bn' | 'en';
 }
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
@@ -53,10 +54,63 @@ export const BloodDonationSection: React.FC<BloodDonationSectionProps> = ({
   onViewProfile,
   onStartMessage,
   onOpenCreatePost,
-  onRequireAuth
+  onRequireAuth,
+  lang = 'bn'
 }) => {
+  const bt = (key: string) => {
+    const dict: Record<'bn' | 'en', Record<string, string>> = {
+      bn: {
+        availDonors: "শুধু বর্তমানে রক্তদানে প্রস্তুত ডোনার",
+        resetFilter: "রিসেট ফিল্টার",
+        results: "ফলাফল",
+        noDonors: "কোনো রক্তদাতার তথ্য খুঁজে পাওয়া যায়নি",
+        person: "জন",
+        searchPlaceholder: "রক্তদাতা খুঁজুন (নাম, ঠিকানা)...",
+        district: "জেলা",
+        upazila: "উপজেলা",
+        bloodGroup: "রক্তের গ্রুপ",
+        all: "সব",
+        register: "রক্তদাতা হিসেবে যুক্ত হোন",
+        registered: "আপনার রক্তদাতা অ্যাকাউন্ট",
+        registeredAlert: "আপনি ইতিমধ্যে একজন রক্তদাতা হিসেবে নিবন্ধিত!",
+        lastDonation: "সর্বশেষ রক্তদান",
+        totalDonation: "মোট রক্তদান",
+        notes: "বিশেষ দ্রষ্টব্য",
+        contact: "যোগাযোগ",
+        message: "মেসেজ",
+        viewProfile: "প্রোফাইল",
+        bloodBanks: "ব্লাড ব্যাংক সমূহ",
+        ready: "রক্তদানে প্রস্তুত",
+      },
+      en: {
+        availDonors: "Only currently available donors",
+        resetFilter: "Reset Filters",
+        results: "Results",
+        noDonors: "No blood donor profiles found",
+        person: "person(s)",
+        searchPlaceholder: "Search donor name, address, phone...",
+        district: "District",
+        upazila: "Upazila",
+        bloodGroup: "Blood Group",
+        all: "All",
+        register: "Register as Donor",
+        registered: "Your Donor Profile",
+        registeredAlert: "You are registered as a donor!",
+        lastDonation: "Last Donation Date",
+        totalDonation: "Total Donations",
+        notes: "Additional Notes",
+        contact: "Call Now",
+        message: "Message",
+        viewProfile: "Profile",
+        bloodBanks: "Blood Banks",
+        ready: "Ready to Donate",
+      }
+    };
+    return dict[lang][key] || key;
+  };
+
   // Donor data state
-  const [donors, setDonors] = useState<BloodDonor[]>(initialBloodDonors);
+  const [donors, setDonors] = useState<BloodDonor[]>([]);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showBloodBanksModal, setShowBloodBanksModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -108,22 +162,11 @@ export const BloodDonationSection: React.FC<BloodDonationSectionProps> = ({
   useEffect(() => {
     try {
       const unsubscribe = onSnapshot(collection(db, 'blood_donors'), (snapshot) => {
-        if (!snapshot.empty) {
-          const firestoreDonors: BloodDonor[] = [];
-          snapshot.forEach((docSnap) => {
-            firestoreDonors.push({ id: docSnap.id, ...docSnap.data() } as BloodDonor);
-          });
-
-          // Merge with initial seeds, prioritizing firestore data
-          setDonors(prev => {
-            const map = new Map<string, BloodDonor>();
-            // Add initial seeds
-            initialBloodDonors.forEach(d => map.set(d.userId, d));
-            // Overwrite/add with live firestore records
-            firestoreDonors.forEach(d => map.set(d.userId, d));
-            return Array.from(map.values());
-          });
-        }
+        const firestoreDonors: BloodDonor[] = [];
+        snapshot.forEach((docSnap) => {
+          firestoreDonors.push({ id: docSnap.id, ...docSnap.data() } as BloodDonor);
+        });
+        setDonors(firestoreDonors);
       }, (error) => {
         console.warn("Firestore blood_donors snapshot fallback:", error);
       });
@@ -525,7 +568,7 @@ export const BloodDonationSection: React.FC<BloodDonationSectionProps> = ({
             />
             <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              শুধু বর্তমানে রক্তদানে প্রস্তুত ডোনার
+              {bt('availDonors')}
             </span>
           </label>
 
@@ -541,11 +584,11 @@ export const BloodDonationSection: React.FC<BloodDonationSectionProps> = ({
                 }}
                 className="text-[11px] font-bold text-rose-700 hover:underline cursor-pointer"
               >
-                রিসেট ফিল্টার
+                {bt('resetFilter')}
               </button>
             )}
             <span className="text-xs font-bold text-slate-500">
-              ফলাফল: <span className="text-rose-700 font-extrabold">{filteredDonors.length}</span> জন
+              {bt('results')}: <span className="text-rose-700 font-extrabold">{filteredDonors.length}</span> {bt('person')}
             </span>
           </div>
         </div>
@@ -557,7 +600,7 @@ export const BloodDonationSection: React.FC<BloodDonationSectionProps> = ({
           <div className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto text-rose-500 border border-rose-100">
             <Droplet size={28} />
           </div>
-          <h3 className="text-sm font-bold text-slate-800">কোনো রক্তদাতার তথ্য খুঁজে পাওয়া যায়নি</h3>
+          <h3 className="text-sm font-bold text-slate-800">{bt('noDonors')}</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
             আপনার নির্বাচিত রক্ত গ্রুপ বা উপজেলায় কোনো রক্তদাতা পাওয়া যায়নি। ফিল্টার পরিবর্তন করুন অথবা নিজেই রক্তদাতা হিসেবে যুক্ত হোন।
           </p>

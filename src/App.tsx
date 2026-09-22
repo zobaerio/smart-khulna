@@ -216,6 +216,66 @@ export default function App() {
     return localStorage.getItem('theme') === 'dark';
   });
 
+  const [lang, setLang] = useState<'bn' | 'en'>(() => {
+    return (localStorage.getItem('lang') as 'bn' | 'en') || 'bn';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('lang', lang);
+  }, [lang]);
+
+  const t = (key: string) => {
+    const dictionary: Record<'bn' | 'en', Record<string, string>> = {
+      bn: {
+        title: "স্মার্ট খুলনা",
+        subtitle: "খুলনা জেলা ডিজিটাল নাগরিক সেবা ডিরেক্টরি",
+        home: "হোম",
+        community: "কমিউনিটি",
+        messaging: "বার্তা",
+        blood: "রক্তদান",
+        downloads: "ডাউনলোড",
+        admin: "অ্যাডমিন",
+        install: "ইনস্টল করুন",
+        official: "অফিসিয়াল",
+        notice: "স্মার্ট খুলনা জেলা ডিজিটাল নাগরিক সেবা ডিরেক্টরি প্ল্যাটফর্মে আপনাকে স্বাগতম • জেলার সকল তথ্য ও সরকারি সেবা এখন হাতের মুঠোয় • স্মার্ট খুলনা অ্যাপ ব্যবহার করে দ্রুত সেবা গ্রহণ করুন • ২৪/৭ নাগরিক সহায়তা এবং কমিউনিটি সোশ্যাল ফিড",
+        noticeLabel: "নোটিশ",
+        districtPortal: "স্মার্ট জেলা পোর্টাল",
+        searchPlaceholder: "যেকোনো সেবা বা তথ্য খুঁজুন...",
+        allDistricts: "সব জেলা",
+        themeDark: "ডার্ক মোড",
+        themeLight: "লাইট মোড",
+        login: "লগইন",
+        logout: "লগআউট",
+        profile: "আমার প্রোফাইল",
+        adminPanel: "অ্যাডমিন প্যানেল",
+      },
+      en: {
+        title: "Smart Khulna",
+        subtitle: "Khulna District Digital Citizen Service Directory",
+        home: "Home",
+        community: "Community",
+        messaging: "Messages",
+        blood: "Blood Donation",
+        downloads: "Downloads",
+        admin: "Admin",
+        install: "Install",
+        official: "OFFICIAL",
+        notice: "Welcome to the Smart Khulna District Digital Citizen Service Directory • All information and government services are at your fingertips • Use Smart Khulna App for faster services • 24/7 Citizen Support and Community Social Feed",
+        noticeLabel: "Notice",
+        districtPortal: "Smart District Portal",
+        searchPlaceholder: "Search services or info...",
+        allDistricts: "All Districts",
+        themeDark: "Dark Mode",
+        themeLight: "Light Mode",
+        login: "Login",
+        logout: "Logout",
+        profile: "My Profile",
+        adminPanel: "Admin Panel",
+      }
+    };
+    return dictionary[lang][key] || key;
+  };
+
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
@@ -2694,13 +2754,29 @@ export default function App() {
         
         {/* STICKY TOP HEADER (Phase 1 Redesign) */}
         <header className="flex-shrink-0 bg-white dark:bg-slate-950 backdrop-blur-md border-b border-emerald-100 dark:border-slate-800 z-50 shadow-sm">
-          {/* Top Scrolling Marquee */}
-          <div className="bg-emerald-950 text-emerald-300 py-1 px-4 overflow-hidden whitespace-nowrap border-b border-emerald-900/50 flex items-center gap-3">
-            <div className="flex-shrink-0 bg-emerald-800 text-white text-[8px] font-black px-2 py-0.5 rounded-sm uppercase tracking-tighter shadow-sm border border-emerald-700 animate-pulse">
-              নোটিশ
+          {/* Top Scrolling Marquee (Bengal Tiger Style) */}
+          <div className="bg-emerald-950 text-emerald-300 py-1.5 px-4 overflow-hidden whitespace-nowrap border-b border-emerald-900/50 flex items-center relative select-none">
+            {/* Left: Notice Button - solid background masks the text as it enters inside */}
+            <div className="z-10 bg-emerald-950 pr-3 flex items-center shrink-0">
+              <div className="flex-shrink-0 bg-emerald-800 text-white text-[9px] font-black px-2.5 py-0.5 rounded-md uppercase tracking-wider shadow-sm border border-emerald-700 animate-pulse flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping shrink-0" />
+                {t('noticeLabel')}
+              </div>
             </div>
-            <div className="animate-marquee inline-block text-[9px] font-bold uppercase tracking-widest">
-              স্মার্ট খুলনা জেলা ডিজিটাল নাগরিক সেবা ডিরেক্টরি প্ল্যাটফর্মে আপনাকে স্বাগতম • জেলার সকল তথ্য ও সরকারি সেবা এখন হাতের মুঠোয় • স্মার্ট খুলনা অ্যাপ ব্যবহার করে দ্রুত সেবা গ্রহণ করুন • ২৪/৭ নাগরিক সহায়তা এবং কমিউনিটি সোশ্যাল ফিড
+
+            {/* Middle: Scrolling track */}
+            <div className="flex-1 overflow-hidden relative h-4 mx-1">
+              <div className="animate-marquee absolute whitespace-nowrap text-[9px] font-bold tracking-widest leading-4 pr-10">
+                {t('notice')}
+              </div>
+            </div>
+
+            {/* Right: Bengal Tiger - Text emerges from its mouth */}
+            <div className="z-10 bg-emerald-950 pl-3 flex items-center shrink-0 relative">
+              <div className="flex items-center gap-1 animate-bounce duration-1000">
+                <span className="text-[10px] scale-x-[-1] inline-block animate-pulse text-amber-500 font-black">🐅</span>
+                <span className="text-base" title="খুলনার গর্ব: রয়্যাল বেঙ্গল টাইগার">🐯</span>
+              </div>
             </div>
           </div>
 
@@ -2718,29 +2794,40 @@ export default function App() {
                 K
               </div>
               <div className="hidden xs:block">
-                <div className="flex items-center gap-1">
-                  <span className="text-base font-extrabold text-emerald-950 dark:text-emerald-300 tracking-tight font-serif uppercase">Smart Khulna</span>
-                  <span className="text-[9px] bg-emerald-600 text-white font-bold px-1 rounded shadow-xs">OFFICIAL</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-base font-black text-emerald-950 dark:text-emerald-300 tracking-tight font-serif">স্মার্ট খুলনা</span>
+                  <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold font-serif uppercase">Smart Khulna</span>
+                  <span className="text-[9px] bg-emerald-600 text-white font-bold px-1 rounded shadow-xs">{t('official')}</span>
                 </div>
                 <div className="flex items-center gap-1.5 -mt-0.5">
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-serif font-bold whitespace-nowrap">খুলনা জেলা ডিজিটাল নাগরিক সেবা ডিরেক্টরি</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-serif font-bold whitespace-nowrap">{t('subtitle')}</span>
                   <span className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full" />
-                  <span className="text-[9px] text-emerald-700 dark:text-emerald-500 font-bold">স্মার্ট খুলনা পোর্টাল</span>
+                  <span className="text-[9px] text-emerald-700 dark:text-emerald-500 font-bold">{t('title')} পোর্টাল</span>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
+            {/* Language Switcher */}
+            <button
+              onClick={() => setLang(lang === 'bn' ? 'en' : 'bn')}
+              className="text-[10px] sm:text-xs bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-extrabold py-1.5 px-2.5 rounded-full flex items-center gap-1 transition cursor-pointer"
+              title="ভাষা পরিবর্তন করুন / Switch Language"
+            >
+              <Globe size={12} />
+              <span>{lang === 'bn' ? 'EN' : 'বাং'}</span>
+            </button>
+
             {/* Install PWA Prompt Button */}
             {isInstallable && (
               <button
                 onClick={installPWA}
                 className="text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-1.5 px-2.5 rounded-full flex items-center gap-1 shadow-sm transition animate-pulse cursor-pointer"
-                title="অ্যাপ ইনস্টল করুন"
+                title={t('install')}
               >
                 <Download size={13} />
-                <span className="hidden xs:inline">ইনস্টল করুন</span>
+                <span className="hidden xs:inline">{t('install')}</span>
               </button>
             )}
 
@@ -2749,13 +2836,13 @@ export default function App() {
               className="text-[10px] sm:text-xs bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold py-1.5 px-2 sm:px-3 rounded-full flex items-center gap-1 transition"
             >
               <Map size={12} />
-              <span>সকল</span> <span className="hidden sm:inline">জেলা</span>
+              <span>{t('allDistricts')}</span>
             </button>
 
             <button
               onClick={() => setDarkMode(prev => !prev)}
               className="p-1.5 sm:p-2 text-emerald-900 hover:bg-emerald-50 dark:text-emerald-100 dark:hover:bg-slate-800 rounded-full cursor-pointer transition-colors"
-              title={darkMode ? "লাইট মোড" : "ডার্ক মোড"}
+              title={darkMode ? t('themeLight') : t('themeDark')}
             >
               {darkMode ? <Sun size={18} /> : <Moon size={18} />}
             </button>
@@ -3389,6 +3476,7 @@ export default function App() {
                       setShowCreatePostModal(true);
                     }}
                     onRequireAuth={requireAuth}
+                    lang={lang}
                   />
                 ) : (
                   <>

@@ -175,6 +175,14 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // 15. Blood Donors: Public read, owner or admin write
+    match /blood_donors/{donorId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isSuperAdmin());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isSuperAdmin());
+    }
+
     // Default deny all other paths
     match /{document=**} {
       allow read, write: if false;

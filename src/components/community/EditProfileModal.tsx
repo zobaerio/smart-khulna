@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Save, Camera, MapPin, Briefcase, Droplets, Facebook, Twitter, Instagram, Linkedin, Globe, Phone, User, Info } from 'lucide-react';
+import { X, Save, Camera, MapPin, Briefcase, Droplets, Facebook, Twitter, Instagram, Linkedin, Globe, Phone, User, Info, Image as ImageIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { District } from '../../dbData';
 
