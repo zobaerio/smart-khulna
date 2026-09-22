@@ -62,6 +62,18 @@ export interface AuditLog {
   newValue?: string;
 }
 
+export interface SubAdminPermissions {
+  canManageServices?: boolean;
+  canManageSubmissions?: boolean;
+  canModeratePosts?: boolean;
+  canManageReports?: boolean;
+  canManageBanners?: boolean;
+  canManageDownloads?: boolean;
+  canViewUsers?: boolean;
+  canViewLogs?: boolean;
+  canDeleteServices?: boolean;
+}
+
 export interface UserProfile {
   uid: string;
   name: string;
@@ -89,7 +101,9 @@ export interface UserProfile {
   subAdminScope?: {
     districtId?: string;
     categoryId?: string;
+    permissions?: SubAdminPermissions;
   };
+  subAdminPermissions?: SubAdminPermissions;
 }
 
 export interface Banner {
