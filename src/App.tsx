@@ -2976,8 +2976,10 @@ export default function App() {
         {/* MAIN PAGE CONTAINER */}
         <main className="flex-1 min-h-0 overflow-hidden relative flex flex-col">
           <div className={`flex-1 min-h-0 flex flex-col ${
-            (activeTab === 'messages' || activeTab === 'profile') 
+            activeTab === 'messages' 
               ? 'h-full overflow-hidden' 
+              : activeTab === 'profile'
+              ? 'h-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain custom-chat-scrollbar'
               : activeTab === 'services'
               ? 'h-full overflow-hidden p-4 pb-1'
               : 'p-4 overflow-y-auto space-y-5'
@@ -3949,7 +3951,7 @@ export default function App() {
 
             {/* TAB VIEW - PROFILE & ADMIN CONTROL PANEL PANEL */}
             {activeTab === 'profile' && (
-              <div className="space-y-4">
+              <div className="w-full flex-1 min-h-0 flex flex-col space-y-4 pb-24 md:pb-12">
                 {(userProfile?.role === 'super_admin' || userProfile?.role === 'sub_admin') && adminView && (
                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <AdminPanelComplete

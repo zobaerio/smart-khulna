@@ -286,7 +286,7 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
   }, [following, memberSearchQuery]);
 
   return (
-    <div className="bg-white dark:bg-slate-950 min-h-screen">
+    <div className="bg-white dark:bg-slate-950 w-full min-h-full pb-8">
       {/* Top Navigation Bar (Sticky when scrolling down) */}
       <div className="sticky top-0 z-30 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 px-4 py-2.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
