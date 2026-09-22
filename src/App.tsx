@@ -2977,7 +2977,7 @@ export default function App() {
         <main className="flex-1 min-h-0 overflow-hidden relative flex flex-col">
           <div className={`flex-1 min-h-0 flex flex-col ${
             activeTab === 'messages' 
-              ? 'h-full overflow-hidden' 
+              ? 'h-full max-h-full flex-1 min-h-0 overflow-hidden' 
               : activeTab === 'profile'
               ? 'h-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain custom-chat-scrollbar'
               : activeTab === 'services'
@@ -4119,7 +4119,7 @@ export default function App() {
 
             {/* TAB VIEW - MESSAGING CENTER */}
             {activeTab === 'messages' && (
-              <div className="flex-1 min-h-0 h-full w-full overflow-hidden p-0 sm:p-2 md:p-3 flex flex-col">
+              <div className="flex-1 min-h-0 h-full max-h-full w-full overflow-hidden p-0 sm:p-2 md:p-3 flex flex-col">
                 <MessagingCenter
                   currentUserId={currentUser?.uid || null}
                   currentUserEmail={currentUser?.email || null}

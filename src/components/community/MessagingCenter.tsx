@@ -335,21 +335,23 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 md:rounded-3xl md:border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden h-full w-full flex-1 min-h-0 flex flex-col md:flex-row">
+    <div className="bg-white dark:bg-slate-900 md:rounded-3xl md:border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden h-full max-h-full w-full flex-1 min-h-0 flex flex-col md:flex-row">
       {/* LEFT COLUMN: CONVERSATION LIST */}
       <div
-        className={`w-full md:w-80 lg:w-96 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50/50 dark:bg-slate-950/50 h-full min-h-0 shrink-0 ${
+        id="messages-conversation-sidebar"
+        className={`w-full md:w-80 lg:w-96 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50/50 dark:bg-slate-950/50 flex-1 md:flex-initial h-full max-h-full min-h-0 overflow-hidden md:shrink-0 ${
           mobileShowChat ? 'hidden md:flex' : 'flex'
         }`}
       >
         {/* LIST HEADER (FIXED TOP) */}
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3 shrink-0 z-10">
+        <div id="messages-list-header" className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3 shrink-0 z-10">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-bold text-slate-900 dark:text-white font-serif flex items-center gap-2">
               <MessageCircle size={18} className="text-emerald-700 dark:text-emerald-400" />
               মেসেজ
             </h2>
             <button
+              id="new-chat-header-btn"
               onClick={() => setShowNewChatModal(true)}
               className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
             >
@@ -361,6 +363,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
           <div className="relative">
             <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
             <input
+              id="messages-search-input"
               type="text"
               value={chatSearchQuery}
               onChange={e => setChatSearchQuery(e.target.value)}
@@ -371,7 +374,11 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
         </div>
 
         {/* CONVERSATION ITEMS (ONLY THIS AREA SCROLLS) */}
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain custom-chat-scrollbar divide-y divide-slate-100 dark:divide-slate-800/60 pb-20 md:pb-6">
+        <div
+          id="messages-conversation-list"
+          className="flex-1 min-h-0 h-0 w-full overflow-y-auto overflow-x-hidden overscroll-contain conversation-list-scroll divide-y divide-slate-100 dark:divide-slate-800/60 pb-28 md:pb-8 touch-pan-y"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
           {filteredConversations.length === 0 ? (
             <div className="p-8 text-center text-xs text-slate-400 dark:text-slate-500 space-y-2.5 my-auto flex flex-col items-center justify-center min-h-[250px]">
               <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 dark:text-slate-500">
@@ -400,11 +407,12 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
               return (
                 <button
                   key={conv.id}
+                  id={`conversation-item-${conv.id}`}
                   onClick={() => {
                     onSelectConversation(conv.id);
                     setMobileShowChat(true);
                   }}
-                  className={`w-full p-3.5 flex items-start gap-3 text-left transition cursor-pointer hover:bg-slate-100/70 dark:hover:bg-slate-800/60 ${
+                  className={`w-full p-3.5 flex items-start gap-3 text-left transition cursor-pointer hover:bg-slate-100/70 dark:hover:bg-slate-800/60 touch-pan-y ${
                     isActive ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-r-4 border-emerald-700 dark:border-emerald-500' : ''
                   }`}
                 >
