@@ -8,15 +8,16 @@ interface LuxuryNoticeTickerProps {
 }
 
 /**
- * Luxury Announcement Ticker (নোটিশ বার)
+ * Slim Luxury Top Notice Header (Smart Khulna)
  * 
  * Features:
- * - Frosted glass background with deep green gradient (#04281E -> #064E3B -> #0B7A4B)
- * - Glowing rounded pill badge for "নোটিশ" with Material 3 elevation & soft pulse
- * - Tiny animated notification indicator with expanding soft ripple effect
- * - 60 FPS continuous smooth ticker with fade-in/fade-out edge masks
- * - Touch & hover to pause for easy reading
- * - Sundarbans Bengal Tiger Mascot seamlessly integrated on the right
+ * - 35-40% reduced height (h-[30px] to h-[32px]), matching the sleek "নোটিশ" button height
+ * - Dark emerald gradient (#064E3B → #0B7A4B)
+ * - 18px rounded corners with premium glass effect & subtle shadow
+ * - Glowing pill badge for "নোটিশ" with ripple indicator
+ * - Small, non-oversized Sundarbans Royal Bengal Tiger facing left
+ * - Seamless illusion of scrolling text emerging naturally from the tiger's cheek/mouth area
+ * - Smooth 60 FPS marquee scrolling with soft fade edges and pause on hover/touch
  */
 export const LuxuryNoticeTicker: React.FC<LuxuryNoticeTickerProps> = ({
   noticeText,
@@ -24,56 +25,75 @@ export const LuxuryNoticeTicker: React.FC<LuxuryNoticeTickerProps> = ({
   id = 'luxury-notice-ticker'
 }) => {
   return (
-    <div
-      id={id}
-      className="relative w-full bg-gradient-to-r from-[#04281E] via-[#064E3B] to-[#04281E] border-b border-emerald-600/30 dark:border-emerald-900/60 shadow-sm z-30 select-none overflow-hidden"
-    >
-      {/* Subtle Top Gold Highlight Line */}
-      <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-[#D4AF37]/40 to-transparent" />
+    <div className="w-full px-2 sm:px-3 pt-1.5 pb-1 shrink-0 select-none">
+      <div
+        id={id}
+        className="relative mx-auto max-w-7xl h-[30px] sm:h-[32px] rounded-[18px] bg-gradient-to-r from-[#064E3B] via-[#085C3E] to-[#0B7A4B] backdrop-blur-md border border-emerald-400/30 dark:border-emerald-500/25 shadow-xs shadow-emerald-950/20 flex items-center justify-between px-2 sm:px-2.5 overflow-hidden"
+      >
+        {/* Top Gold Specular Sheen (Subtle hairline highlight) */}
+        <div className="absolute top-0 inset-x-4 h-[1px] bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent pointer-events-none" />
 
-      <div className="max-w-7xl mx-auto px-2.5 sm:px-4 py-1.5 flex items-center justify-between gap-2">
-        {/* LEFT: GLOWING NOTICE PILL BADGE */}
-        <div className="shrink-0 z-20 flex items-center">
-          <div className="relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-emerald-800 to-emerald-900 border border-[#D4AF37]/50 shadow-md shadow-emerald-950/40 text-white">
-            {/* Animated Ripple Notification Indicator */}
+        {/* 1. LEFT: GLOWING "নোটিশ" PILL BADGE */}
+        <div className="relative z-20 shrink-0 flex items-center pr-1">
+          <div className="h-[21px] sm:h-[22px] px-2 sm:px-2.5 rounded-full bg-emerald-950/85 hover:bg-emerald-900/90 text-white border border-[#D4AF37]/70 shadow-xs flex items-center gap-1.5 transition-colors duration-150">
+            {/* Soft Ripple Notification Indicator */}
             <span className="relative flex h-2 w-2 items-center justify-center">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-400 shadow-[0_0_8px_#F59E0B]" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-400 shadow-[0_0_6px_#FB7185]" />
             </span>
 
-            {/* Glowing Text */}
-            <span className="text-[10px] font-black tracking-wider uppercase text-amber-200 drop-shadow-xs font-serif">
+            {/* Notice Label Text */}
+            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-amber-200 font-serif leading-none">
               {noticeLabel || 'নোটিশ'}
             </span>
           </div>
+
+          {/* Left Fade Mask Guard behind badge */}
+          <div className="absolute -right-3 inset-y-0 w-4 bg-gradient-to-r from-[#064E3B] to-transparent pointer-events-none" />
         </div>
 
-        {/* CENTER: 60 FPS SMOOTH TICKER TRACK WITH GRADIENT FADE-IN/OUT EDGES */}
-        <div className="flex-1 overflow-hidden relative h-5 mx-1 notice-fade-mask flex items-center">
-          <div className="animate-notice-ticker text-[10px] sm:text-[11px] font-medium tracking-wide text-emerald-100/90 hover:text-white transition-colors cursor-default whitespace-nowrap">
-            <span className="pr-12 inline-block">
+        {/* 2. CENTER: SMOOTH 60 FPS SCROLLING TEXT TRACK WITH FADE EDGES */}
+        <div className="flex-1 overflow-hidden relative h-5 mx-1 flex items-center notice-fade-mask">
+          <div className="animate-notice-ticker text-[10px] sm:text-[11px] font-medium tracking-wide text-emerald-100 hover:text-white transition-colors cursor-default whitespace-nowrap">
+            <span className="pr-12 inline-block font-serif">
               {noticeText}
             </span>
-            {/* Duplicate for seamless infinite 60fps loop */}
-            <span className="pr-12 inline-block">
+            {/* Seamless duplicate for infinite loop */}
+            <span className="pr-12 inline-block font-serif">
               {noticeText}
             </span>
           </div>
         </div>
 
-        {/* RIGHT: SUNDARBANS BENGAL TIGER MASCOT */}
-        <div className="shrink-0 z-20 flex items-center pl-1 sm:pl-2">
-          <div className="flex items-center gap-1.5 bg-emerald-950/80 px-1.5 py-0.5 rounded-full border border-emerald-700/40 shadow-xs">
-            <SundarbansTigerMascot size={26} />
-            <span className="text-[9px] font-extrabold text-amber-400 hidden sm:inline tracking-tight font-serif pr-1">
-              রয়্যাল বেঙ্গল
-            </span>
+        {/* 3. RIGHT: TIGER MASCOT ANNOUNCER (TEXT EMERGES FROM CHEEK/MOUTH) */}
+        <div className="relative z-20 shrink-0 flex items-center pl-1">
+          {/* Soft Speech / Breath Emission Gradient directly beside tiger's cheek/mouth */}
+          <div className="absolute -left-5 inset-y-0 w-6 bg-gradient-to-r from-transparent to-[#0B7A4B] pointer-events-none" />
+
+          {/* Micro Soundwave / Voice Pulse Visual cue */}
+          <div 
+            className="flex items-center -space-x-0.5 text-amber-300/80 mr-0.5 pointer-events-none select-none"
+            title="বাঘের মুখের ঘোষণা"
+            aria-hidden="true"
+          >
+            <span className="text-[9px] animate-pulse font-black leading-none">‹</span>
+            <span className="text-[7px] animate-pulse opacity-60 font-black leading-none -ml-0.5">‹</span>
+          </div>
+
+          {/* Compact Sundarbans Bengal Tiger facing Left towards the text */}
+          <div className="relative flex items-center justify-center">
+            <SundarbansTigerMascot
+              size={26}
+              facingLeft={true}
+              showTooltip={true}
+              className="drop-shadow-xs"
+            />
           </div>
         </div>
+
+        {/* Bottom Ambient Glow Edge */}
+        <div className="absolute bottom-0 inset-x-4 h-[1px] bg-gradient-to-r from-transparent via-emerald-400/20 to-transparent pointer-events-none" />
       </div>
-
-      {/* Subtle Bottom Glow Line */}
-      <div className="absolute bottom-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
     </div>
   );
 };

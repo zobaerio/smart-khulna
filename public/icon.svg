@@ -1,97 +1,83 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <!-- Main Background Gradient: Emerald to Deep Forest Green -->
-    <linearGradient id="skBgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+    <!-- Background Squircle Gradient: Emerald Green to Deep Forest Green -->
+    <linearGradient id="kLogoBg" x1="50" y1="50" x2="460" y2="460" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#0B7A4B" />
-      <stop offset="55%" stop-color="#064E3B" />
-      <stop offset="100%" stop-color="#032D22" />
+      <stop offset="60%" stop-color="#064E3B" />
+      <stop offset="100%" stop-color="#022D22" />
     </linearGradient>
 
-    <!-- Royal Gold Gradient -->
-    <linearGradient id="skGoldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+    <!-- Royal Gold Accent Gradient -->
+    <linearGradient id="kLogoGold" x1="60" y1="60" x2="440" y2="440" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#FDE68A" />
-      <stop offset="35%" stop-color="#D4AF37" />
-      <stop offset="70%" stop-color="#B48B1C" />
+      <stop offset="40%" stop-color="#D4AF37" />
+      <stop offset="80%" stop-color="#B48B1C" />
       <stop offset="100%" stop-color="#F59E0B" />
     </linearGradient>
 
     <!-- Sundarbans Mangrove Leaf Gradient -->
-    <linearGradient id="skLeafGradient" x1="0%" y1="100%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#059669" />
-      <stop offset="40%" stop-color="#10B981" />
-      <stop offset="85%" stop-color="#34D399" />
-      <stop offset="100%" stop-color="#6EE7B7" />
+    <linearGradient id="kLeafGrad" x1="180" y1="110" x2="420" y2="280" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6EE7B7" />
+      <stop offset="35%" stop-color="#34D399" />
+      <stop offset="80%" stop-color="#10B981" />
+      <stop offset="100%" stop-color="#059669" />
     </linearGradient>
 
-    <!-- River Wave Gradient -->
-    <linearGradient id="skRiverGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#34D399" stop-opacity="0.3" />
-      <stop offset="50%" stop-color="#D4AF37" stop-opacity="0.5" />
-      <stop offset="100%" stop-color="#6EE7B7" stop-opacity="0.2" />
-    </linearGradient>
-
-    <!-- Glass Specular Highlight -->
-    <linearGradient id="skGlassSpecular" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.35" />
-      <stop offset="60%" stop-color="#FFFFFF" stop-opacity="0.08" />
+    <!-- Specular Glass Highlight -->
+    <linearGradient id="kGlassReflection" x1="256" y1="0" x2="256" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.32" />
+      <stop offset="65%" stop-color="#FFFFFF" stop-opacity="0.06" />
       <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
     </linearGradient>
 
     <!-- Drop Shadow Filter -->
-    <filter id="skShadow" x="-10%" y="-10%" width="125%" height="125%">
-      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#021C15" flood-opacity="0.45" />
-      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.25" />
+    <filter id="kIconShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="24" stdDeviation="22" flood-color="#011F17" flood-opacity="0.45" />
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.25" />
     </filter>
   </defs>
 
-  <!-- Squircle Rounded-Square Container -->
-  <rect x="20" y="20" width="472" height="472" rx="118" fill="url(#skBgGradient)" filter="url(#skShadow)" />
+  <!-- 1. Squircle Rounded-Square Container -->
+  <rect x="20" y="20" width="472" height="472" rx="124" fill="url(#kLogoBg)" filter="url(#kIconShadow)" />
 
-  <!-- Gold Outer Rim Border -->
-  <rect x="20" y="20" width="472" height="472" rx="118" fill="none" stroke="url(#skGoldGradient)" stroke-width="7" stroke-opacity="0.8" />
+  <!-- 2. Premium Outer Gold Rim Border -->
+  <rect x="20" y="20" width="472" height="472" rx="124" fill="none" stroke="url(#kLogoGold)" stroke-width="7.5" stroke-opacity="0.85" />
 
-  <!-- Subtle Dashed Perimeter -->
-  <rect x="36" y="36" width="440" height="440" rx="102" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-opacity="0.18" stroke-dasharray="14 10" />
+  <!-- 3. Inner White Frame -->
+  <rect x="38" y="38" width="436" height="436" rx="106" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-opacity="0.15" />
 
-  <!-- Glass Specular Highlight Arc -->
-  <path d="M 24 135 C 24 72 72 24 135 24 L 377 24 C 440 24 488 72 488 135 C 488 185 380 220 256 220 C 132 220 24 185 24 135 Z" fill="url(#skGlassSpecular)" />
+  <!-- 4. Top Glass Specular Arc -->
+  <path d="M 26 130 C 26 70 70 26 130 26 L 382 26 C 442 26 486 70 486 130 C 486 195 385 225 256 225 C 127 225 26 195 26 130 Z" fill="url(#kGlassReflection)" />
 
-  <!-- Rupsha Bridge & River Landmark Silhouette in Background -->
-  <g opacity="0.35">
-    <path d="M 75 380 Q 256 265 437 380" fill="none" stroke="#D4AF37" stroke-width="5" stroke-dasharray="8 8" />
-    <line x1="75" y1="385" x2="437" y2="385" stroke="#FFFFFF" stroke-width="4" stroke-opacity="0.4" />
-    <path d="M 90 415 Q 175 400 256 415 T 422 415" fill="none" stroke="url(#skRiverGradient)" stroke-width="7" stroke-linecap="round" />
-  </g>
+  <!-- 5. ICONIC 'K' + GREEN LEAF EMBLEM -->
+  <g id="k-leaf-monogram">
+    <!-- Vertical Stem of 'K' -->
+    <rect x="122" y="102" width="72" height="308" rx="24" fill="#FFFFFF" />
 
-  <!-- MAIN EMBLEM: BOLD "K" + LEAF + ARCHITECTURE -->
-  <g id="brand-k-group">
-    <!-- Vertical Column / Architectural Minaret Stem -->
-    <path d="M 130 115 C 130 102 140 92 153 92 L 191 92 C 204 92 214 102 214 115 L 214 388 C 214 401 204 411 191 411 L 153 411 C 140 411 130 401 130 388 Z" fill="#FFFFFF" />
-    
-    <!-- Golden Accent Line on Column -->
-    <path d="M 143 110 L 151 110 L 151 393 L 143 393 Z" fill="url(#skGoldGradient)" />
-    <!-- Minaret Dome Peak -->
-    <path d="M 151 92 C 151 70 193 70 193 92 Z" fill="url(#skGoldGradient)" />
+    <!-- Stem Gold Inlay Accent -->
+    <rect x="135" y="118" width="11" height="276" rx="5.5" fill="url(#kLogoGold)" opacity="0.9" />
 
-    <!-- Upper Arm: Organic Sundarbans Mangrove Leaf -->
-    <path d="M 201 235 C 222 201 273 141 350 103 C 380 88 402 98 402 116 C 402 168 350 236 278 283 C 248 302 218 288 201 262 Z" fill="url(#skLeafGradient)" />
-    
-    <!-- Golden Leaf Spine & Veins -->
-    <path d="M 214 244 Q 291 176 372 112" fill="none" stroke="url(#skGoldGradient)" stroke-width="7.5" stroke-linecap="round" />
-    <path d="M 265 202 Q 308 190 334 169 M 295 176 Q 334 151 359 130" fill="none" stroke="#FFFFFF" stroke-width="3.5" stroke-opacity="0.6" stroke-linecap="round" />
+    <!-- UPPER ARM: ORGANIC VIBRANT GREEN LEAF -->
+    <path d="M 190 241 C 215 200 266 138 348 97 C 389 77 415 89 415 112 C 415 169 364 241 282 292 C 246 315 210 292 190 261 Z" fill="url(#kLeafGrad)" />
 
-    <!-- Lower Leg: Rupsha Bridge Twin Cable Arch -->
-    <path d="M 214 252 L 321 384 C 332 397 347 405 364 405 L 393 405 C 406 405 412 390 403 380 L 291 240 C 278 223 235 227 214 252 Z" fill="#FFFFFF" />
-    <!-- Gold Trim along Bridge Leg -->
-    <path d="M 239 269 L 359 392 L 372 392 L 261 260 Z" fill="url(#skGoldGradient)" />
+    <!-- Golden Leaf Central Spine/Vein -->
+    <path d="M 200 251 Q 287 174 379 107" fill="none" stroke="url(#kLogoGold)" stroke-width="9" stroke-linecap="round" />
 
-    <!-- Center Convergence Gold Crest Node -->
-    <circle cx="218" cy="248" r="19" fill="url(#skGoldGradient)" />
-    <circle cx="218" cy="248" r="8.5" fill="#FFFFFF" />
+    <!-- Delicate Side Vein Details -->
+    <path d="M 256 210 Q 302 195 333 169 M 292 179 Q 338 154 364 128" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-opacity="0.75" stroke-linecap="round" />
 
-    <!-- Gold Civic Beacon at Leaf Apex -->
-    <circle cx="380" cy="100" r="22" fill="url(#skGoldGradient)" />
-    <circle cx="380" cy="100" r="11" fill="#FFFFFF" />
-    <path d="M 380 66 L 386 94 L 414 100 L 386 106 L 380 134 L 374 106 L 346 100 L 374 94 Z" fill="#FFFFFF" opacity="0.9" />
+    <!-- Tiny Golden Dewdrop Beacon at Leaf Tip -->
+    <circle cx="389" cy="92" r="16" fill="url(#kLogoGold)" />
+    <circle cx="389" cy="92" r="7" fill="#FFFFFF" />
+
+    <!-- LOWER ARM: BOLD GEOMETRIC K LEG -->
+    <path d="M 205 256 L 323 389 C 336 405 354 410 374 410 L 400 410 C 415 410 423 392 413 379 L 287 236 C 269 215 226 225 205 256 Z" fill="#FFFFFF" />
+
+    <!-- Gold Inset on the Lower Leg -->
+    <path d="M 231 277 L 364 400 L 379 400 L 256 261 Z" fill="url(#kLogoGold)" opacity="0.95" />
+
+    <!-- Central Intersection Gold Joint Node -->
+    <circle cx="213" cy="251" r="18" fill="url(#kLogoGold)" />
+    <circle cx="213" cy="251" r="8" fill="#FFFFFF" />
   </g>
 </svg>
