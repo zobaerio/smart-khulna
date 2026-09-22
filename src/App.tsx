@@ -151,6 +151,8 @@ import { ReportModal } from './components/community/ReportModal';
 import { EditProfileModal } from './components/community/EditProfileModal';
 import { ProfileSettingsModal } from './components/community/ProfileSettingsModal';
 import { getSafeAvatarUrl } from './lib/avatarHelper';
+import { SmartKhulnaHeader } from './components/common/SmartKhulnaHeader';
+import { SmartKhulnaLogo } from './components/common/SmartKhulnaLogo';
 
 // Category Color Scheme Mapping for Compact Visual Cards
 const getCategoryStyle = (catId: string) => {
@@ -2725,9 +2727,7 @@ export default function App() {
           <div>
             <div className="flex items-center gap-3 mb-6">
               {/* Modern K Monogram Leaf Logo */}
-              <div className="w-11 h-11 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg border border-lime-400 shrink-0">
-                <span className="text-xl font-black text-white tracking-widest relative">K<span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-lime-400 rounded-full animate-ping"></span></span>
-              </div>
+              <SmartKhulnaLogo size={44} showGlow={true} />
               <div>
                 <h1 className="text-lg font-bold tracking-tight text-white font-serif">স্মার্ট খুলনা</h1>
                 <p className="text-[10px] text-lime-400 font-medium">Smart Khulna local platform</p>
@@ -2862,116 +2862,23 @@ export default function App() {
       {/* PRIMARY INTERACTIVE PORTAL (Mobile viewport layout on small screens, expands nicely) */}
       <div className="flex-1 flex flex-col h-[100dvh] max-h-[100dvh] bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 relative overflow-hidden">
         
-        {/* STICKY TOP HEADER (Phase 1 Redesign) */}
-        <header className="sticky top-0 bg-white dark:bg-slate-950 backdrop-blur-md border-b border-emerald-100 dark:border-slate-800 z-50 shadow-sm shrink-0">
-          {/* Top Scrolling Marquee (Bengal Tiger Style) */}
-          <div className="bg-emerald-950 text-emerald-300 py-1.5 px-4 overflow-hidden whitespace-nowrap border-b border-emerald-900/50 flex items-center relative select-none">
-            {/* Left: Notice Button - solid background masks the text as it enters inside */}
-            <div className="z-10 bg-emerald-950 pr-3 flex items-center shrink-0">
-              <div className="flex-shrink-0 bg-emerald-800 text-white text-[9px] font-black px-2.5 py-0.5 rounded-md uppercase tracking-wider shadow-sm border border-emerald-700 animate-pulse flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping shrink-0" />
-                {t('noticeLabel')}
-              </div>
-            </div>
+        {/* STICKY TOP HEADER (Ultra-Premium Production-Ready Civic Tech Header) */}
+        <SmartKhulnaHeader
+          onOpenDrawer={() => setIsDrawerOpen(true)}
+          onNavigateHome={() => navigateTo('home')}
+          lang={lang}
+          onToggleLang={() => setLang(lang === 'bn' ? 'en' : 'bn')}
+          isInstallable={isInstallable}
+          onInstallPWA={installPWA}
+          viewingDistrictId={viewingDistrictId}
+          onToggleDistricts={() => setViewingDistrictId(viewingDistrictId ? null : 'all')}
+          darkMode={darkMode}
+          onToggleDarkMode={() => setDarkMode(prev => !prev)}
+          totalUnreadNotifications={totalUnreadNotifications}
+          onToggleNotifications={() => setShowNotificationCenter(prev => !prev)}
+          t={t}
+        />
 
-            {/* Middle: Scrolling track */}
-            <div className="flex-1 overflow-hidden relative h-4 mx-1">
-              <div className="animate-marquee absolute whitespace-nowrap text-[9px] font-bold tracking-widest leading-4 pr-10">
-                {t('notice')}
-              </div>
-            </div>
-
-            {/* Right: Bengal Tiger - Text emerges from its mouth */}
-            <div className="z-10 bg-emerald-950 pl-3 flex items-center shrink-0 relative">
-              <div className="flex items-center gap-1 animate-bounce duration-1000">
-                <span className="text-[10px] scale-x-[-1] inline-block animate-pulse text-amber-500 font-black">🐅</span>
-                <span className="text-base" title="খুলনার গর্ব: রয়্যাল বেঙ্গল টাইগার">🐯</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="px-4 py-2.5 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsDrawerOpen(true)}
-              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-850 rounded-lg text-slate-700 dark:text-slate-300 md:hidden cursor-pointer"
-              aria-label="Open menu"
-            >
-              <Menu size={20} />
-            </button>
-            <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigateTo('home')}>
-              <div className="w-9 h-9 bg-emerald-700 rounded-xl flex items-center justify-center text-white font-black text-sm border border-lime-400 shrink-0 shadow-inner">
-                K
-              </div>
-              <div className="hidden xs:block">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-base font-black text-emerald-950 dark:text-emerald-300 tracking-tight font-serif">স্মার্ট খুলনা</span>
-                  <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold font-serif uppercase">Smart Khulna</span>
-                  <span className="text-[9px] bg-emerald-600 text-white font-bold px-1 rounded shadow-xs">{t('official')}</span>
-                </div>
-                <div className="flex items-center gap-1.5 -mt-0.5">
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-serif font-bold whitespace-nowrap">{t('subtitle')}</span>
-                  <span className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full" />
-                  <span className="text-[9px] text-emerald-700 dark:text-emerald-500 font-bold">{t('title')} পোর্টাল</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1 sm:gap-2">
-            {/* Language Switcher */}
-            <button
-              onClick={() => setLang(lang === 'bn' ? 'en' : 'bn')}
-              className="text-[10px] sm:text-xs bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-extrabold py-1.5 px-2.5 rounded-full flex items-center gap-1 transition cursor-pointer"
-              title="ভাষা পরিবর্তন করুন / Switch Language"
-            >
-              <Globe size={12} />
-              <span>{lang === 'bn' ? 'EN' : 'বাং'}</span>
-            </button>
-
-            {/* Install PWA Prompt Button */}
-            {isInstallable && (
-              <button
-                onClick={installPWA}
-                className="text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-1.5 px-2.5 rounded-full flex items-center gap-1 shadow-sm transition animate-pulse cursor-pointer"
-                title={t('install')}
-              >
-                <Download size={13} />
-                <span className="hidden xs:inline">{t('install')}</span>
-              </button>
-            )}
-
-            <button
-              onClick={() => setViewingDistrictId(viewingDistrictId ? null : 'all')}
-              className="text-[10px] sm:text-xs bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold py-1.5 px-2 sm:px-3 rounded-full flex items-center gap-1 transition"
-            >
-              <Map size={12} />
-              <span>{t('allDistricts')}</span>
-            </button>
-
-            <button
-              onClick={() => setDarkMode(prev => !prev)}
-              className="p-1.5 sm:p-2 text-emerald-900 hover:bg-emerald-50 dark:text-emerald-100 dark:hover:bg-slate-800 rounded-full cursor-pointer transition-colors"
-              title={darkMode ? t('themeLight') : t('themeDark')}
-            >
-              {darkMode ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-
-            <button
-              onClick={() => setShowNotificationCenter(prev => !prev)}
-              className="p-1.5 sm:p-2 text-emerald-900 hover:bg-emerald-50 dark:text-emerald-100 dark:hover:bg-slate-800 rounded-full relative cursor-pointer transition-colors"
-              title="বিজ্ঞপ্তি কেন্দ্র"
-            >
-              <Bell size={18} />
-              {totalUnreadNotifications > 0 && (
-                <span className="absolute top-1 right-1 px-1 min-w-3.5 h-3.5 bg-red-500 text-white rounded-full text-[8px] font-bold flex items-center justify-center border-2 border-white dark:border-slate-950">
-                  {totalUnreadNotifications}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-      </header>
 
         {/* MAIN PAGE CONTAINER */}
         <main className="flex-1 min-h-0 overflow-hidden relative flex flex-col">

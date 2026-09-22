@@ -198,3 +198,111 @@ html, body, #root {
 .conversation-list-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(16, 185, 129, 0.6);
 }
+
+/* ==========================================================================
+   Sundarbans Bengal Tiger Mascot Animation Keyframes (Hardware Accelerated)
+   ========================================================================== */
+
+@keyframes tigerBreathe {
+  0%, 100% {
+    transform: scaleY(1) translateY(0);
+  }
+  50% {
+    transform: scaleY(1.03) translateY(-0.8px);
+  }
+}
+
+@keyframes tigerBlink {
+  0%, 88%, 94%, 100% {
+    transform: scaleY(1);
+  }
+  91% {
+    transform: scaleY(0.08);
+  }
+}
+
+@keyframes tigerEarTwitch {
+  0%, 38%, 46%, 100% {
+    transform: rotate(0deg);
+  }
+  40% {
+    transform: rotate(8deg);
+  }
+  43% {
+    transform: rotate(-5deg);
+  }
+}
+
+@keyframes tigerTailWag {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  30% {
+    transform: rotate(6deg);
+  }
+  70% {
+    transform: rotate(-6deg);
+  }
+}
+
+@keyframes tigerSparkle {
+  0%, 100% {
+    transform: scale(0.75);
+    opacity: 0.25;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+}
+
+.tiger-breathe-anim {
+  animation: tigerBreathe 3.4s ease-in-out infinite;
+  will-change: transform;
+}
+
+.tiger-blink-anim {
+  animation: tigerBlink 4.2s ease-in-out infinite;
+  will-change: transform;
+}
+
+.tiger-ear-anim {
+  animation: tigerEarTwitch 4.8s ease-in-out infinite;
+  will-change: transform;
+}
+
+.tiger-tail-anim {
+  animation: tigerTailWag 3.2s ease-in-out infinite;
+  will-change: transform;
+}
+
+.tiger-sparkle-anim {
+  animation: tigerSparkle 2.6s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Luxury Notice Ticker 60 FPS continuous marquee & gradient edge fade */
+@keyframes noticeMarqueeContinuous {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-notice-ticker {
+  display: flex;
+  width: max-content;
+  animation: noticeMarqueeContinuous 32s linear infinite;
+  will-change: transform;
+}
+
+.animate-notice-ticker:hover {
+  animation-play-state: paused;
+}
+
+.notice-fade-mask {
+  mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent);
+}
