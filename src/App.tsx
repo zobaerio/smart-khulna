@@ -68,6 +68,7 @@ import {
   Globe,
   Linkedin,
   Droplets,
+  Waves,
   Loader2,
   Tractor,
   Sun,
@@ -148,6 +149,13 @@ import { UserProfileModal } from './components/community/UserProfileModal';
 import { NotificationCenter } from './components/community/NotificationCenter';
 import { CommunityModerationDashboard } from './components/community/CommunityModerationDashboard';
 import { ReportModal } from './components/community/ReportModal';
+import { BloodBankHub } from './components/features/BloodBankHub';
+import { TourismHub } from './components/features/TourismHub';
+import { DoctorFinderHub } from './components/features/DoctorFinderHub';
+import { WeatherTideHub } from './components/features/WeatherTideHub';
+import { CitizenFeedbackHub } from './components/features/CitizenFeedbackHub';
+import { LocalJobsHub } from './components/features/LocalJobsHub';
+import { ToLetHub } from './components/features/ToLetHub';
 import { EditProfileModal } from './components/community/EditProfileModal';
 import { ProfileSettingsModal } from './components/community/ProfileSettingsModal';
 import { getSafeAvatarUrl } from './lib/avatarHelper';
@@ -200,6 +208,7 @@ export default function App() {
   // Navigation & View State
   const [activeTab, setActiveTab] = useState<'home' | 'services' | 'community' | 'messages' | 'profile' | 'add' | 'saved' | 'download'>('home');
   const [servicesSubTab, setServicesSubTab] = useState<'directory' | 'blood'>('directory');
+  const [activeFeatureHub, setActiveFeatureHub] = useState<'blood-bank' | 'tourism' | 'doctors' | 'weather' | 'complaints' | 'jobs' | 'tolet' | null>(null);
   const [adminView, setAdminView] = useState<'dashboard' | 'submissions' | 'emergencies' | 'services' | 'logs' | 'settings' | 'downloads' | 'community_moderation' | null>(null);
 
   // Cross-Platform App & PWA Logic
@@ -530,6 +539,10 @@ export default function App() {
         if (dId && initialDistricts.some(d => d.id === dId)) {
           setSelectedDistrict(dId);
         }
+      }
+      const featParam = searchParams.get('feature');
+      if (featParam && ['blood-bank', 'tourism', 'doctors', 'weather', 'complaints', 'jobs', 'tolet'].includes(featParam)) {
+        setActiveFeatureHub(featParam as any);
       }
     };
     handleUrlRouting();
@@ -2669,6 +2682,53 @@ export default function App() {
                 <span className="flex items-center gap-2.5"><Plus size={16} /> নতুন তথ্য যোগ করুন</span>
               </button>
 
+              {/* Special Citizen Hubs in Drawer */}
+              <div className="pt-2 mt-2 border-t border-slate-800/80 space-y-0.5">
+                <p className="px-3.5 py-1 text-[10px] font-bold text-lime-400 uppercase tracking-wider">নাগরিক স্পেশাল হাব</p>
+                <button
+                  onClick={() => { setActiveFeatureHub('blood-bank'); setIsDrawerOpen(false); }}
+                  className="w-full text-left px-3.5 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 flex items-center gap-2.5 cursor-pointer"
+                >
+                  <Droplets size={15} className="text-red-400" /> রক্তদান নেটওয়ার্ক (SOS)
+                </button>
+                <button
+                  onClick={() => { setActiveFeatureHub('tourism'); setIsDrawerOpen(false); }}
+                  className="w-full text-left px-3.5 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 flex items-center gap-2.5 cursor-pointer"
+                >
+                  <Compass size={15} className="text-emerald-400" /> সুন্দরবন ও পর্যটন
+                </button>
+                <button
+                  onClick={() => { setActiveFeatureHub('doctors'); setIsDrawerOpen(false); }}
+                  className="w-full text-left px-3.5 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 flex items-center gap-2.5 cursor-pointer"
+                >
+                  <HeartPulse size={15} className="text-teal-400" /> ডাক্তার ও অ্যাম্বুলেন্স
+                </button>
+                <button
+                  onClick={() => { setActiveFeatureHub('weather'); setIsDrawerOpen(false); }}
+                  className="w-full text-left px-3.5 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 flex items-center gap-2.5 cursor-pointer"
+                >
+                  <Waves size={15} className="text-sky-400" /> আবহাওয়া ও জোয়ার-ভাটা
+                </button>
+                <button
+                  onClick={() => { setActiveFeatureHub('complaints'); setIsDrawerOpen(false); }}
+                  className="w-full text-left px-3.5 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 flex items-center gap-2.5 cursor-pointer"
+                >
+                  <MessageSquare size={15} className="text-indigo-400" /> নাগরিক অভিযোগ বক্স
+                </button>
+                <button
+                  onClick={() => { setActiveFeatureHub('jobs'); setIsDrawerOpen(false); }}
+                  className="w-full text-left px-3.5 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 flex items-center gap-2.5 cursor-pointer"
+                >
+                  <Briefcase size={15} className="text-amber-400" /> স্থানীয় চাকরির খবর
+                </button>
+                <button
+                  onClick={() => { setActiveFeatureHub('tolet'); setIsDrawerOpen(false); }}
+                  className="w-full text-left px-3.5 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 flex items-center gap-2.5 cursor-pointer"
+                >
+                  <Home size={15} className="text-blue-400" /> বাড়ি ভাড়া ও মেস (To-Let)
+                </button>
+              </div>
+
               {/* District Active Panel */}
               <div className="mt-4 bg-slate-800/85 p-3 rounded-xl border border-slate-700">
                 <p className="text-[10px] text-lime-400 font-bold uppercase tracking-wider mb-1">সক্রিয় জেলা</p>
@@ -2792,6 +2852,53 @@ export default function App() {
               >
                 <span className="flex items-center gap-2"><Plus size={15} /> নতুন তথ্য যোগ করুন</span>
               </button>
+
+              {/* Special Citizen Hubs in Sidebar */}
+              <div className="pt-2 mt-2 border-t border-slate-800/80 space-y-0.5">
+                <p className="px-3 py-1 text-[10px] font-bold text-lime-400 uppercase tracking-wider">নাগরিক স্পেশাল হাব</p>
+                <button
+                  onClick={() => setActiveFeatureHub('blood-bank')}
+                  className="w-full text-left px-3 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                >
+                  <Droplets size={14} className="text-red-400" /> রক্তদান নেটওয়ার্ক
+                </button>
+                <button
+                  onClick={() => setActiveFeatureHub('tourism')}
+                  className="w-full text-left px-3 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                >
+                  <Compass size={14} className="text-emerald-400" /> সুন্দরবন ও পর্যটন
+                </button>
+                <button
+                  onClick={() => setActiveFeatureHub('doctors')}
+                  className="w-full text-left px-3 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                >
+                  <HeartPulse size={14} className="text-teal-400" /> ডাক্তার ও অ্যাম্বুলেন্স
+                </button>
+                <button
+                  onClick={() => setActiveFeatureHub('weather')}
+                  className="w-full text-left px-3 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                >
+                  <Waves size={14} className="text-sky-400" /> আবহাওয়া ও জোয়ার-ভাটা
+                </button>
+                <button
+                  onClick={() => setActiveFeatureHub('complaints')}
+                  className="w-full text-left px-3 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                >
+                  <MessageSquare size={14} className="text-indigo-400" /> নাগরিক অভিযোগ বক্স
+                </button>
+                <button
+                  onClick={() => setActiveFeatureHub('jobs')}
+                  className="w-full text-left px-3 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                >
+                  <Briefcase size={14} className="text-amber-400" /> স্থানীয় চাকরির খবর
+                </button>
+                <button
+                  onClick={() => setActiveFeatureHub('tolet')}
+                  className="w-full text-left px-3 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                >
+                  <Home size={14} className="text-blue-400" /> বাড়ি ভাড়া ও মেস
+                </button>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -3107,6 +3214,112 @@ export default function App() {
                       </div>
                       <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 leading-tight">জাতীয় হেল্পলাইন</span>
                     </a>
+                  </div>
+                </section>
+
+                {/* 4.8 CITIZEN DIGITAL HUBS & SPECIAL DIRECTORIES */}
+                <section className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5 font-serif">
+                      <span className="text-base">🌟</span>
+                      <span>নাগরিক স্মার্ট ডিরেক্টরি ও সেবা</span>
+                    </h2>
+                    <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold px-2 py-0.5 rounded-full">
+                      ৭টি স্পেশাল হাব
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-7 gap-2 sm:gap-2.5">
+                    {/* 1. রক্তদান নেটওয়ার্ক */}
+                    <button
+                      onClick={() => setActiveFeatureHub('blood-bank')}
+                      className="bg-white dark:bg-slate-800 hover:bg-red-50/50 dark:hover:bg-red-950/20 border border-slate-100 dark:border-slate-700 hover:border-red-200 dark:hover:border-red-800 p-2 sm:p-2.5 rounded-2xl flex flex-col items-center justify-center text-center shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group aspect-square min-h-[82px]"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-950 text-red-600 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                        <Droplets size={20} className="fill-red-600" />
+                      </div>
+                      <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 group-hover:text-red-600 leading-tight">
+                        রক্তদান SOS
+                      </span>
+                    </button>
+
+                    {/* 2. সুন্দরবন ও পর্যটন */}
+                    <button
+                      onClick={() => setActiveFeatureHub('tourism')}
+                      className="bg-white dark:bg-slate-800 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 border border-slate-100 dark:border-slate-700 hover:border-emerald-200 dark:hover:border-emerald-800 p-2 sm:p-2.5 rounded-2xl flex flex-col items-center justify-center text-center shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group aspect-square min-h-[82px]"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                        <Compass size={20} />
+                      </div>
+                      <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 group-hover:text-emerald-700 leading-tight">
+                        সুন্দরবন ভ্রমণ
+                      </span>
+                    </button>
+
+                    {/* 3. ডাক্তার ও অ্যাম্বুলেন্স */}
+                    <button
+                      onClick={() => setActiveFeatureHub('doctors')}
+                      className="bg-white dark:bg-slate-800 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 border border-slate-100 dark:border-slate-700 hover:border-teal-200 dark:hover:border-teal-800 p-2 sm:p-2.5 rounded-2xl flex flex-col items-center justify-center text-center shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group aspect-square min-h-[82px]"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-950 text-teal-700 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                        <HeartPulse size={20} />
+                      </div>
+                      <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 group-hover:text-teal-700 leading-tight">
+                        ডাক্তার তালিকা
+                      </span>
+                    </button>
+
+                    {/* 4. আবহাওয়া ও জোয়ার-ভাটা */}
+                    <button
+                      onClick={() => setActiveFeatureHub('weather')}
+                      className="bg-white dark:bg-slate-800 hover:bg-sky-50/50 dark:hover:bg-sky-950/20 border border-slate-100 dark:border-slate-700 hover:border-sky-200 dark:hover:border-sky-800 p-2 sm:p-2.5 rounded-2xl flex flex-col items-center justify-center text-center shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group aspect-square min-h-[82px]"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-600 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                        <Waves size={20} />
+                      </div>
+                      <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 group-hover:text-sky-600 leading-tight">
+                        জোয়ার-ভাটা
+                      </span>
+                    </button>
+
+                    {/* 5. নাগরিক অভিযোগ */}
+                    <button
+                      onClick={() => setActiveFeatureHub('complaints')}
+                      className="bg-white dark:bg-slate-800 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 border border-slate-100 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-800 p-2 sm:p-2.5 rounded-2xl flex flex-col items-center justify-center text-center shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group aspect-square min-h-[82px]"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-950 text-indigo-700 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                        <MessageSquare size={20} />
+                      </div>
+                      <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 group-hover:text-indigo-700 leading-tight">
+                        নাগরিক অভিযোগ
+                      </span>
+                    </button>
+
+                    {/* 6. খুলনা জবস */}
+                    <button
+                      onClick={() => setActiveFeatureHub('jobs')}
+                      className="bg-white dark:bg-slate-800 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 border border-slate-100 dark:border-slate-700 hover:border-amber-200 dark:hover:border-amber-800 p-2 sm:p-2.5 rounded-2xl flex flex-col items-center justify-center text-center shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group aspect-square min-h-[82px]"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-700 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                        <Briefcase size={20} />
+                      </div>
+                      <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 group-hover:text-amber-700 leading-tight">
+                        স্থানীয় চাকরি
+                      </span>
+                    </button>
+
+                    {/* 7. টু-লেট ও মেস */}
+                    <button
+                      onClick={() => setActiveFeatureHub('tolet')}
+                      className="bg-white dark:bg-slate-800 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 border border-slate-100 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800 p-2 sm:p-2.5 rounded-2xl flex flex-col items-center justify-center text-center shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group aspect-square min-h-[82px]"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950 text-blue-700 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                        <Home size={20} />
+                      </div>
+                      <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-700 leading-tight">
+                        টু-লেট ও মেস
+                      </span>
+                    </button>
                   </div>
                 </section>
 
@@ -4444,6 +4657,15 @@ export default function App() {
         darkMode={darkMode}
         setDarkMode={setDarkMode}
       />
+
+      {/* CITIZEN SMART HUBS & DIRECTORIES */}
+      {activeFeatureHub === 'blood-bank' && <BloodBankHub onClose={() => setActiveFeatureHub(null)} />}
+      {activeFeatureHub === 'tourism' && <TourismHub onClose={() => setActiveFeatureHub(null)} />}
+      {activeFeatureHub === 'doctors' && <DoctorFinderHub onClose={() => setActiveFeatureHub(null)} />}
+      {activeFeatureHub === 'weather' && <WeatherTideHub onClose={() => setActiveFeatureHub(null)} />}
+      {activeFeatureHub === 'complaints' && <CitizenFeedbackHub onClose={() => setActiveFeatureHub(null)} />}
+      {activeFeatureHub === 'jobs' && <LocalJobsHub onClose={() => setActiveFeatureHub(null)} />}
+      {activeFeatureHub === 'tolet' && <ToLetHub onClose={() => setActiveFeatureHub(null)} />}
 
     </div>
   );
