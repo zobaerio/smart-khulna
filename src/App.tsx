@@ -904,7 +904,7 @@ export default function App() {
 
   // Messages Subscription for active conversation
   useEffect(() => {
-    if (!currentUser || !activeConversationId) return;
+    if (!currentUser || !activeConversationId || activeConversationId === 'smart-khulna-ai') return;
     const messagesRef = collection(db, 'conversations', activeConversationId, 'messages');
     const q = query(messagesRef, orderBy('createdAt', 'asc'));
     const unsubMessages = onSnapshot(q, (snapshot) => {

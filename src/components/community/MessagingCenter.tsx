@@ -29,7 +29,9 @@ import {
   Palette,
   CheckSquare,
   Square,
-  Award
+  Award,
+  Bot,
+  Sparkles
 } from 'lucide-react';
 import {
   Conversation,
@@ -42,6 +44,7 @@ import { District } from '../../dbData';
 import { uploadChatImage, isSupabaseConfigured } from '../../lib/supabase';
 import { getSafeAvatarUrl } from '../../lib/avatarHelper';
 import { CHAT_THEMES, ChatThemeAnimationOverlay, ThemeSelectorModal } from './chatThemes';
+import { SmartKhulnaAiChat } from '../ai/SmartKhulnaAiChat';
 
 interface MessagingCenterProps {
   currentUserId: string | null;
@@ -184,37 +187,17 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
     };
   }, [lightboxAttachment]);
 
-  if (!currentUserId) {
-    return (
-      <div className="max-w-2xl mx-auto my-8 p-8 bg-white rounded-3xl border border-slate-200 text-center space-y-4 shadow-sm">
-        <div className="w-16 h-16 bg-emerald-50 text-emerald-700 rounded-full flex items-center justify-center mx-auto">
-          <MessageCircle size={32} />
-        </div>
-        <h3 className="text-lg font-bold text-slate-900 font-serif">
-          প্রাইভেট মেসেজিংয়ে প্রবেশ করতে লগইন করুন
-        </h3>
-        <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
-          স্মার্ট খুলনা কমিউনিটিতে অন্য নাগরিক বা সেবাদাতার সাথে ব্যক্তিগত ও নিরাপদ বার্তা আদান-প্রদান করতে অনুগ্রহ করে আপনার একাউন্টে সাইন-ইন করুন।
-        </p>
-        <button
-          onClick={onRequireAuth}
-          className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
-        >
-          গুগল দিয়ে লগইন করুন
-        </button>
-      </div>
-    );
-  }
-
-  // Filter conversations
-  const filteredConversations = conversations.filter(conv => {
-    if (conv.hiddenForUserIds?.includes(currentUserId)) return false;
-    const otherParticipantUid = conv.participantIds.find(uid => uid !== currentUserId);
-    const otherParticipant = otherParticipantUid ? conv.participants[otherParticipantUid] : null;
-    const nameMatch = otherParticipant?.name.toLowerCase().includes(chatSearchQuery.toLowerCase());
-    const lastMsgMatch = conv.lastMessage?.text.toLowerCase().includes(chatSearchQuery.toLowerCase());
-    return nameMatch || lastMsgMatch;
-  });
+  // Filter conversations (only for logged in users, guest users can chat with Smart Khulna AI)
+  const filteredConversations = currentUserId
+    ? conversations.filter(conv => {
+        if (conv.hiddenForUserIds?.includes(currentUserId)) return false;
+        const otherParticipantUid = conv.participantIds.find(uid => uid !== currentUserId);
+        const otherParticipant = otherParticipantUid ? conv.participants[otherParticipantUid] : null;
+        const nameMatch = otherParticipant?.name.toLowerCase().includes(chatSearchQuery.toLowerCase());
+        const lastMsgMatch = conv.lastMessage?.text.toLowerCase().includes(chatSearchQuery.toLowerCase());
+        return nameMatch || lastMsgMatch;
+      })
+    : [];
 
   // Get other participant in active conversation
   const otherParticipantUid = activeConv?.participantIds.find(uid => uid !== currentUserId);
@@ -379,6 +362,68 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
           className="flex-1 min-h-0 h-0 w-full overflow-y-auto overflow-x-hidden overscroll-contain conversation-list-scroll divide-y divide-slate-100 dark:divide-slate-800/60 pb-28 md:pb-8 touch-pan-y"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
+          {/* PINNED SMART KHULNA AI ASSISTANT CONTACT */}
+          <button
+            id="conversation-item-smart-khulna-ai"
+            onClick={() => {
+              onSelectConversation('smart-khulna-ai');
+              setMobileShowChat(true);
+            }}
+            className={`w-full p-3.5 flex items-start gap-3 text-left transition cursor-pointer border-b border-emerald-100/60 dark:border-slate-800 touch-pan-y ${
+              activeConversationId === 'smart-khulna-ai' || (!activeConversationId && !activeConv)
+                ? 'bg-emerald-50/90 dark:bg-emerald-950/40 border-r-4 border-emerald-700 dark:border-emerald-500'
+                : 'hover:bg-slate-100/70 dark:hover:bg-slate-800/60 bg-white/50 dark:bg-slate-900/40'
+            }`}
+          >
+            <div className="relative flex-shrink-0">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-600 to-emerald-400 flex items-center justify-center text-white shadow-xs">
+                <Bot size={22} className="animate-pulse" />
+              </div>
+              <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full" />
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-1 mb-0.5">
+                <div className="flex items-center gap-1.5">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate flex items-center gap-1 font-serif">
+                    স্মার্ট খুলনা এআই
+                    <Sparkles size={12} className="text-amber-500 fill-amber-500" />
+                  </h4>
+                  <span className="text-[9px] font-black px-1.5 py-0.2 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    AI
+                  </span>
+                </div>
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex-shrink-0">
+                  অনলাইন
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] text-slate-600 dark:text-slate-400 truncate">
+                  টেক্সট, ছবি তৈরি ও ভয়েস কথোপকথন
+                </p>
+              </div>
+            </div>
+          </button>
+
+          {!currentUserId && (
+            <div className="p-4 m-3 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 text-center space-y-2">
+              <p className="text-xs font-bold text-slate-800 dark:text-slate-200 font-serif">
+                নাগরিক বার্তা আদান-প্রদান
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                অন্যান্য নাগরিক ও সেবাদাতাদের সাথে ব্যক্তিগত চ্যাট করতে অনুগ্রহ করে লগইন করুন।
+              </p>
+              <button
+                type="button"
+                onClick={onRequireAuth}
+                className="w-full py-2 px-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+              >
+                গুগল দিয়ে লগইন করুন
+              </button>
+            </div>
+          )}
+
           {filteredConversations.length === 0 ? (
             <div className="p-8 text-center text-xs text-slate-400 dark:text-slate-500 space-y-2.5 my-auto flex flex-col items-center justify-center min-h-[250px]">
               <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 dark:text-slate-500">
@@ -401,7 +446,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
             filteredConversations.map(conv => {
               const otherUid = conv.participantIds.find(uid => uid !== currentUserId);
               const other = otherUid ? conv.participants[otherUid] : null;
-              const unread = conv.unreadCounts?.[currentUserId] || 0;
+              const unread = (currentUserId && conv.unreadCounts?.[currentUserId]) || 0;
               const isActive = conv.id === activeConversationId;
 
               return (
@@ -463,11 +508,18 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
 
       {/* RIGHT COLUMN: ACTIVE CHAT VIEW */}
       <div
-        className={`flex-1 flex flex-col bg-white h-full min-h-0 overflow-hidden ${
+        className={`flex-1 flex flex-col bg-white dark:bg-slate-900 h-full min-h-0 overflow-hidden ${
           mobileShowChat ? 'flex' : 'hidden md:flex'
         }`}
       >
-        {activeConv && otherParticipant ? (
+        {activeConversationId === 'smart-khulna-ai' || (!activeConv && !activeConversationId) ? (
+          <SmartKhulnaAiChat
+            currentUserName={currentUserName}
+            currentUserAvatar={currentUserAvatar}
+            onBackToConversations={() => setMobileShowChat(false)}
+            isMobile={mobileShowChat}
+          />
+        ) : activeConv && otherParticipant ? (
           <>
             {/* CHAT HEADER (FIXED TOP) */}
             <div className="p-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/70 shrink-0 z-20">
@@ -916,23 +968,12 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
             )}
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-400 space-y-3">
-            <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-              <MessageCircle size={28} />
-            </div>
-            <h3 className="text-sm font-bold text-slate-700 font-serif">
-              কোনো কথোপকথন নির্বাচিত নেই
-            </h3>
-            <p className="text-xs text-slate-500 max-w-sm">
-              বাম পাশের তালিকা থেকে একটি চ্যাট নির্বাচন করুন অথবা নতুন নাগরিকের সাথে কথোপকথন শুরু করুন।
-            </p>
-            <button
-              onClick={() => setShowNewChatModal(true)}
-              className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"
-            >
-              <UserPlus size={14} /> নতুন চ্যাট খুঁজুন
-            </button>
-          </div>
+          <SmartKhulnaAiChat
+            currentUserName={currentUserName}
+            currentUserAvatar={currentUserAvatar}
+            onBackToConversations={() => setMobileShowChat(false)}
+            isMobile={mobileShowChat}
+          />
         )}
       </div>
 

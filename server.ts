@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { aiRouter } from './src/server/aiRouter.js';
 
 dotenv.config();
 
@@ -15,6 +16,9 @@ async function startServer() {
   const app = express();
   app.use(express.json({ limit: '25mb' }));
   app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+
+  // Multimodal AI Assistant APIs
+  app.use('/api/ai', aiRouter);
 
   // Lazily retrieve the Gemini SDK client
   let ai: any = null;
@@ -49,9 +53,9 @@ async function startServer() {
         ? `You are Smart Khulna, a local services AI helper. A user is looking for map locations, address, landmarks, directions, or contact details for "${query}" in Khulna Division, Bangladesh. Search for up-to-date local maps data and provide precise information on how to get there. Answer in clear Bangla.`
         : `You are Smart Khulna, a local services AI helper. A user is looking for general services, details, status, or phone numbers for "${query}" in Khulna Division, Bangladesh. Search for verified and latest local info. Answer in clear Bangla.`;
 
-      // Use gemini-2.5-flash with Google Search Tool enabled for real-time grounding
+      // Use gemini-3.6-flash with Google Search Tool enabled for real-time grounding
       const response = await aiClient.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.6-flash',
         contents: prompt,
         config: {
           tools: [{ googleSearch: {} }]
