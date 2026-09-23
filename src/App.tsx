@@ -4267,7 +4267,7 @@ export default function App() {
                   </div>
                 )}
 
-                {(userProfile?.role === 'super_admin' || userProfile?.role === 'sub_admin') && adminView && (
+                {(userProfile?.role === 'super_admin' || userProfile?.role === 'sub_admin') && adminView ? (
                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <AdminPanelComplete
                       currentUserRole={userProfile.role as 'super_admin' | 'sub_admin'}
@@ -4305,14 +4305,33 @@ export default function App() {
                       onClose={() => setAdminView(null)}
                     />
                   </div>
-                )}
-                
-                {!adminView && targetProfile && (
+                ) : (
                   <EnhancedProfileView
-                    profile={targetProfile}
+                    profile={targetProfile || {
+                      uid: 'guest',
+                      name: 'অতিথি নাগরিক',
+                      email: '',
+                      avatar: '',
+                      bio: 'স্মার্ট খুলনা ডিজিটাল নাগরিক সেবা প্ল্যাটফর্মে স্বাগতম।',
+                      coverPhoto: '',
+                      phone: '',
+                      profession: 'ডিজিটাল নাগরিক',
+                      bloodGroup: '',
+                      district: selectedDistrict,
+                      upazila: '',
+                      address: 'খুলনা বিভাগ',
+                      socialLinks: {},
+                      joinedDate: new Date().toISOString(),
+                      badge: 'none',
+                      postsCount: 0,
+                      followersCount: 0,
+                      followingCount: 0,
+                      isFollowing: false
+                    }}
                     currentUserUid={currentUser?.uid}
-                    isOwnProfile={currentUser?.uid === targetProfile.uid}
+                    isOwnProfile={currentUser?.uid === (targetProfile?.uid || 'guest')}
                     onEdit={() => {
+                      if (!targetProfile) return;
                       setIsEditingProfile(true);
                       setEditDisplayName(targetProfile.name || '');
                       setEditPhotoURL(targetProfile.avatar || '');
