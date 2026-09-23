@@ -49,6 +49,10 @@ import {
   PlusCircle,
   FileText,
   Lock,
+  Mail,
+  LogIn,
+  UserPlus,
+  ShieldCheck,
   Edit2,
   Sparkles,
   BarChart2,
@@ -4241,33 +4245,138 @@ export default function App() {
             {/* TAB VIEW - PROFILE & ADMIN CONTROL PANEL PANEL */}
             {activeTab === 'profile' && (
               <div className="w-full flex-1 min-h-0 flex flex-col space-y-4 pb-24 md:pb-12">
-                {!currentUser && (
-                  <div className="bg-gradient-to-r from-emerald-800 to-teal-800 text-white p-4 sm:p-5 rounded-2xl shadow-md mb-2 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="space-y-1 text-center sm:text-left">
-                      <h3 className="font-bold text-sm sm:text-base flex items-center justify-center sm:justify-start gap-2">
-                        <ShieldCheck size={18} className="text-amber-300" />
-                        স্মার্ট খুলনা প্রোফাইলে স্বাগতম
-                      </h3>
-                      <p className="text-xs text-emerald-100">
-                        আপনার নিজস্ব প্রোফাইল তৈরি করতে, সেবা ও পোস্ট রাখতে গুগল দিয়ে সাইন ইন করুন।
-                      </p>
-                    </div>
-                    <button
-                      onClick={handleGoogleLogin}
-                      className="bg-white hover:bg-emerald-50 text-emerald-900 font-extrabold text-xs px-5 py-2.5 rounded-xl transition shadow-sm shrink-0 flex items-center gap-2 cursor-pointer"
-                    >
-                      <svg className="w-4 h-4" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                      </svg>
-                      গুগল দিয়ে প্রবেশ করুন
-                    </button>
-                  </div>
-                )}
+                {!currentUser && !viewingProfileUid ? (
+                  <div className="w-full max-w-md mx-auto my-6 px-4 animate-in fade-in zoom-in-95 duration-300">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-xl space-y-6">
+                      {/* Brand Header */}
+                      <div className="text-center space-y-2">
+                        <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-950/60 rounded-2xl flex items-center justify-center mx-auto text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/80 shadow-xs">
+                          <SmartKhulnaLogo size={36} />
+                        </div>
+                        <h2 className="text-xl font-extrabold text-slate-900 dark:text-white pt-1">
+                          স্মার্ট খুলনা নাগরিক অ্যাকাউন্ট
+                        </h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-xs mx-auto">
+                          {emailAuthMode === 'login' 
+                            ? 'আপনার অ্যাকাউন্টে প্রবেশ করতে নিচের তথ্য প্রদান করুন' 
+                            : 'নতুন নাগরিক অ্যাকাউন্ট তৈরি করতে নিবন্ধনের তথ্য প্রদান করুন'}
+                        </p>
+                      </div>
 
-                {(userProfile?.role === 'super_admin' || userProfile?.role === 'sub_admin') && adminView ? (
+                      {/* Google One-Click Login */}
+                      <button
+                        type="button"
+                        onClick={handleGoogleLogin}
+                        className="w-full bg-emerald-800 hover:bg-emerald-900 text-white dark:bg-emerald-700 dark:hover:bg-emerald-600 py-3.5 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-3 transition shadow-md cursor-pointer"
+                      >
+                        <svg className="w-5 h-5 bg-white rounded-full p-0.5 shrink-0" viewBox="0 0 24 24">
+                          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                        </svg>
+                        <span>গুগল দিয়ে প্রবেশ করুন</span>
+                      </button>
+
+                      {/* Divider */}
+                      <div className="relative flex items-center justify-center">
+                        <div className="border-t border-slate-200 dark:border-slate-800 w-full"></div>
+                        <span className="bg-white dark:bg-slate-900 px-3 text-[11px] text-slate-400 font-bold uppercase shrink-0">
+                          অথবা ইমেইল দিয়ে
+                        </span>
+                      </div>
+
+                      {/* Email & Password Form */}
+                      <form onSubmit={handleEmailAuth} className="space-y-3.5">
+                        {emailAuthMode === 'register' && (
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">আপনার পূর্ণ নাম</label>
+                            <div className="relative">
+                              <User size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+                              <input
+                                type="text"
+                                required
+                                placeholder="যেমন: মোঃ জহিরুল ইসলাম"
+                                value={authName}
+                                onChange={(e) => setAuthName(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-600 text-slate-900 dark:text-white"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">ইমেইল ঠিকানা</label>
+                          <div className="relative">
+                            <Mail size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+                            <input
+                              type="email"
+                              required
+                              placeholder="example@gmail.com"
+                              value={authEmail}
+                              onChange={(e) => setAuthEmail(e.target.value)}
+                              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-600 text-slate-900 dark:text-white"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">পাসওয়ার্ড</label>
+                          <div className="relative">
+                            <Lock size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+                            <input
+                              type="password"
+                              required
+                              minLength={6}
+                              placeholder="******"
+                              value={authPassword}
+                              onChange={(e) => setAuthPassword(e.target.value)}
+                              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-600 text-slate-900 dark:text-white"
+                            />
+                          </div>
+                        </div>
+
+                        <button
+                          type="submit"
+                          className="w-full bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-800 dark:hover:bg-slate-700 font-bold py-3 px-4 rounded-xl text-xs transition shadow-md cursor-pointer flex items-center justify-center gap-2"
+                        >
+                          {emailAuthMode === 'login' ? (
+                            <>
+                              <LogIn size={16} />
+                              <span>লগইন করুন</span>
+                            </>
+                          ) : (
+                            <>
+                              <UserPlus size={16} />
+                              <span>নিবন্ধন করুন (রেজিস্ট্রেশন)</span>
+                            </>
+                          )}
+                        </button>
+                      </form>
+
+                      {/* Toggle between Login and Register */}
+                      <div className="pt-2 text-center border-t border-slate-100 dark:border-slate-800">
+                        {emailAuthMode === 'login' ? (
+                          <button
+                            type="button"
+                            onClick={() => setEmailAuthMode('register')}
+                            className="text-xs text-emerald-700 dark:text-emerald-400 font-bold hover:underline cursor-pointer"
+                          >
+                            নতুন অ্যাকাউন্ট খুলতে চান? রেজিস্ট্রেশন করুন
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setEmailAuthMode('login')}
+                            className="text-xs text-emerald-700 dark:text-emerald-400 font-bold hover:underline cursor-pointer"
+                          >
+                            ইতিমধ্যেই অ্যাকাউন্ট আছে? সাইন-ইন / লগইন করুন
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (userProfile?.role === 'super_admin' || userProfile?.role === 'sub_admin') && adminView ? (
                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <AdminPanelComplete
                       currentUserRole={userProfile.role as 'super_admin' | 'sub_admin'}
