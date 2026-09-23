@@ -219,7 +219,19 @@ export default function App() {
   // Cross-Platform App & PWA Logic
   const { isInstallable, isInstalled, isOnline, wasOffline, resetWasOffline, platform, installPWA } = usePWA();
   const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem('smart_khulna_splash_shown'));
-  const [releaseConfig, setReleaseConfig] = useState<AppReleaseConfig>(() => getLocalData('release_config', defaultReleaseConfig));
+  const [releaseConfig, setReleaseConfig] = useState<AppReleaseConfig>(() => {
+    const local = getLocalData('release_config', defaultReleaseConfig);
+    return {
+      ...defaultReleaseConfig,
+      ...(local || {}),
+      android: { ...defaultReleaseConfig.android, ...(local?.android || {}) },
+      ios: { ...defaultReleaseConfig.ios, ...(local?.ios || {}) },
+      windows: { ...defaultReleaseConfig.windows, ...(local?.windows || {}) },
+      macos: { ...defaultReleaseConfig.macos, ...(local?.macos || {}) },
+      linux: { ...defaultReleaseConfig.linux, ...(local?.linux || {}) },
+      releaseNotes: Array.isArray(local?.releaseNotes) ? local.releaseNotes : defaultReleaseConfig.releaseNotes
+    };
+  });
   
   // District & Data States
   const [selectedDistrict, setSelectedDistrict] = useState<string>(() => {
@@ -494,9 +506,21 @@ export default function App() {
       try {
         const snap = await getDoc(doc(db, 'settings', 'release_config'));
         if (snap.exists()) {
-          const cloudConfig = snap.data() as AppReleaseConfig;
-          setReleaseConfig(cloudConfig);
-          saveLocalData('release_config', cloudConfig);
+          const raw = snap.data();
+          if (raw && typeof raw === 'object') {
+            const cloudConfig: AppReleaseConfig = {
+              ...defaultReleaseConfig,
+              ...raw,
+              android: { ...defaultReleaseConfig.android, ...(raw.android || {}) },
+              ios: { ...defaultReleaseConfig.ios, ...(raw.ios || {}) },
+              windows: { ...defaultReleaseConfig.windows, ...(raw.windows || {}) },
+              macos: { ...defaultReleaseConfig.macos, ...(raw.macos || {}) },
+              linux: { ...defaultReleaseConfig.linux, ...(raw.linux || {}) },
+              releaseNotes: Array.isArray(raw.releaseNotes) ? raw.releaseNotes : defaultReleaseConfig.releaseNotes
+            };
+            setReleaseConfig(cloudConfig);
+            saveLocalData('release_config', cloudConfig);
+          }
         }
       } catch (err: unknown) {
         console.warn('Could not load cloud release config, falling back to local storage:', err);
@@ -511,9 +535,13 @@ export default function App() {
       try {
         const snap = await getDocs(collection(db, 'banners'));
         if (!snap.empty) {
-          const cloudBanners = snap.docs.map(d => ({ id: d.id, ...d.data() } as Banner));
-          setBanners(cloudBanners);
-          saveLocalData('banners', cloudBanners);
+          const cloudBanners = snap.docs
+            .map(d => ({ id: d.id, ...d.data() } as Banner))
+            .filter(b => b && b.title && b.image);
+          if (cloudBanners.length > 0) {
+            setBanners(cloudBanners);
+            saveLocalData('banners', cloudBanners);
+          }
         }
       } catch (err: unknown) {
         console.warn('Could not load banners from Firestore, using local data:', err);
@@ -636,50 +664,51 @@ export default function App() {
 
             // Update in community directory
             setAllCommunityUsers(prev => {
-              const exists = prev.some(u => u.uid === firebaseUser.uid);
+              const safePrev = Array.isArray(prev) ? prev.filter(u => u && u.uid) : [];
+              const exists = safePrev.some(u => u.uid === firebaseUser.uid);
               if (exists) {
-                return prev.map(u => u.uid === firebaseUser.uid ? {
+                return safePrev.map(u => (u.uid === firebaseUser.uid) ? {
                   ...u,
-                  name: updatedProfile.name,
-                  avatar: updatedProfile.avatar,
-                  bio: updatedProfile.bio,
-                  phone: updatedProfile.phone,
-                  profession: updatedProfile.profession,
-                  bloodGroup: updatedProfile.bloodGroup,
-                  district: updatedProfile.district || updatedProfile.selectedDistrict,
-                  upazila: updatedProfile.upazila,
-                  address: updatedProfile.address,
+                  name: updatedProfile.name || u.name,
+                  avatar: updatedProfile.avatar || u.avatar,
+                  bio: updatedProfile.bio || u.bio,
+                  phone: updatedProfile.phone || u.phone,
+                  profession: updatedProfile.profession || u.profession,
+                  bloodGroup: updatedProfile.bloodGroup || u.bloodGroup,
+                  district: updatedProfile.district || updatedProfile.selectedDistrict || u.district,
+                  upazila: updatedProfile.upazila || u.upazila,
+                  address: updatedProfile.address || u.address,
                   socialLinks: {
-                    facebook: updatedProfile.facebook,
-                    twitter: updatedProfile.twitter,
-                    instagram: updatedProfile.instagram,
-                    linkedin: updatedProfile.linkedin,
-                    website: updatedProfile.website
+                    facebook: updatedProfile.facebook || u.socialLinks?.facebook,
+                    twitter: updatedProfile.twitter || u.socialLinks?.twitter,
+                    instagram: updatedProfile.instagram || u.socialLinks?.instagram,
+                    linkedin: updatedProfile.linkedin || u.socialLinks?.linkedin,
+                    website: updatedProfile.website || u.socialLinks?.website
                   }
                 } : u);
               }
-              return [...prev, {
+              return [...safePrev, {
                 uid: firebaseUser.uid,
-                name: updatedProfile.name,
-                email: updatedProfile.email,
-                avatar: updatedProfile.avatar,
-                bio: updatedProfile.bio,
-                phone: updatedProfile.phone,
-                profession: updatedProfile.profession,
-                bloodGroup: updatedProfile.bloodGroup,
-                district: updatedProfile.district || updatedProfile.selectedDistrict,
-                upazila: updatedProfile.upazila,
-                address: updatedProfile.address,
+                name: updatedProfile.name || displayName,
+                email: updatedProfile.email || email,
+                avatar: updatedProfile.avatar || photoURL || '',
+                bio: updatedProfile.bio || '',
+                phone: updatedProfile.phone || '',
+                profession: updatedProfile.profession || '',
+                bloodGroup: updatedProfile.bloodGroup || '',
+                district: updatedProfile.district || updatedProfile.selectedDistrict || selectedDistrict,
+                upazila: updatedProfile.upazila || '',
+                address: updatedProfile.address || '',
                 joinedDate: new Date().toISOString(),
                 postsCount: 0,
                 followersCount: 0,
                 followingCount: 0,
                 socialLinks: {
-                  facebook: updatedProfile.facebook,
-                  twitter: updatedProfile.twitter,
-                  instagram: updatedProfile.instagram,
-                  linkedin: updatedProfile.linkedin,
-                  website: updatedProfile.website
+                  facebook: updatedProfile.facebook || '',
+                  twitter: updatedProfile.twitter || '',
+                  instagram: updatedProfile.instagram || '',
+                  linkedin: updatedProfile.linkedin || '',
+                  website: updatedProfile.website || ''
                 }
               }];
             });
@@ -773,7 +802,7 @@ export default function App() {
         snapshot.forEach((doc) => {
           posts.push({ ...doc.data(), id: doc.id } as CommunityPost);
         });
-        posts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        posts.sort((a, b) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime());
         setCommunityPosts(posts);
       }
     }, (error) => {
@@ -915,7 +944,7 @@ export default function App() {
           convs.push({ ...cData, id: doc.id });
         }
       });
-      convs.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      convs.sort((a, b) => new Date(b?.updatedAt || 0).getTime() - new Date(a?.updatedAt || 0).getTime());
       setConversations(convs);
       localStorage.setItem(`conversations_${currentUser.uid}`, JSON.stringify(convs));
     }, (error) => {
@@ -1319,11 +1348,12 @@ export default function App() {
   // Saved/Favorites Operations
   const isSaved = (serviceId: string) => {
     if (userProfile) {
-      return userProfile.savedServices?.includes(serviceId) || false;
+      return Array.isArray(userProfile.savedServices) ? userProfile.savedServices.includes(serviceId) : false;
     }
     let localFavs: string[] = [];
     try {
-      localFavs = JSON.parse(localStorage.getItem('smart_khulna_local_favs') || '[]');
+      const parsed = JSON.parse(localStorage.getItem('smart_khulna_local_favs') || '[]');
+      localFavs = Array.isArray(parsed) ? parsed : [];
     } catch {
       localFavs = [];
     }
@@ -1332,7 +1362,7 @@ export default function App() {
 
   const toggleSaveService = async (serviceId: string) => {
     if (currentUser && userProfile) {
-      const saved = userProfile.savedServices || [];
+      const saved = Array.isArray(userProfile.savedServices) ? userProfile.savedServices : [];
       let updatedFavs: string[];
       if (saved.includes(serviceId)) {
         updatedFavs = saved.filter(id => id !== serviceId);
@@ -1473,12 +1503,15 @@ export default function App() {
 
   // Dynamic calculations for districts available service counts
   const getServiceCountForDistrict = (districtId: string) => {
-    return services.filter(s => s.district_id === districtId && s.status === 'PUBLISHED').length;
+    const list = Array.isArray(services) ? services : [];
+    return list.filter(s => s && s.district_id === districtId && s.status === 'PUBLISHED').length;
   };
 
   // Filter and search services lists
   const filteredServices = useMemo(() => {
-    return services.filter(s => {
+    const list = Array.isArray(services) ? services : [];
+    return list.filter(s => {
+      if (!s || typeof s !== 'object') return false;
       // Ensure only approved or published services are shown to normal users
       if (s.status !== 'APPROVED' && s.status !== 'PUBLISHED') return false;
 
@@ -1500,7 +1533,7 @@ export default function App() {
         const matchesName = (s.name || '').toLowerCase().includes(queryLower);
         const matchesDesc = (s.description || '').toLowerCase().includes(queryLower);
         const matchesAddress = (s.address || '').toLowerCase().includes(queryLower);
-        const catName = initialCategories.find(c => c.id === s.category_id)?.name || '';
+        const catName = initialCategories.find(c => c && c.id === s.category_id)?.name || '';
         const matchesCategory = catName.toLowerCase().includes(queryLower);
         return matchesName || matchesDesc || matchesAddress || matchesCategory;
       }
@@ -1511,17 +1544,20 @@ export default function App() {
 
   // District specific emergency services
   const localEmergencies = useMemo(() => {
-    return emergencyContacts.filter(e => !e.districtId || e.districtId === selectedDistrict);
+    const list = Array.isArray(emergencyContacts) ? emergencyContacts : [];
+    return list.filter(e => e && typeof e === 'object' && (!e.districtId || e.districtId === selectedDistrict));
   }, [emergencyContacts, selectedDistrict]);
 
   // Admin Dashboard Statistics
   const stats = useMemo(() => {
+    const sList = Array.isArray(services) ? services : [];
+    const logList = Array.isArray(auditLogs) ? auditLogs : [];
     return {
-      totalServices: services.length,
-      publishedServices: services.filter(s => s.status === 'APPROVED' || s.status === 'PUBLISHED').length,
-      pendingSubmissions: services.filter(s => s.status === 'PENDING').length,
-      verifiedServices: services.filter(s => s.is_verified).length,
-      totalLogs: auditLogs.length
+      totalServices: sList.length,
+      publishedServices: sList.filter(s => s && (s.status === 'APPROVED' || s.status === 'PUBLISHED')).length,
+      pendingSubmissions: sList.filter(s => s && s.status === 'PENDING').length,
+      verifiedServices: sList.filter(s => s && s.is_verified).length,
+      totalLogs: logList.length
     };
   }, [services, submissions, auditLogs]);
 
@@ -1721,12 +1757,13 @@ export default function App() {
   };
 
   const totalUnreadNotifications = useMemo(() => {
-    return communityNotifications.filter(n => !n.isRead).length;
+    const list = Array.isArray(communityNotifications) ? communityNotifications : [];
+    return list.filter(n => n && !n.isRead).length;
   }, [communityNotifications]);
 
   const totalUnreadMessages = useMemo(() => {
-    if (!currentUser?.uid) return 0;
-    return conversations.reduce((acc, c) => acc + (c.unreadCounts?.[currentUser.uid] || 0), 0);
+    if (!currentUser?.uid || !Array.isArray(conversations)) return 0;
+    return conversations.reduce((acc, c) => acc + (c && c.unreadCounts ? (c.unreadCounts[currentUser.uid] || 0) : 0), 0);
   }, [conversations, currentUser]);
 
   const handleFollow = async (targetUid: string) => {
@@ -1859,6 +1896,10 @@ export default function App() {
 
   const targetProfileUid = viewingProfileUid || currentUser?.uid;
   const targetProfile = useMemo(() => {
+    const safeUsers = Array.isArray(allCommunityUsers) ? allCommunityUsers : [];
+    const safePosts = Array.isArray(communityPosts) ? communityPosts : [];
+    const safeFollows = Array.isArray(followingUids) ? followingUids : [];
+
     // Guest Profile Fallback if not logged in and not viewing specific profile
     if (!targetProfileUid) {
       return {
@@ -1871,7 +1912,7 @@ export default function App() {
         phone: '',
         profession: 'ডিজিটাল নাগরিক',
         bloodGroup: '',
-        district: selectedDistrict,
+        district: selectedDistrict || 'khulna',
         upazila: '',
         address: 'খুলনা বিভাগ',
         socialLinks: {},
@@ -1886,8 +1927,8 @@ export default function App() {
 
     // 1. Current user profile takes priority for own profile view (ensures immediate UI updates for cover photo, avatar, etc.)
     if (currentUser && targetProfileUid === currentUser.uid) {
-      const profileFromAll = allCommunityUsers.find(u => u.uid === currentUser.uid);
-      const postsCount = communityPosts.filter(p => p.authorId === currentUser.uid).length;
+      const profileFromAll = safeUsers.find(u => u && u.uid === currentUser.uid);
+      const postsCount = safePosts.filter(p => p && p.authorId === currentUser.uid).length;
       return {
         ...(profileFromAll || {}),
         uid: currentUser.uid,
@@ -1899,7 +1940,7 @@ export default function App() {
         phone: userProfile?.phone || profileFromAll?.phone || '',
         profession: userProfile?.profession || profileFromAll?.profession || '',
         bloodGroup: userProfile?.bloodGroup || profileFromAll?.bloodGroup || '',
-        district: userProfile?.district || userProfile?.selectedDistrict || profileFromAll?.district || selectedDistrict,
+        district: userProfile?.district || userProfile?.selectedDistrict || profileFromAll?.district || selectedDistrict || 'khulna',
         upazila: userProfile?.upazila || profileFromAll?.upazila || '',
         address: userProfile?.address || profileFromAll?.address || '',
         socialLinks: {
@@ -1913,20 +1954,20 @@ export default function App() {
         badge: userProfile?.role === 'super_admin' ? 'admin' : (userProfile?.role === 'sub_admin' ? 'govt_official' : ((userProfile as any)?.badge || profileFromAll?.badge || 'none')),
         postsCount: profileFromAll?.postsCount || postsCount,
         followersCount: profileFromAll?.followersCount || 0, 
-        followingCount: followingUids.length,
+        followingCount: safeFollows.length,
         isFollowing: false
       } as PublicUserProfile;
     }
 
     // 2. Viewing another user's profile
-    const profile = allCommunityUsers.find(u => u.uid === targetProfileUid);
-    const postsCount = communityPosts.filter(p => p.authorId === targetProfileUid).length;
+    const profile = safeUsers.find(u => u && u.uid === targetProfileUid);
+    const postsCount = safePosts.filter(p => p && p.authorId === targetProfileUid).length;
     
     if (profile) {
       return {
         ...profile,
         postsCount: profile.postsCount || postsCount,
-        isFollowing: followingUids.includes(targetProfileUid)
+        isFollowing: safeFollows.includes(targetProfileUid)
       };
     }
 
@@ -1941,7 +1982,7 @@ export default function App() {
       phone: '',
       profession: '',
       bloodGroup: '',
-      district: selectedDistrict,
+      district: selectedDistrict || 'khulna',
       upazila: '',
       address: '',
       socialLinks: {},
@@ -1950,33 +1991,36 @@ export default function App() {
       postsCount,
       followersCount: 0,
       followingCount: 0,
-      isFollowing: followingUids.includes(targetProfileUid)
+      isFollowing: safeFollows.includes(targetProfileUid)
     } as PublicUserProfile;
   }, [targetProfileUid, allCommunityUsers, currentUser, userProfile, selectedDistrict, communityPosts, followingUids]);
 
   const targetPosts = useMemo(() => {
-    return communityPosts.filter(p => p.authorId === targetProfileUid).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const list = Array.isArray(communityPosts) ? communityPosts : [];
+    return list
+      .filter(p => p && p.authorId === targetProfileUid)
+      .sort((a, b) => new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime());
   }, [communityPosts, targetProfileUid]);
 
   const targetServices = useMemo(() => {
-    return services.filter(s => s.created_by === targetProfileUid);
+    const list = Array.isArray(services) ? services : [];
+    return list.filter(s => s && s.created_by === targetProfileUid);
   }, [services, targetProfileUid]);
 
   const targetFollowers = useMemo(() => {
     if (!targetProfileUid) return [];
-    // In a real app, we'd fetch these from Firestore. 
-    // For now, we'll show users who have this targetProfileUid in their following list (if we had that data)
-    // or just show a subset of users to make it feel populated.
-    return allCommunityUsers.filter(u => u.uid !== targetProfileUid).slice(0, 12);
+    const list = Array.isArray(allCommunityUsers) ? allCommunityUsers : [];
+    return list.filter(u => u && u.uid !== targetProfileUid).slice(0, 12);
   }, [allCommunityUsers, targetProfileUid]);
 
   const targetFollowing = useMemo(() => {
     if (!targetProfileUid) return [];
+    const list = Array.isArray(allCommunityUsers) ? allCommunityUsers : [];
+    const safeFollows = Array.isArray(followingUids) ? followingUids : [];
     if (targetProfileUid === currentUser?.uid) {
-      return allCommunityUsers.filter(u => followingUids.includes(u.uid));
+      return list.filter(u => u && safeFollows.includes(u.uid));
     }
-    // For other users, show a subset
-    return allCommunityUsers.filter(u => u.uid !== targetProfileUid).slice(5, 10);
+    return list.filter(u => u && u.uid !== targetProfileUid).slice(5, 10);
   }, [allCommunityUsers, targetProfileUid, currentUser, followingUids]);
 
   const handleSavePost = async (postData: Partial<CommunityPost>) => {
@@ -3224,7 +3268,7 @@ export default function App() {
                   <span className="text-[10px] text-lime-400 font-bold uppercase tracking-wider flex items-center gap-1">
                     <Smartphone size={12} /> স্মার্ট খুলনা অ্যাপ
                   </span>
-                  <span className="text-[9px] bg-emerald-500/20 text-lime-300 font-mono px-1.5 py-0.5 rounded">v{releaseConfig.currentVersion}</span>
+                  <span className="text-[9px] bg-emerald-500/20 text-lime-300 font-mono px-1.5 py-0.5 rounded">v{releaseConfig?.currentVersion || '2.4.0'}</span>
                 </div>
                 <p className="text-[11px] text-slate-300 leading-snug">Android, iOS, Windows, Mac ও Web — যেকোনো ডিভাইসে ইনস্টল করে অফলাইনেও ব্যবহার করুন।</p>
                 <button
@@ -3705,17 +3749,17 @@ export default function App() {
                 </section>
 
                 {/* 6. PROMOTED / FEATURED LOCAL SERVICES */}
-                {services.filter(s => s.isFeatured && s.status === 'PUBLISHED' && s.district_id === selectedDistrict).length > 0 && (
+                {(Array.isArray(services) ? services : []).filter(s => s && s.isFeatured && s.status === 'PUBLISHED' && s.district_id === selectedDistrict).length > 0 && (
                   <section className="space-y-3">
                     <h2 className="text-base font-extrabold text-emerald-950 flex items-center gap-1.5 font-serif">
                       <ThumbsUp size={18} className="text-emerald-700" />
                       স্পেশাল ও ভেরিফাইড সেবা
                     </h2>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                      {services
-                        .filter(s => s.isFeatured && s.status === 'PUBLISHED' && s.district_id === selectedDistrict)
+                      {(Array.isArray(services) ? services : [])
+                        .filter(s => s && s.isFeatured && s.status === 'PUBLISHED' && s.district_id === selectedDistrict)
                         .map(service => {
-                          const cat = initialCategories.find(c => c.id === service.category_id);
+                          const cat = initialCategories.find(c => c && c.id === service.category_id);
                           const style = getCategoryStyle(service.category_id);
                           return (
                             <div
@@ -3907,11 +3951,11 @@ export default function App() {
                       <div className="space-y-2">
                         <h3 className="text-xs font-bold text-slate-700">জনপ্রিয় সেবা ও প্রতিষ্ঠান সমূহ</h3>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                          {services
-                            .filter(s => s.district_id === currentDist.id && s.status === 'PUBLISHED')
+                          {(Array.isArray(services) ? services : [])
+                            .filter(s => s && s.district_id === currentDist.id && s.status === 'PUBLISHED')
                             .slice(0, 8)
                             .map(s => {
-                              const cat = initialCategories.find(c => c.id === s.category_id);
+                              const cat = initialCategories.find(c => c && c.id === s.category_id);
                               const style = getCategoryStyle(s.category_id);
                               return (
                                 <div
@@ -4295,7 +4339,7 @@ export default function App() {
 
                 {/* Filter saved list */}
                 {(() => {
-                  const savedList = services.filter(s => isSaved(s.id));
+                  const savedList = (Array.isArray(services) ? services : []).filter(s => s && isSaved(s.id));
                   if (savedList.length === 0) {
                     return (
                       <div className="bg-white border border-slate-100 rounded-2xl p-8 text-center space-y-3 shadow-sm">

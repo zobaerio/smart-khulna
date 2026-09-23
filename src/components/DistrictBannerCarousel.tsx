@@ -19,12 +19,12 @@ export const DistrictBannerCarousel: React.FC<DistrictBannerCarouselProps> = ({
   onSelectCategory,
   onOpenDownload
 }) => {
-  const currentDistrict = districts.find(d => d.id === selectedDistrict);
+  const currentDistrict = (districts || []).find(d => d && d.id === selectedDistrict);
 
   // Filter active banners for the selected district, fallback to 'all' banners or district image
-  const districtBanners = banners.filter(
-    b => b.isActive && (b.districtId === selectedDistrict || b.districtId === 'all')
-  ).sort((a, b) => (a.priority || 1) - (b.priority || 1));
+  const districtBanners = (Array.isArray(banners) ? banners : []).filter(
+    b => b && b.isActive && (b.districtId === selectedDistrict || b.districtId === 'all')
+  ).sort((a, b) => (a?.priority || 1) - (b?.priority || 1));
 
   // Fallback if no banner exists in database
   const activeBanners = districtBanners.length > 0 ? districtBanners : [
@@ -74,7 +74,18 @@ export const DistrictBannerCarousel: React.FC<DistrictBannerCarouselProps> = ({
     setCurrentIndex(prev => (prev + 1) % activeBanners.length);
   };
 
-  const currentBanner = activeBanners[currentIndex] || activeBanners[0];
+  const currentBanner = activeBanners[currentIndex] || activeBanners[0] || {
+    id: `fallback_${selectedDistrict}`,
+    title: 'স্মার্ট খুলনা পোর্টালে আপনাকে স্বাগতম',
+    subtitle: 'নাগরিক সেবা নির্দেশিকা',
+    image: 'https://images.unsplash.com/photo-1596422846543-75c6fc18a523?w=1200&q=80',
+    districtId: selectedDistrict,
+    actionText: 'সেবা নির্দেশিকা দেখুন',
+    actionType: 'internal' as const,
+    actionTarget: 'services',
+    isActive: true,
+    priority: 1
+  };
 
   const handleBannerClick = () => {
     if (!currentBanner) return;
@@ -96,8 +107,8 @@ export const DistrictBannerCarousel: React.FC<DistrictBannerCarouselProps> = ({
     >
       {/* Background Banner Image */}
       <img
-        src={currentBanner.image}
-        alt={currentBanner.title}
+        src={currentBanner?.image || 'https://images.unsplash.com/photo-1596422846543-75c6fc18a523?w=1200&q=80'}
+        alt={currentBanner?.title || 'Smart Khulna'}
         className="w-full h-full object-cover transition duration-700 transform scale-100 group-hover:scale-105"
       />
 
@@ -115,18 +126,18 @@ export const DistrictBannerCarousel: React.FC<DistrictBannerCarouselProps> = ({
 
           {/* Banner Title */}
           <h2 className="text-sm sm:text-lg md:text-xl font-black text-white tracking-wide leading-snug font-serif line-clamp-2 drop-shadow-sm">
-            {currentBanner.title}
+            {currentBanner?.title || 'স্মার্ট খুলনা'}
           </h2>
 
           {/* Banner Subtitle */}
-          {currentBanner.subtitle && (
+          {currentBanner?.subtitle && (
             <p className="text-[10px] sm:text-xs text-emerald-100/90 line-clamp-1 font-normal drop-shadow-xs">
               {currentBanner.subtitle}
             </p>
           )}
 
           {/* Action CTA Button */}
-          {currentBanner.actionText && (
+          {currentBanner?.actionText && (
             <div className="pt-1 flex items-center gap-2">
               <span className="inline-flex items-center gap-1 bg-white/20 hover:bg-white/30 backdrop-blur-xs text-white text-[10px] sm:text-[11px] font-bold px-3 py-1 rounded-xl border border-white/30 transition">
                 <span>{currentBanner.actionText}</span>

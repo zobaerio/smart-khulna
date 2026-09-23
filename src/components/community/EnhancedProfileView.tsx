@@ -231,7 +231,7 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
 
   // Fetch visitors for own profile (up to 50 recent visitors with local fallback)
   useEffect(() => {
-    if (!isOwnProfile || !profile.uid) return;
+    if (!isOwnProfile || !profile.uid || profile.uid === 'guest') return;
     
     const visitorsRef = collection(db, 'profiles', profile.uid, 'visitors');
     let unsub: (() => void) | null = null;
