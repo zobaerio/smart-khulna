@@ -255,7 +255,10 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
           try {
             const cached = localStorage.getItem(`profile_visitors_${profile.uid}`);
             if (cached) {
-              setVisitors(JSON.parse(cached));
+              const parsed = JSON.parse(cached);
+              if (Array.isArray(parsed)) {
+                setVisitors(parsed);
+              }
             }
           } catch (e) {
             console.warn("Local storage visitors read warning:", e);

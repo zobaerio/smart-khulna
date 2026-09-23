@@ -6,22 +6,24 @@ interface SplashScreenProps {
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
   const [fadeOut, setFadeOut] = useState(false);
+  const onCompleteRef = React.useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
-    // Show splash screen for 1.2s then fade out
+    // Show splash screen for 1.1s then fade out
     const fadeTimer = setTimeout(() => {
       setFadeOut(true);
     }, 1100);
 
     const endTimer = setTimeout(() => {
-      onComplete();
+      onCompleteRef.current();
     }, 1600);
 
     return () => {
       clearTimeout(fadeTimer);
       clearTimeout(endTimer);
     };
-  }, [onComplete]);
+  }, []);
 
   return (
     <div

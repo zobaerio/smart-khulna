@@ -842,20 +842,35 @@ export default function App() {
 
     // 1. Load cached fallbacks from user-specific local storage keys
     try {
-      const cacheLikes = localStorage.getItem(`likes_${currentUser.uid}`);
-      if (cacheLikes) setLikedCommunityPostIds(JSON.parse(cacheLikes));
+      const cacheLikes = localStorage.getItem(`likes_${currentUser.uid}`) || localStorage.getItem(`liked_community_post_ids_${currentUser.uid}`);
+      if (cacheLikes) {
+        const parsed = JSON.parse(cacheLikes);
+        if (Array.isArray(parsed)) setLikedCommunityPostIds(parsed);
+      }
 
-      const cacheFollows = localStorage.getItem(`follows_${currentUser.uid}`);
-      if (cacheFollows) setFollowingUids(JSON.parse(cacheFollows));
+      const cacheFollows = localStorage.getItem(`follows_${currentUser.uid}`) || localStorage.getItem(`following_uids_${currentUser.uid}`);
+      if (cacheFollows) {
+        const parsed = JSON.parse(cacheFollows);
+        if (Array.isArray(parsed)) setFollowingUids(parsed);
+      }
 
-      const cacheSaved = localStorage.getItem(`saved_${currentUser.uid}`);
-      if (cacheSaved) setSavedCommunityPostIds(JSON.parse(cacheSaved));
+      const cacheSaved = localStorage.getItem(`saved_${currentUser.uid}`) || localStorage.getItem(`saved_community_post_ids_${currentUser.uid}`);
+      if (cacheSaved) {
+        const parsed = JSON.parse(cacheSaved);
+        if (Array.isArray(parsed)) setSavedCommunityPostIds(parsed);
+      }
 
       const cacheConvs = localStorage.getItem(`conversations_${currentUser.uid}`);
-      if (cacheConvs) setConversations(JSON.parse(cacheConvs));
+      if (cacheConvs) {
+        const parsed = JSON.parse(cacheConvs);
+        if (Array.isArray(parsed)) setConversations(parsed);
+      }
 
       const cacheMsgs = localStorage.getItem(`messages_map_${currentUser.uid}`);
-      if (cacheMsgs) setMessagesMap(JSON.parse(cacheMsgs));
+      if (cacheMsgs) {
+        const parsed = JSON.parse(cacheMsgs);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) setMessagesMap(parsed);
+      }
     } catch (e) {
       console.warn("Local storage cache parse warning:", e);
     }
@@ -1477,15 +1492,16 @@ export default function App() {
       if (filterVerifiedOnly && !s.is_verified) return false;
 
       // Filter by Upazila
-      if (filterUpazila && !s.upazila_id.toLowerCase().includes(filterUpazila.toLowerCase())) return false;
+      if (filterUpazila && !(s.upazila_id || '').toLowerCase().includes(filterUpazila.toLowerCase())) return false;
 
       // Match Search query
       if (searchQuery) {
         const queryLower = searchQuery.toLowerCase();
-        const matchesName = s.name.toLowerCase().includes(queryLower);
-        const matchesDesc = s.description.toLowerCase().includes(queryLower);
-        const matchesAddress = s.address.toLowerCase().includes(queryLower);
-        const matchesCategory = initialCategories.find(c => c.id === s.category_id)?.name.toLowerCase().includes(queryLower);
+        const matchesName = (s.name || '').toLowerCase().includes(queryLower);
+        const matchesDesc = (s.description || '').toLowerCase().includes(queryLower);
+        const matchesAddress = (s.address || '').toLowerCase().includes(queryLower);
+        const catName = initialCategories.find(c => c.id === s.category_id)?.name || '';
+        const matchesCategory = catName.toLowerCase().includes(queryLower);
         return matchesName || matchesDesc || matchesAddress || matchesCategory;
       }
 
@@ -3452,7 +3468,7 @@ export default function App() {
                   <div className="grid grid-cols-4 gap-2 pt-1">
                     {/* Police */}
                     <a
-                      href={`tel:${localEmergencies.find(e => e.iconName === 'Shield' || e.name.includes('পুলিশ'))?.phone || '01713-373265'}`}
+                      href={`tel:${localEmergencies.find(e => e.iconName === 'Shield' || (e.name && e.name.includes('পুলিশ')))?.phone || '01713-373265'}`}
                       className="bg-white hover:bg-sky-50/50 border border-slate-100 hover:border-sky-200 rounded-xl p-2 flex flex-col items-center justify-center text-center transition cursor-pointer group aspect-square shadow-xs"
                     >
                       <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center mb-1 group-hover:scale-105 transition shrink-0">
@@ -3463,7 +3479,7 @@ export default function App() {
 
                     {/* Ambulance */}
                     <a
-                      href={`tel:${localEmergencies.find(e => e.iconName === 'Ambulance' || e.name.includes('অ্যাম্বুলেন্স'))?.phone || '01711-295328'}`}
+                      href={`tel:${localEmergencies.find(e => e.iconName === 'Ambulance' || (e.name && e.name.includes('অ্যাম্বুলেন্স')))?.phone || '01711-295328'}`}
                       className="bg-white hover:bg-rose-50/50 border border-slate-100 hover:border-rose-200 rounded-xl p-2 flex flex-col items-center justify-center text-center transition cursor-pointer group aspect-square shadow-xs"
                     >
                       <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mb-1 group-hover:scale-105 transition shrink-0">
@@ -3474,7 +3490,7 @@ export default function App() {
 
                     {/* Fire Service */}
                     <a
-                      href={`tel:${localEmergencies.find(e => e.iconName === 'Flame' || e.name.includes('ফায়ার') || e.name.includes('ফায়ার'))?.phone || '02-477722222'}`}
+                      href={`tel:${localEmergencies.find(e => e.iconName === 'Flame' || (e.name && (e.name.includes('ফায়ার') || e.name.includes('ফায়ার'))))?.phone || '02-477722222'}`}
                       className="bg-white hover:bg-amber-50/50 border border-slate-100 hover:border-amber-200 rounded-xl p-2 flex flex-col items-center justify-center text-center transition cursor-pointer group aspect-square shadow-xs"
                     >
                       <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-1 group-hover:scale-105 transition shrink-0">

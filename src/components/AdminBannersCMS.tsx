@@ -193,7 +193,7 @@ export const AdminBannersCMS: React.FC<AdminBannersCMSProps> = ({
       const q = searchQuery.toLowerCase();
       const titleMatch = b.title?.toLowerCase().includes(q);
       const subMatch = b.subtitle?.toLowerCase().includes(q);
-      const distMatch = districts.find(d => d.id === b.districtId)?.name.toLowerCase().includes(q);
+      const distMatch = (districts.find(d => d.id === b.districtId)?.name || '').toLowerCase().includes(q);
       if (!titleMatch && !subMatch && !distMatch) return false;
     }
     return true;

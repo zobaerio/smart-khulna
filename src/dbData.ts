@@ -846,10 +846,18 @@ export const saveLocalData = (key: string, data: any) => {
   }
 };
 
-export const getLocalData = (key: string, fallback: any) => {
+export const getLocalData = <T>(key: string, fallback: T): T => {
   try {
     const item = localStorage.getItem(`smart_khulna_${key}`);
-    return item ? JSON.parse(item) : fallback;
+    if (!item) return fallback;
+    const parsed = JSON.parse(item);
+    if (Array.isArray(fallback)) {
+      return (Array.isArray(parsed) ? parsed : fallback) as T;
+    }
+    if (fallback !== null && typeof fallback === 'object') {
+      return (parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : fallback) as T;
+    }
+    return (parsed !== null && parsed !== undefined ? parsed : fallback) as T;
   } catch (e) {
     console.warn(`Error reading local data for smart_khulna_${key}:`, e);
     return fallback;
