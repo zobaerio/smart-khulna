@@ -1623,9 +1623,13 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                   <div className="pt-2">
                     <button 
                       onClick={async () => {
-                        await handleUpdateProfileField('isLocked', !profile.isLocked);
-                        alert(profile.isLocked ? "প্রোফাইল আনলক করা হয়েছে!" : "প্রোফাইল সফলভাবে লক করা হয়েছে!");
-                        setActiveSettingSection('main');
+                        try {
+                          await handleUpdateProfileField('isLocked', !profile.isLocked);
+                          alert(profile.isLocked ? "প্রোফাইল আনলক করা হয়েছে!" : "প্রোফাইল সফলভাবে লক করা হয়েছে!");
+                          setActiveSettingSection('main');
+                        } catch (e) {
+                          console.error("Error toggling profile lock:", e);
+                        }
                       }}
                       className={`w-full py-2.5 rounded-xl text-xs font-extrabold text-white transition ${profile.isLocked ? 'bg-rose-600 hover:bg-rose-700' : 'bg-blue-600 hover:bg-blue-700'}`}
                     >
@@ -1714,10 +1718,14 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                   <div>
                     <button 
                       onClick={async () => {
-                        const newBadge = profile.badge === 'verified_citizen' ? 'none' : 'verified_citizen';
-                        await handleUpdateProfileField('badge', newBadge);
-                        alert(newBadge === 'verified_citizen' ? "অভিনন্দন! আপনার নাগরিক ভেরিফিকেশন ব্যাজ সফলভাবে সক্রিয় হয়েছে।" : "ভেরিফিকেশন ব্যাজ নিষ্ক্রিয় করা হয়েছে।");
-                        setActiveSettingSection('main');
+                        try {
+                          const newBadge = profile.badge === 'verified_citizen' ? 'none' : 'verified_citizen';
+                          await handleUpdateProfileField('badge', newBadge);
+                          alert(newBadge === 'verified_citizen' ? "অভিনন্দন! আপনার নাগরিক ভেরিফিকেশন ব্যাজ সফলভাবে সক্রিয় হয়েছে।" : "ভেরিফিকেশন ব্যাজ নিষ্ক্রিয় করা হয়েছে।");
+                          setActiveSettingSection('main');
+                        } catch (e) {
+                          console.error("Error updating badge:", e);
+                        }
                       }}
                       className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold transition shadow-md shadow-blue-500/20"
                     >
@@ -1749,12 +1757,15 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                       <button 
                         onClick={async () => {
                           if (!blockingInput.trim()) return;
-                          // Let's add block locally for simulation or add to Firestore
-                          const updated = [...blockedUsers, blockingInput.trim()];
-                          setBlockedUsers(updated);
-                          await handleUpdateProfileField('blockedUserIds', updated);
-                          setBlockingInput('');
-                          alert(`${blockingInput.trim()} ব্যবহারকারীকে সফলভাবে ব্লক করা হয়েছে!`);
+                          try {
+                            const updated = [...blockedUsers, blockingInput.trim()];
+                            setBlockedUsers(updated);
+                            await handleUpdateProfileField('blockedUserIds', updated);
+                            setBlockingInput('');
+                            alert(`${blockingInput.trim()} ব্যবহারকারীকে সফলভাবে ব্লক করা হয়েছে!`);
+                          } catch (e) {
+                            console.error("Error blocking user:", e);
+                          }
                         }}
                         className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition cursor-pointer"
                       >
@@ -1772,10 +1783,14 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                             <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{user}</span>
                             <button 
                               onClick={async () => {
-                                const updated = blockedUsers.filter(u => u !== user);
-                                setBlockedUsers(updated);
-                                await handleUpdateProfileField('blockedUserIds', updated);
-                                alert("আনব্লক করা হয়েছে!");
+                                try {
+                                  const updated = blockedUsers.filter(u => u !== user);
+                                  setBlockedUsers(updated);
+                                  await handleUpdateProfileField('blockedUserIds', updated);
+                                  alert("আনব্লক করা হয়েছে!");
+                                } catch (e) {
+                                  console.error("Error unblocking user:", e);
+                                }
                               }}
                               className="px-3 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-[10px] font-extrabold text-slate-700 dark:text-slate-300 transition"
                             >
@@ -1814,9 +1829,13 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                         key={opt.id}
                         // @ts-ignore
                         onClick={async () => {
-                          await handleUpdateProfileField('timelinePostingPermission', opt.id);
-                          alert(`টাইমলাইন পারমিশন পরিবর্তন করে "${opt.label}" করা হয়েছে!`);
-                          setActiveSettingSection('main');
+                          try {
+                            await handleUpdateProfileField('timelinePostingPermission', opt.id);
+                            alert(`টাইমলাইন পারমিশন পরিবর্তন করে "${opt.label}" করা হয়েছে!`);
+                            setActiveSettingSection('main');
+                          } catch (e) {
+                            console.error("Error updating timeline permission:", e);
+                          }
                         }}
                         // @ts-ignore
                         className={`w-full p-4 text-left border rounded-2xl transition flex items-start gap-3 ${profile.timelinePostingPermission === opt.id || (!profile.timelinePostingPermission && opt.id === 'everyone') ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-500' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 hover:bg-slate-50'}`}
@@ -1909,10 +1928,14 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                           alert("পিন কোডটি অবশ্যই ঠিক ৪টি সংখ্যার হতে হবে।");
                           return;
                         }
-                        await handleUpdateProfileField('twoFactorPin', twoFactorPinInput);
-                        await handleUpdateProfileField('twoFactorEnabled', true);
-                        alert("৪-ডিজিটের সিকিউরিটি পিন সফলভাবে সেভ এবং দ্বি-স্তর লক সক্রিয় হয়েছে!");
-                        setActiveSettingSection('main');
+                        try {
+                          await handleUpdateProfileField('twoFactorPin', twoFactorPinInput);
+                          await handleUpdateProfileField('twoFactorEnabled', true);
+                          alert("৪-ডিজিটের সিকিউরিটি পিন সফলভাবে সেভ এবং দ্বি-স্তর লক সক্রিয় হয়েছে!");
+                          setActiveSettingSection('main');
+                        } catch (e) {
+                          console.error("Error setting 2FA pin:", e);
+                        }
                       }}
                       className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition shadow-md"
                     >
