@@ -746,6 +746,7 @@ export default function App() {
       } else {
         setCurrentUser(null);
         setUserProfile(null);
+        setViewingProfileUid(null);
         setLikedCommunityPostIds([]);
         setFollowingUids([]);
         setSavedCommunityPostIds([]);
@@ -4680,6 +4681,9 @@ export default function App() {
  
             <button
               onClick={() => {
+                if (!currentUser) {
+                  setViewingProfileUid(null);
+                }
                 setActiveTab('profile');
                 setViewingDistrictId(null);
               }}
