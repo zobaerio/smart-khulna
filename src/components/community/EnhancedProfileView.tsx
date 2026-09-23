@@ -226,19 +226,47 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
     }
   };
 
-  // Fetch visitors for own profile (up to 50 recent visitors)
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+
+  // Fetch visitors for own profile (up to 50 recent visitors with local fallback)
   useEffect(() => {
     if (!isOwnProfile || !profile.uid) return;
     
     const visitorsRef = collection(db, 'profiles', profile.uid, 'visitors');
-    const q = query(visitorsRef, orderBy('timestamp', 'desc'), limit(50));
-    
-    return onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => doc.data() as ProfileVisitor);
-      setVisitors(docs);
-    }, (error) => {
-      console.warn("Real-time profile visitors listener error:", error);
-    });
+    let unsub: (() => void) | null = null;
+
+    const setupVisitorListener = (useOrdering = true) => {
+      const q = useOrdering ? query(visitorsRef, orderBy('timestamp', 'desc'), limit(50)) : query(visitorsRef, limit(50));
+      return onSnapshot(q, (snapshot) => {
+        const docs = snapshot.docs.map(doc => doc.data() as ProfileVisitor);
+        docs.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+        setVisitors(docs);
+        try {
+          localStorage.setItem(`profile_visitors_${profile.uid}`, JSON.stringify(docs));
+        } catch (e) {
+          console.warn("Local storage visitors write warning:", e);
+        }
+      }, (error) => {
+        console.warn("Real-time profile visitors listener error, trying fallback:", error);
+        if (useOrdering) {
+          unsub = setupVisitorListener(false);
+        } else {
+          try {
+            const cached = localStorage.getItem(`profile_visitors_${profile.uid}`);
+            if (cached) {
+              setVisitors(JSON.parse(cached));
+            }
+          } catch (e) {
+            console.warn("Local storage visitors read warning:", e);
+          }
+        }
+      });
+    };
+
+    unsub = setupVisitorListener(true);
+    return () => {
+      if (unsub) unsub();
+    };
   }, [isOwnProfile, profile.uid]);
 
   const districtName = useMemo(() => {
@@ -268,19 +296,32 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
   const handleCoverFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('অনুগ্রহ করে একটি সঠিক ছবির ফাইল নির্বাচন করুন (JPEG, PNG, WebP)');
+      return;
+    }
+
     try {
+      setIsUploadingCover(true);
       const { compressImage } = await import('../../lib/imageCompressor');
-      const compressed = await compressImage(file, 1200, 400, 0.75);
-      onUpdateCover(compressed);
+      // Compress to max 800x350 and quality 0.65 to guarantee lightweight base64 string (~30-60KB)
+      const compressed = await compressImage(file, 800, 350, 0.65);
+      await onUpdateCover(compressed);
+      alert('কভার ফটো সফলভাবে আপডেট করা হয়েছে!');
     } catch (err) {
-      console.warn('Cover compression failed, falling back to FileReader:', err);
-      const reader = new FileReader();
-      reader.onload = (re) => {
-        if (typeof re.target?.result === 'string') {
-          onUpdateCover(re.target.result);
-        }
-      };
-      reader.readAsDataURL(file);
+      console.warn('Cover photo upload error:', err);
+      try {
+        const { compressImage } = await import('../../lib/imageCompressor');
+        const fallbackCompressed = await compressImage(file, 600, 250, 0.5);
+        await onUpdateCover(fallbackCompressed);
+        alert('কভার ফটো সফলভাবে আপডেট করা হয়েছে!');
+      } catch (fallbackErr) {
+        alert('কভার ফটো আপলোড করতে সমস্যা হয়েছে। অনুগ্রহ করে একটি ছোট সাইজের ছবি চেষ্টা করুন।');
+      }
+    } finally {
+      setIsUploadingCover(false);
+      e.target.value = '';
     }
   };
 
@@ -631,8 +672,16 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
           ) : (
             <div className="w-full h-full bg-gradient-to-r from-emerald-600 to-lime-600 opacity-80" />
           )}
-          {isOwnProfile && (
-            <label className="absolute bottom-3 right-3 px-3.5 py-2 bg-black/60 hover:bg-black/80 text-white rounded-xl transition-all flex items-center gap-2 text-xs font-bold backdrop-blur-sm cursor-pointer shadow-lg">
+
+          {isUploadingCover && (
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-xs flex flex-col items-center justify-center text-white space-y-2 z-20">
+              <div className="w-8 h-8 border-3 border-white border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs font-bold">কভার ফটো আপলোড ও সেভ হচ্ছে...</span>
+            </div>
+          )}
+
+          {isOwnProfile && !isUploadingCover && (
+            <label className="absolute bottom-3 right-3 px-3.5 py-2 bg-black/60 hover:bg-black/80 text-white rounded-xl transition-all flex items-center gap-2 text-xs font-bold backdrop-blur-sm cursor-pointer shadow-lg z-10">
               <Camera size={16} />
               <span>{lang === 'en' ? 'Change Cover' : 'কভার ফটো পরিবর্তন'}</span>
               <input type="file" accept="image/*" onChange={handleCoverFileChange} className="hidden" />

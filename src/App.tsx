@@ -916,25 +916,42 @@ export default function App() {
   // Messages Subscription for active conversation
   useEffect(() => {
     if (!currentUser || !activeConversationId || activeConversationId === 'smart-khulna-ai') return;
+    
     const messagesRef = collection(db, 'conversations', activeConversationId, 'messages');
-    const q = query(messagesRef, orderBy('createdAt', 'asc'));
-    const unsubMessages = onSnapshot(q, (snapshot) => {
-      const msgs: ChatMessage[] = [];
-      snapshot.forEach((doc) => {
-        msgs.push({ id: doc.id, ...doc.data() } as ChatMessage);
+    let unsubListener: (() => void) | null = null;
+
+    const setupListener = (useOrdering = true) => {
+      const q = useOrdering ? query(messagesRef, orderBy('createdAt', 'asc')) : messagesRef;
+      return onSnapshot(q, (snapshot) => {
+        const msgs: ChatMessage[] = [];
+        snapshot.forEach((docSnap) => {
+          msgs.push({ id: docSnap.id, ...docSnap.data() } as ChatMessage);
+        });
+        msgs.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+        setMessagesMap(prev => {
+          const updated = {
+            ...prev,
+            [activeConversationId]: msgs
+          };
+          try {
+            localStorage.setItem(`messages_map_${currentUser.uid}`, JSON.stringify(updated));
+          } catch (e) {
+            console.warn("Local storage save messages map warning:", e);
+          }
+          return updated;
+        });
+      }, (error) => {
+        console.warn("Firestore messages subscription warning:", error);
+        if (useOrdering) {
+          unsubListener = setupListener(false);
+        }
       });
-      setMessagesMap(prev => {
-        const updated = {
-          ...prev,
-          [activeConversationId]: msgs
-        };
-        localStorage.setItem(`messages_map_${currentUser.uid}`, JSON.stringify(updated));
-        return updated;
-      });
-    }, (error) => {
-      console.warn("Firestore messages subscription error:", error);
-    });
-    return () => unsubMessages();
+    };
+
+    unsubListener = setupListener(true);
+    return () => {
+      if (unsubListener) unsubListener();
+    };
   }, [currentUser, activeConversationId]);
 
   // Helper: Append Audit Log
@@ -1796,16 +1813,30 @@ export default function App() {
 
     // Log Profile Visit
     if (currentUser && uid !== currentUser.uid) {
-      const visitId = `${uid}_${currentUser.uid}`;
-      const visitPath = `profiles/${uid}/visitors/${currentUser.uid}`;
-      setDoc(doc(db, 'profiles', uid, 'visitors', currentUser.uid), {
-        id: visitId,
+      const visitObj = {
+        id: `${uid}_${currentUser.uid}`,
         targetUid: uid,
         visitorUid: currentUser.uid,
-        visitorName: userProfile?.name || currentUser.displayName || 'অজানা নাগরিক',
+        visitorName: userProfile?.name || currentUser.displayName || 'সম্মানিত নাগরিক',
         visitorAvatar: userProfile?.avatar || currentUser.photoURL || '',
         timestamp: new Date().toISOString()
-      }).catch(err => console.error('Profile visit log failed:', err));
+      };
+
+      // 1. Immediately log to local cache for instant visitor count updates
+      try {
+        const localKey = `profile_visitors_${uid}`;
+        const existingRaw = localStorage.getItem(localKey);
+        let existingList = existingRaw ? JSON.parse(existingRaw) : [];
+        if (!Array.isArray(existingList)) existingList = [];
+        existingList = [visitObj, ...existingList.filter((v: any) => v.visitorUid !== currentUser.uid)].slice(0, 50);
+        localStorage.setItem(localKey, JSON.stringify(existingList));
+      } catch (e) {
+        console.warn("Local storage visitor save warning:", e);
+      }
+
+      // 2. Persist to Firestore
+      setDoc(doc(db, 'profiles', uid, 'visitors', currentUser.uid), visitObj, { merge: true })
+        .catch(err => console.warn('Profile visit log Firestore warning:', err));
     }
   };
 

@@ -229,7 +229,16 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
 
   // Resolve other participant object with multi-level fallback
   const otherParticipant = useMemo(() => {
-    if (!otherParticipantUid) return null;
+    if (!otherParticipantUid) {
+      return {
+        uid: '',
+        name: 'ব্যবহারকারী',
+        email: '',
+        avatar: '',
+        badge: undefined,
+        isOnline: false
+      };
+    }
     if (activeConv?.participants?.[otherParticipantUid]) {
       const p = activeConv.participants[otherParticipantUid];
       return {
@@ -576,7 +585,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
             onBackToConversations={() => setMobileShowChat(false)}
             isMobile={mobileShowChat}
           />
-        ) : activeConversationId && otherParticipant ? (
+        ) : activeConversationId ? (
           <>
             {/* CHAT HEADER (FIXED TOP) */}
             <div className="p-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/70 shrink-0 z-20">

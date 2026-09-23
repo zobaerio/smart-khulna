@@ -114,19 +114,20 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     setIsUploading(true);
     try {
       const { compressImage } = await import('../../lib/imageCompressor');
-      const compressed = await compressImage(file, 1200, 400, 0.75);
+      const compressed = await compressImage(file, 800, 350, 0.65);
       setCoverPhoto(compressed);
     } catch (err) {
-      console.warn('Cover compression failed, falling back to FileReader:', err);
-      const reader = new FileReader();
-      reader.onload = (re) => {
-        if (typeof re.target?.result === 'string') {
-          setCoverPhoto(re.target.result);
-        }
-      };
-      reader.readAsDataURL(file);
+      console.warn('Cover compression failed, trying fallback compression:', err);
+      try {
+        const { compressImage } = await import('../../lib/imageCompressor');
+        const fallbackCompressed = await compressImage(file, 600, 250, 0.5);
+        setCoverPhoto(fallbackCompressed);
+      } catch (e2) {
+        alert("কভার ফটো কমপ্রেস করতে সমস্যা হয়েছে। ছোট সাইজের ফাইল চেষ্টা করুন।");
+      }
     } finally {
       setIsUploading(false);
+      e.target.value = '';
     }
   };
 
