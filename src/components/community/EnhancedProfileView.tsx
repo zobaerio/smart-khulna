@@ -667,17 +667,32 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                 <>
                   <button 
                     onClick={onEdit}
-                    className="flex-1 sm:flex-none px-6 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition"
+                    className="flex-1 sm:flex-none px-6 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition cursor-pointer"
                   >
                     <Edit2 size={16} />
                     প্রোফাইল এডিট
                   </button>
                   <button 
                     onClick={onOpenSettings}
-                    className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition"
+                    className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition cursor-pointer"
+                    title="সেটিংস"
                   >
                     <Settings size={18} className="text-slate-700 dark:text-slate-300" />
                   </button>
+                  {onLogout && (
+                    <button 
+                      onClick={() => {
+                        if (confirm('আপনি কি নিশ্চিত যে আপনি অ্যাকাউন্ট থেকে লগআউট করতে চান?')) {
+                          onLogout();
+                        }
+                      }}
+                      className="px-4 py-2 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
+                      title="লগআউট করুন"
+                    >
+                      <LogOut size={16} />
+                      <span>লগআউট</span>
+                    </button>
+                  )}
                 </>
               ) : (
                 <>

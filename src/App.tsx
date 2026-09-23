@@ -1178,9 +1178,16 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    if (currentUser) {
-      await logAction('ব্যবহারকারী লগআউট', `${currentUser.email} সিস্টেম থেকে প্রস্থান করেছেন`);
+    try {
+      if (currentUser) {
+        await logAction('ব্যবহারকারী লগআউট', `${currentUser.email} সিস্টেম থেকে প্রস্থান করেছেন`);
+      }
       await signOut(auth);
+      setViewingProfileUid(null);
+      setAdminView(null);
+      setActiveTab('profile');
+    } catch (err) {
+      console.error('Logout error:', err);
     }
   };
 
