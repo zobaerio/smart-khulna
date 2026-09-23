@@ -1075,6 +1075,7 @@ export default function App() {
             ...u,
             name: fullUpdatedProfile.name,
             avatar: fullUpdatedProfile.avatar,
+            coverPhoto: fullUpdatedProfile.coverPhoto,
             bio: fullUpdatedProfile.bio,
             phone: fullUpdatedProfile.phone,
             profession: fullUpdatedProfile.profession,
@@ -1737,13 +1738,55 @@ export default function App() {
   };
 
   const handleUpdateCover = async (url: string) => {
-    if (!currentUser || !userProfile) return;
+    if (!currentUser) return;
+
+    // 1. Update user profile state and local storage cache
+    const updatedProfile = {
+      ...(userProfile || {
+        uid: currentUser.uid,
+        name: currentUser.displayName || 'সম্মানিত নাগরিক',
+        email: currentUser.email || '',
+        avatar: currentUser.photoURL || '',
+        role: 'user',
+        selectedDistrict,
+        savedServices: []
+      }),
+      coverPhoto: url
+    } as UserProfile;
+
+    setUserProfile(updatedProfile);
     try {
-      await updateDoc(doc(db, 'profiles', currentUser.uid), { coverPhoto: url });
-      setUserProfile({ ...userProfile, coverPhoto: url });
-      setAllCommunityUsers(prev => prev.map(u => u.uid === currentUser.uid ? { ...u, coverPhoto: url } : u));
+      localStorage.setItem(`smart_khulna_profile_${currentUser.uid}`, JSON.stringify(updatedProfile));
     } catch (e) {
-      console.error(e);
+      console.warn("Local storage cover photo save warning:", e);
+    }
+
+    // 2. Update community directory user list
+    setAllCommunityUsers(prev => {
+      const exists = prev.some(u => u.uid === currentUser.uid);
+      if (exists) {
+        return prev.map(u => u.uid === currentUser.uid ? { ...u, coverPhoto: url } : u);
+      }
+      return [...prev, {
+        uid: currentUser.uid,
+        name: updatedProfile.name,
+        email: updatedProfile.email,
+        avatar: updatedProfile.avatar,
+        coverPhoto: url,
+        bio: updatedProfile.bio || '',
+        joinedDate: updatedProfile.joinedDate || new Date().toISOString(),
+        badge: 'none',
+        postsCount: 0,
+        followersCount: 0,
+        followingCount: 0
+      } as PublicUserProfile];
+    });
+
+    // 3. Persist to Firestore
+    try {
+      await setDoc(doc(db, 'profiles', currentUser.uid), { coverPhoto: url }, { merge: true });
+    } catch (e) {
+      console.warn("Firestore coverPhoto sync warning:", e);
     }
   };
 
@@ -1793,9 +1836,42 @@ export default function App() {
       } as PublicUserProfile;
     }
 
+    // 1. Current user profile takes priority for own profile view (ensures immediate UI updates for cover photo, avatar, etc.)
+    if (currentUser && targetProfileUid === currentUser.uid) {
+      const profileFromAll = allCommunityUsers.find(u => u.uid === currentUser.uid);
+      const postsCount = communityPosts.filter(p => p.authorId === currentUser.uid).length;
+      return {
+        ...(profileFromAll || {}),
+        uid: currentUser.uid,
+        name: userProfile?.name || currentUser.displayName || profileFromAll?.name || 'সম্মানিত নাগরিক',
+        email: currentUser.email || profileFromAll?.email || '',
+        avatar: userProfile?.avatar || currentUser.photoURL || profileFromAll?.avatar || '',
+        bio: userProfile?.bio || profileFromAll?.bio || '',
+        coverPhoto: userProfile?.coverPhoto || profileFromAll?.coverPhoto || '',
+        phone: userProfile?.phone || profileFromAll?.phone || '',
+        profession: userProfile?.profession || profileFromAll?.profession || '',
+        bloodGroup: userProfile?.bloodGroup || profileFromAll?.bloodGroup || '',
+        district: userProfile?.district || userProfile?.selectedDistrict || profileFromAll?.district || selectedDistrict,
+        upazila: userProfile?.upazila || profileFromAll?.upazila || '',
+        address: userProfile?.address || profileFromAll?.address || '',
+        socialLinks: {
+          facebook: userProfile?.facebook || profileFromAll?.socialLinks?.facebook,
+          twitter: userProfile?.twitter || profileFromAll?.socialLinks?.twitter,
+          instagram: userProfile?.instagram || profileFromAll?.socialLinks?.instagram,
+          linkedin: userProfile?.linkedin || profileFromAll?.socialLinks?.linkedin,
+          website: userProfile?.website || profileFromAll?.socialLinks?.website
+        },
+        joinedDate: userProfile?.joinedDate || profileFromAll?.joinedDate || new Date().toISOString(),
+        badge: userProfile?.role === 'super_admin' ? 'admin' : (userProfile?.role === 'sub_admin' ? 'govt_official' : ((userProfile as any)?.badge || profileFromAll?.badge || 'none')),
+        postsCount: profileFromAll?.postsCount || postsCount,
+        followersCount: profileFromAll?.followersCount || 0, 
+        followingCount: followingUids.length,
+        isFollowing: false
+      } as PublicUserProfile;
+    }
+
+    // 2. Viewing another user's profile
     const profile = allCommunityUsers.find(u => u.uid === targetProfileUid);
-    
-    // Enhanced profile with counts
     const postsCount = communityPosts.filter(p => p.authorId === targetProfileUid).length;
     
     if (profile) {
@@ -1804,37 +1880,6 @@ export default function App() {
         postsCount: profile.postsCount || postsCount,
         isFollowing: followingUids.includes(targetProfileUid)
       };
-    }
-    
-    // Fallback for current user
-    if (currentUser && targetProfileUid === currentUser.uid) {
-      return {
-        uid: currentUser.uid,
-        name: userProfile?.name || currentUser.displayName || 'সম্মানিত নাগরিক',
-        email: currentUser.email || '',
-        avatar: userProfile?.avatar || currentUser.photoURL || '',
-        bio: userProfile?.bio || '',
-        coverPhoto: userProfile?.coverPhoto || '',
-        phone: userProfile?.phone || '',
-        profession: userProfile?.profession || '',
-        bloodGroup: userProfile?.bloodGroup || '',
-        district: userProfile?.district || userProfile?.selectedDistrict || selectedDistrict,
-        upazila: userProfile?.upazila || '',
-        address: userProfile?.address || '',
-        socialLinks: {
-          facebook: userProfile?.facebook,
-          twitter: userProfile?.twitter,
-          instagram: userProfile?.instagram,
-          linkedin: userProfile?.linkedin,
-          website: userProfile?.website
-        },
-        joinedDate: userProfile?.joinedDate || new Date().toISOString(),
-        badge: userProfile?.role === 'super_admin' ? 'admin' : (userProfile?.role === 'sub_admin' ? 'govt_official' : 'none'),
-        postsCount,
-        followersCount: 0, 
-        followingCount: followingUids.length,
-        isFollowing: false
-      } as PublicUserProfile;
     }
 
     // Default Fallback for viewing another user's profile before full sync
@@ -4471,6 +4516,7 @@ export default function App() {
                       setIsEditingProfile(true);
                       setEditDisplayName(targetProfile.name || '');
                       setEditPhotoURL(targetProfile.avatar || '');
+                      setEditCoverPhoto(targetProfile.coverPhoto || userProfile?.coverPhoto || '');
                       setEditPhone(targetProfile.phone || '');
                       setEditBio(targetProfile.bio || '');
                       setEditProfession(targetProfile.profession || '');
