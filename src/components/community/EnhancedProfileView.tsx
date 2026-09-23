@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { compressImage } from '../../lib/imageCompressor';
 import { 
   Camera, 
   MapPin, 
@@ -51,7 +52,7 @@ import { PublicUserProfile, CommunityPost, VerifiedBadgeType } from '../../types
 import { Service, District, Category } from '../../dbData';
 import { IconComponent } from './IconComponent';
 import { db } from '../../firebase';
-import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { AppUpdateModal } from '../ui/AppUpdateModal';
 
 interface ProfileVisitor {
@@ -269,6 +270,39 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
     };
   }, [isOwnProfile, profile.uid]);
 
+  const handleSimulateVisitor = async () => {
+    if (!profile.uid) return;
+    const sampleVisitors = [
+      { visitorUid: 'user_tanvir_1', visitorName: 'তানভীর আহমেদ', visitorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80' },
+      { visitorUid: 'user_rajib_2', visitorName: 'ড. রাজিব হোসেন', visitorAvatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=150&q=80' },
+      { visitorUid: 'user_nasrin_3', visitorName: 'নাসরীন জাহান', visitorAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80' }
+    ];
+    const randomV = sampleVisitors[Math.floor(Math.random() * sampleVisitors.length)];
+    const newVisit: ProfileVisitor = {
+      id: `${profile.uid}_${randomV.visitorUid}_${Date.now()}`,
+      visitorUid: randomV.visitorUid,
+      visitorName: randomV.visitorName,
+      visitorAvatar: randomV.visitorAvatar,
+      timestamp: new Date().toISOString()
+    };
+
+    setVisitors(prev => {
+      const updated = [newVisit, ...prev.filter(v => v.visitorUid !== randomV.visitorUid)];
+      try {
+        localStorage.setItem(`profile_visitors_${profile.uid}`, JSON.stringify(updated));
+      } catch (e) {
+        console.warn("Local storage visitor simulate warning:", e);
+      }
+      return updated;
+    });
+
+    try {
+      await setDoc(doc(db, 'profiles', profile.uid, 'visitors', randomV.visitorUid), newVisit, { merge: true });
+    } catch (e) {
+      console.warn("Simulate visitor Firestore warning:", e);
+    }
+  };
+
   const districtName = useMemo(() => {
     return districts.find(d => d.id === profile.district)?.name || profile.district || 'খুলনা';
   }, [profile.district, districts]);
@@ -304,7 +338,6 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
 
     try {
       setIsUploadingCover(true);
-      const { compressImage } = await import('../../lib/imageCompressor');
       // Compress to max 800x350 and quality 0.65 to guarantee lightweight base64 string (~30-60KB)
       const compressed = await compressImage(file, 800, 350, 0.65);
       await onUpdateCover(compressed);
@@ -312,7 +345,6 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
     } catch (err) {
       console.warn('Cover photo upload error:', err);
       try {
-        const { compressImage } = await import('../../lib/imageCompressor');
         const fallbackCompressed = await compressImage(file, 600, 250, 0.5);
         await onUpdateCover(fallbackCompressed);
         alert('কভার ফটো সফলভাবে আপডেট করা হয়েছে!');
@@ -1306,6 +1338,14 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                     <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
                       কমিউনিটি ফিডে পোস্ট করুন অথবা অন্যদের পোস্টে মন্তব্য করুন, নাগরিকরা আপনার প্রোফাইল ভিউ করলে তাদের তালিকা এখানে সরাসরি দেখতে পাবেন।
                     </p>
+                    <button
+                      type="button"
+                      onClick={handleSimulateVisitor}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition shadow-md shadow-blue-600/20 cursor-pointer mt-2"
+                    >
+                      <Eye size={14} />
+                      <span>টেস্ট ভিজিটর এন্ট্রি সিমুলেট করুন</span>
+                    </button>
                   </div>
                 )}
               </div>
@@ -2204,6 +2244,14 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                     <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
                       কমিউনিটিতে নতুন পোস্ট শেয়ার করলে অথবা সেবা প্রদান করলে নাগরিকরা আপনার প্রোফাইল ভিউ করবেন।
                     </p>
+                    <button
+                      type="button"
+                      onClick={handleSimulateVisitor}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition shadow-md shadow-blue-600/20 cursor-pointer mt-1"
+                    >
+                      <Eye size={14} />
+                      <span>টেস্ট ভিজিটর সিমুলেট করুন</span>
+                    </button>
                   </div>
                 )}
               </div>

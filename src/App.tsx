@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import {
   Phone,
   PhoneCall,
@@ -4518,98 +4519,100 @@ export default function App() {
                     />
                   </div>
                 ) : (
-                  <EnhancedProfileView
-                    profile={targetProfile || {
-                      uid: 'guest',
-                      name: 'অতিথি নাগরিক',
-                      email: '',
-                      avatar: '',
-                      bio: 'স্মার্ট খুলনা ডিজিটাল নাগরিক সেবা প্ল্যাটফর্মে স্বাগতম।',
-                      coverPhoto: '',
-                      phone: '',
-                      profession: 'ডিজিটাল নাগরিক',
-                      bloodGroup: '',
-                      district: selectedDistrict,
-                      upazila: '',
-                      address: 'খুলনা বিভাগ',
-                      socialLinks: {},
-                      joinedDate: new Date().toISOString(),
-                      badge: 'none',
-                      postsCount: 0,
-                      followersCount: 0,
-                      followingCount: 0,
-                      isFollowing: false
-                    }}
-                    currentUserUid={currentUser?.uid}
-                    isOwnProfile={currentUser?.uid === (targetProfile?.uid || 'guest')}
-                    onEdit={() => {
-                      if (!targetProfile) return;
-                      setIsEditingProfile(true);
-                      setEditDisplayName(targetProfile.name || '');
-                      setEditPhotoURL(targetProfile.avatar || '');
-                      setEditCoverPhoto(targetProfile.coverPhoto || userProfile?.coverPhoto || '');
-                      setEditPhone(targetProfile.phone || '');
-                      setEditBio(targetProfile.bio || '');
-                      setEditProfession(targetProfile.profession || '');
-                      setEditBloodGroup(targetProfile.bloodGroup || '');
-                      setEditDistrict(targetProfile.district || selectedDistrict);
-                      setEditUpazila(targetProfile.upazila || '');
-                      setEditAddress(targetProfile.address || '');
-                      setEditFacebook(targetProfile.socialLinks?.facebook || '');
-                      setEditTwitter(targetProfile.socialLinks?.twitter || '');
-                      setEditInstagram(targetProfile.socialLinks?.instagram || '');
-                      setEditLinkedin(targetProfile.socialLinks?.linkedin || '');
-                      setEditWebsite(targetProfile.socialLinks?.website || '');
-                    }}
-                    onMessage={(uid: string, name: string, avatar?: string) => handleStartMessage(uid, name, '', avatar)}
-                    onFollow={handleFollow}
-                    onUnfollow={handleUnfollow}
-                    onBack={() => {
-                      if (viewingProfileUid && viewingProfileUid !== currentUser?.uid) {
-                        setViewingProfileUid(null);
-                        setActiveTab('community');
-                      } else {
-                        setActiveTab('home');
-                      }
-                    }}
-                    posts={targetPosts}
-                    services={targetServices}
-                    districts={initialDistricts}
-                    categories={initialCategories}
-                    followers={targetFollowers}
-                    following={targetFollowing}
-                    onPostClick={() => {}}
-                    onServiceClick={(s) => setSelectedService(s)}
-                    onUserClick={(uid) => handleViewProfile(uid)}
-                    onUpdateCover={handleUpdateCover}
-                    onLogout={handleLogout}
-                    onToggleLike={handleToggleLikePost}
-                    onToggleSave={handleToggleSavePost}
-                    onAddComment={handleAddComment}
-                    onAddReply={handleAddReply}
-                    onDeleteComment={handleDeleteComment}
-                    onSharePost={handleShareCommunityPost}
-                    onOpenCreatePost={() => {
-                      if (!requireAuth('পোস্ট তৈরি')) return;
-                      setEditingPost(null);
-                      setShowCreatePostModal(true);
-                    }}
-                    onReport={handleReport}
-                    onDeletePost={handleDeletePost}
-                    onEditPost={(post) => {
-                      setEditingPost(post);
-                      setShowCreatePostModal(true);
-                    }}
-                    onOpenSettings={() => setShowSettingsModal(true)}
-                    commentsMap={communityComments}
-                    likedPostIds={likedCommunityPostIds}
-                    savedPostIds={savedCommunityPostIds}
-                    followingUids={followingUids}
-                    onStartMessage={handleStartMessage}
-                    lang={lang}
-                    onToggleLang={() => setLang(lang === 'bn' ? 'en' : 'bn')}
-                    onToggleDarkMode={() => setDarkMode(!darkMode)}
-                  />
+                  <ErrorBoundary fallbackText="প্রোফাইল লোড করতে সাময়িক বিলম্ব ঘটেছে। নিচে রিফ্রেশ বাটনে চাপ দিয়ে পুনরায় চেষ্টা করুন।">
+                    <EnhancedProfileView
+                      profile={targetProfile || {
+                        uid: 'guest',
+                        name: 'অতিথি নাগরিক',
+                        email: '',
+                        avatar: '',
+                        bio: 'স্মার্ট খুলনা ডিজিটাল নাগরিক সেবা প্ল্যাটফর্মে স্বাগতম।',
+                        coverPhoto: '',
+                        phone: '',
+                        profession: 'ডিজিটাল নাগরিক',
+                        bloodGroup: '',
+                        district: selectedDistrict,
+                        upazila: '',
+                        address: 'খুলনা বিভাগ',
+                        socialLinks: {},
+                        joinedDate: new Date().toISOString(),
+                        badge: 'none',
+                        postsCount: 0,
+                        followersCount: 0,
+                        followingCount: 0,
+                        isFollowing: false
+                      }}
+                      currentUserUid={currentUser?.uid}
+                      isOwnProfile={currentUser?.uid === (targetProfile?.uid || 'guest')}
+                      onEdit={() => {
+                        if (!targetProfile) return;
+                        setIsEditingProfile(true);
+                        setEditDisplayName(targetProfile.name || '');
+                        setEditPhotoURL(targetProfile.avatar || '');
+                        setEditCoverPhoto(targetProfile.coverPhoto || userProfile?.coverPhoto || '');
+                        setEditPhone(targetProfile.phone || '');
+                        setEditBio(targetProfile.bio || '');
+                        setEditProfession(targetProfile.profession || '');
+                        setEditBloodGroup(targetProfile.bloodGroup || '');
+                        setEditDistrict(targetProfile.district || selectedDistrict);
+                        setEditUpazila(targetProfile.upazila || '');
+                        setEditAddress(targetProfile.address || '');
+                        setEditFacebook(targetProfile.socialLinks?.facebook || '');
+                        setEditTwitter(targetProfile.socialLinks?.twitter || '');
+                        setEditInstagram(targetProfile.socialLinks?.instagram || '');
+                        setEditLinkedin(targetProfile.socialLinks?.linkedin || '');
+                        setEditWebsite(targetProfile.socialLinks?.website || '');
+                      }}
+                      onMessage={(uid: string, name: string, avatar?: string) => handleStartMessage(uid, name, '', avatar)}
+                      onFollow={handleFollow}
+                      onUnfollow={handleUnfollow}
+                      onBack={() => {
+                        if (viewingProfileUid && viewingProfileUid !== currentUser?.uid) {
+                          setViewingProfileUid(null);
+                          setActiveTab('community');
+                        } else {
+                          setActiveTab('home');
+                        }
+                      }}
+                      posts={targetPosts}
+                      services={targetServices}
+                      districts={initialDistricts}
+                      categories={initialCategories}
+                      followers={targetFollowers}
+                      following={targetFollowing}
+                      onPostClick={() => {}}
+                      onServiceClick={(s) => setSelectedService(s)}
+                      onUserClick={(uid) => handleViewProfile(uid)}
+                      onUpdateCover={handleUpdateCover}
+                      onLogout={handleLogout}
+                      onToggleLike={handleToggleLikePost}
+                      onToggleSave={handleToggleSavePost}
+                      onAddComment={handleAddComment}
+                      onAddReply={handleAddReply}
+                      onDeleteComment={handleDeleteComment}
+                      onSharePost={handleShareCommunityPost}
+                      onOpenCreatePost={() => {
+                        if (!requireAuth('পোস্ট তৈরি')) return;
+                        setEditingPost(null);
+                        setShowCreatePostModal(true);
+                      }}
+                      onReport={handleReport}
+                      onDeletePost={handleDeletePost}
+                      onEditPost={(post) => {
+                        setEditingPost(post);
+                        setShowCreatePostModal(true);
+                      }}
+                      onOpenSettings={() => setShowSettingsModal(true)}
+                      commentsMap={communityComments}
+                      likedPostIds={likedCommunityPostIds}
+                      savedPostIds={savedCommunityPostIds}
+                      followingUids={followingUids}
+                      onStartMessage={handleStartMessage}
+                      lang={lang}
+                      onToggleLang={() => setLang(lang === 'bn' ? 'en' : 'bn')}
+                      onToggleDarkMode={() => setDarkMode(!darkMode)}
+                    />
+                  </ErrorBoundary>
                 )}
               </div>
             )}

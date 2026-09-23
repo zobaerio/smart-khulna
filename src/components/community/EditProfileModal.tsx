@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Save, Camera, MapPin, Briefcase, Droplets, Facebook, Twitter, Instagram, Linkedin, Globe, Phone, User, Info, Image as ImageIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { District } from '../../dbData';
+import { compressImage } from '../../lib/imageCompressor';
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -91,7 +92,6 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     if (!file) return;
     setIsUploading(true);
     try {
-      const { compressImage } = await import('../../lib/imageCompressor');
       const compressed = await compressImage(file, 400, 400, 0.7);
       setPhotoURL(compressed);
     } catch (err) {
@@ -113,13 +113,11 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     if (!file) return;
     setIsUploading(true);
     try {
-      const { compressImage } = await import('../../lib/imageCompressor');
       const compressed = await compressImage(file, 800, 350, 0.65);
       setCoverPhoto(compressed);
     } catch (err) {
       console.warn('Cover compression failed, trying fallback compression:', err);
       try {
-        const { compressImage } = await import('../../lib/imageCompressor');
         const fallbackCompressed = await compressImage(file, 600, 250, 0.5);
         setCoverPhoto(fallbackCompressed);
       } catch (e2) {
