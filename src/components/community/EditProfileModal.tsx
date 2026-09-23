@@ -95,7 +95,14 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       const compressed = await compressImage(file, 400, 400, 0.7);
       setPhotoURL(compressed);
     } catch (err) {
-      console.error('Avatar upload failed:', err);
+      console.warn('Avatar compression failed, falling back to FileReader:', err);
+      const reader = new FileReader();
+      reader.onload = (re) => {
+        if (typeof re.target?.result === 'string') {
+          setPhotoURL(re.target.result);
+        }
+      };
+      reader.readAsDataURL(file);
     } finally {
       setIsUploading(false);
     }
@@ -110,7 +117,14 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       const compressed = await compressImage(file, 1200, 400, 0.75);
       setCoverPhoto(compressed);
     } catch (err) {
-      console.error('Cover upload failed:', err);
+      console.warn('Cover compression failed, falling back to FileReader:', err);
+      const reader = new FileReader();
+      reader.onload = (re) => {
+        if (typeof re.target?.result === 'string') {
+          setCoverPhoto(re.target.result);
+        }
+      };
+      reader.readAsDataURL(file);
     } finally {
       setIsUploading(false);
     }
@@ -159,9 +173,17 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                     <ImageIcon className="text-slate-300" size={32} />
                   </div>
                 )}
-                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                  <label className="p-2 bg-white/90 hover:bg-white rounded-full cursor-pointer shadow-lg transition transform hover:scale-110">
-                    <Camera size={18} className="text-emerald-700" />
+                <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <label className="px-3.5 py-2 bg-white/95 hover:bg-white text-emerald-800 rounded-xl cursor-pointer shadow-lg transition transform hover:scale-105 flex items-center gap-2 text-xs font-bold">
+                    <Camera size={16} />
+                    <span>ফটো আপলোড করুন</span>
+                    <input type="file" accept="image/*" onChange={handleCoverFileChange} className="hidden" />
+                  </label>
+                </div>
+                <div className="absolute bottom-2 right-2 md:hidden">
+                  <label className="px-3 py-1.5 bg-emerald-700 text-white rounded-xl cursor-pointer shadow-lg flex items-center gap-1.5 text-xs font-bold">
+                    <Camera size={14} />
+                    <span>আপলোড</span>
                     <input type="file" accept="image/*" onChange={handleCoverFileChange} className="hidden" />
                   </label>
                 </div>

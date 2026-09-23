@@ -64,6 +64,9 @@ export interface CommunityPost {
   commentsCount: number;
   sharesCount: number;
   createdAt: string;
+  createdAtMillis?: number;
+  editedAt?: string;
+  isEdited?: boolean;
   updatedAt?: string;
   isPinned?: boolean;
 }
@@ -90,6 +93,9 @@ export interface ChatMessage {
   text: string;
   attachments?: MessageAttachment[];
   createdAt: string;
+  createdAtMillis?: number;
+  editedAt?: string;
+  isEdited?: boolean;
   isRead: boolean;
   readAt?: string;
   deletedForSender?: boolean;

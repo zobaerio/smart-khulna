@@ -259,6 +259,9 @@ export const PostCard: React.FC<PostCardProps> = ({
             </div>
             <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 flex-wrap">
               <span>{formatTimestamp(post.createdAt)}</span>
+              {(post.isEdited || post.editedAt) && (
+                <span className="text-[10px] text-slate-400 italic">(সম্পাদিত)</span>
+              )}
               {districtObj && (
                 <>
                   <span>•</span>
@@ -286,7 +289,7 @@ export const PostCard: React.FC<PostCardProps> = ({
             <div className="absolute right-0 top-8 z-30 w-44 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-800 py-1.5 text-xs text-slate-700 dark:text-slate-300 animate-in fade-in duration-150">
               {isAuthor ? (
                 <>
-                  {onEditPost && (
+                  {onEditPost && ((Date.now() - new Date(post.createdAt).getTime()) <= 2 * 60 * 60 * 1000) && (
                     <button
                       onClick={() => {
                         setShowMenu(false);

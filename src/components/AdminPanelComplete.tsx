@@ -191,6 +191,12 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
   // Resolution note state
   const [reportResolutionNote, setReportResolutionNote] = useState<{ [id: string]: string }>({});
 
+  // Submission approval sub-tabs and modal
+  const [submissionSubTab, setSubmissionSubTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [selectedSubmissionForDetail, setSelectedSubmissionForDetail] = useState<any | null>(null);
+  const [rejectionReasonInput, setRejectionReasonInput] = useState('');
+  const [showRejectModalForSub, setShowRejectModalForSub] = useState<any | null>(null);
+
   // Fetch Users from Firestore
   const fetchUsers = async () => {
     setIsLoadingUsers(true);
@@ -1258,43 +1264,200 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
         </div>
       )}
 
-      {/* 6. SERVICE SUBMISSIONS */}
+      {/* 6. SERVICE SUBMISSIONS / APPROVAL WORKFLOW */}
       {activeTab === 'submissions' && (
-        <div className="space-y-3">
-          <h3 className="text-xs font-bold text-slate-900">নাগরিকদের দাখিলকৃত নতুন সেবা পর্যালোচনা</h3>
-          {submissions.filter(s => s.status === 'PENDING').length === 0 ? (
-            <p className="text-xs text-slate-400 text-center py-6">বর্তমানে কোনো নতুন সেবা অনুমোদনের অপেক্ষায় নেই।</p>
-          ) : (
-            submissions.filter(s => s.status === 'PENDING').map(sub => (
-              <div key={sub.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-slate-900 text-sm">{sub.name}</span>
-                  <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full text-[10px] font-bold">
-                    PENDING
-                  </span>
-                </div>
-                <p className="text-slate-600">ঠিকানা: {sub.address}</p>
-                <p className="text-slate-600 font-mono">ফোন: {sub.phone}</p>
-                <p className="text-slate-500 italic">"{sub.description || 'কোনো বিবরণ নেই'}"</p>
-                <p className="text-[10px] text-slate-400">দাখিলকারী: {sub.submitted_by}</p>
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-xs font-bold text-slate-900">নাগরিকদের সেবার আবেদন অনুমোদন ও ব্যবস্থাপনা</h3>
+            <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-bold">
+              <button
+                onClick={() => setSubmissionSubTab('pending')}
+                className={`px-3 py-1.5 rounded-lg transition ${submissionSubTab === 'pending' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'}`}
+              >
+                পেন্ডিং ({submissions.filter(s => s.status === 'PENDING').length})
+              </button>
+              <button
+                onClick={() => setSubmissionSubTab('approved')}
+                className={`px-3 py-1.5 rounded-lg transition ${submissionSubTab === 'approved' ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-600'}`}
+              >
+                অনুমোদিত ({submissions.filter(s => s.status === 'APPROVED' || s.status === 'PUBLISHED').length})
+              </button>
+              <button
+                onClick={() => setSubmissionSubTab('rejected')}
+                className={`px-3 py-1.5 rounded-lg transition ${submissionSubTab === 'rejected' ? 'bg-white text-rose-800 shadow-xs' : 'text-slate-600'}`}
+              >
+                প্রত্যাখ্যাত ({submissions.filter(s => s.status === 'REJECTED').length})
+              </button>
+            </div>
+          </div>
 
-                <div className="flex gap-2 pt-2 border-t border-slate-200">
-                  <button
-                    onClick={() => onApproveSubmission(sub)}
-                    className="bg-emerald-800 hover:bg-emerald-900 text-white px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer"
-                  >
-                    অনুমোদন ও প্রকাশ
-                  </button>
-                  <button
-                    onClick={() => onRejectSubmission(sub)}
-                    className="bg-rose-50 hover:bg-rose-100 text-rose-700 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer"
-                  >
-                    প্রত্যাখ্যান করুন
-                  </button>
-                </div>
-              </div>
-            ))
+          {/* Tab Content */}
+          {submissionSubTab === 'pending' && (
+            <div className="space-y-3">
+              {submissions.filter(s => s.status === 'PENDING').length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-8">বর্তমানে কোনো পেন্ডিং সেবা আবেদন নেই।</p>
+              ) : (
+                submissions.filter(s => s.status === 'PENDING').map(sub => (
+                  <div key={sub.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-slate-900 text-sm">{sub.name}</span>
+                      <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full text-[10px] font-bold">PENDING</span>
+                    </div>
+                    <p className="text-slate-600">জেলা: {districts.find(d => d.id === sub.district_id)?.name || sub.district_id} • উপজেলা: {sub.upazila_id || 'সদর'}</p>
+                    <p className="text-slate-600">ঠিকানা: {sub.address}</p>
+                    <p className="text-slate-600 font-mono">ফোন: {sub.phone}</p>
+                    <p className="text-slate-500 italic">"{sub.description || 'কোনো বিবরণ নেই'}"</p>
+                    <p className="text-[10px] text-slate-400">দাখিলকারী: {sub.submitted_by || sub.created_by}</p>
+
+                    <div className="flex gap-2 pt-2 border-t border-slate-200">
+                      <button
+                        onClick={() => setSelectedSubmissionForDetail(sub)}
+                        className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer flex items-center gap-1"
+                      >
+                        <Eye size={13} /> বিস্তারিত দেখুন
+                      </button>
+                      <button
+                        onClick={() => onApproveSubmission(sub)}
+                        className="bg-emerald-800 hover:bg-emerald-900 text-white px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer flex items-center gap-1"
+                      >
+                        <CheckCircle size={13} /> অনুমোদন ও প্রকাশ
+                      </button>
+                      <button
+                        onClick={() => setShowRejectModalForSub(sub)}
+                        className="bg-rose-50 hover:bg-rose-100 text-rose-700 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer flex items-center gap-1"
+                      >
+                        <XCircle size={13} /> প্রত্যাখ্যান
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           )}
+
+          {submissionSubTab === 'approved' && (
+            <div className="space-y-3">
+              {submissions.filter(s => s.status === 'APPROVED' || s.status === 'PUBLISHED').length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-8">কোনো অনুমোদিত সেবা নেই।</p>
+              ) : (
+                submissions.filter(s => s.status === 'APPROVED' || s.status === 'PUBLISHED').map(sub => (
+                  <div key={sub.id} className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-200 text-xs space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-slate-900 text-sm">{sub.name}</span>
+                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-bold">APPROVED</span>
+                    </div>
+                    <p className="text-slate-600">ঠিকানা: {sub.address}</p>
+                    <p className="text-slate-600 font-mono">ফোন: {sub.phone}</p>
+                    <div className="flex justify-between items-center pt-2 border-t border-emerald-100">
+                      <span className="text-[10px] text-emerald-700">অনুমোদিত তারিখ: {new Date(sub.updated_at || sub.created_at).toLocaleDateString('bn-BD')}</span>
+                      <button
+                        onClick={() => setSelectedSubmissionForDetail(sub)}
+                        className="bg-emerald-800 text-white px-3 py-1 rounded-xl text-xs font-bold cursor-pointer"
+                      >
+                        বিস্তারিত
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {submissionSubTab === 'rejected' && (
+            <div className="space-y-3">
+              {submissions.filter(s => s.status === 'REJECTED').length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-8">কোনো প্রত্যাখ্যাত সেবা নেই।</p>
+              ) : (
+                submissions.filter(s => s.status === 'REJECTED').map(sub => (
+                  <div key={sub.id} className="bg-rose-50/50 p-4 rounded-2xl border border-rose-200 text-xs space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-slate-900 text-sm">{sub.name}</span>
+                      <span className="px-2 py-0.5 bg-rose-100 text-rose-800 rounded-full text-[10px] font-bold">REJECTED</span>
+                    </div>
+                    <p className="text-slate-600">ঠিকানা: {sub.address}</p>
+                    <p className="text-rose-700 font-semibold">প্রত্যাখ্যানের কারণ: {sub.rejectionReason || 'কোনো কারণ উল্লেখ করা হয়নি'}</p>
+                    <div className="flex justify-between items-center pt-2 border-t border-rose-100">
+                      <span className="text-[10px] text-slate-400">দাখিলকারী: {sub.submitted_by || sub.created_by}</span>
+                      <button
+                        onClick={() => setSelectedSubmissionForDetail(sub)}
+                        className="bg-slate-200 text-slate-700 px-3 py-1 rounded-xl text-xs font-bold cursor-pointer"
+                      >
+                        বিস্তারিত
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Details Modal */}
+      {selectedSubmissionForDetail && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center">
+              <h3 className="text-base font-bold text-slate-900">{selectedSubmissionForDetail.name}</h3>
+              <button onClick={() => setSelectedSubmissionForDetail(null)} className="text-slate-400 hover:text-slate-700 font-bold">✕</button>
+            </div>
+            <div className="space-y-2 text-xs">
+              <p><span className="font-bold">ক্যাটাগরি:</span> {categories.find(c => c.id === selectedSubmissionForDetail.category_id)?.name || selectedSubmissionForDetail.category_id}</p>
+              <p><span className="font-bold">জেলা ও উপজেলা:</span> {districts.find(d => d.id === selectedSubmissionForDetail.district_id)?.name}, {selectedSubmissionForDetail.upazila_id}</p>
+              <p><span className="font-bold">ঠিকানা:</span> {selectedSubmissionForDetail.address}</p>
+              <p><span className="font-bold">ফোন:</span> {selectedSubmissionForDetail.phone}</p>
+              {selectedSubmissionForDetail.email && <p><span className="font-bold">ইমেইল:</span> {selectedSubmissionForDetail.email}</p>}
+              {selectedSubmissionForDetail.website && <p><span className="font-bold">ওয়েবসাইট:</span> <a href={selectedSubmissionForDetail.website} target="_blank" rel="noreferrer" className="text-emerald-700 underline">{selectedSubmissionForDetail.website}</a></p>}
+              {selectedSubmissionForDetail.facebook && <p><span className="font-bold">ফেসবুক:</span> <a href={selectedSubmissionForDetail.facebook} target="_blank" rel="noreferrer" className="text-emerald-700 underline">{selectedSubmissionForDetail.facebook}</a></p>}
+              <p><span className="font-bold">বিবরণ:</span> {selectedSubmissionForDetail.description || 'কোনো বিবরণ নেই'}</p>
+              {selectedSubmissionForDetail.rejectionReason && (
+                <p className="text-rose-700"><span className="font-bold">প্রত্যাখ্যানের কারণ:</span> {selectedSubmissionForDetail.rejectionReason}</p>
+              )}
+            </div>
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setSelectedSubmissionForDetail(null)}
+                className="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold"
+              >
+                বন্ধ করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Reason Modal */}
+      {showRejectModalForSub && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full space-y-4">
+            <h3 className="text-base font-bold text-slate-900">সেবা আবেদন প্রত্যাখ্যান করুন</h3>
+            <p className="text-xs text-slate-600">অনুগ্রহ করে "{showRejectModalForSub.name}" সেবাটি প্রত্যাখ্যানের সুনির্দিষ্ট কারণ উল্লেখ করুন:</p>
+            <textarea
+              rows={3}
+              placeholder="প্রত্যাখ্যানের কারণ লিখুন (যেমন: ভুল তথ্য বা অপ্রাসঙ্গিক)..."
+              value={rejectionReasonInput}
+              onChange={(e) => setRejectionReasonInput(e.target.value)}
+              className="w-full border border-slate-200 rounded-xl p-3 text-xs focus:ring-1 focus:ring-emerald-700"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => { setShowRejectModalForSub(null); setRejectionReasonInput(''); }}
+                className="bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold"
+              >
+                বাতিল
+              </button>
+              <button
+                onClick={() => {
+                  onRejectSubmission(showRejectModalForSub, rejectionReasonInput || 'যথাযথ তথ্য না থাকায় প্রত্যাখ্যান করা হয়েছে');
+                  setShowRejectModalForSub(null);
+                  setRejectionReasonInput('');
+                }}
+                className="bg-rose-700 text-white px-4 py-2 rounded-xl text-xs font-bold"
+              >
+                নিশ্চিত করুন ও প্রত্যাখ্যান করুন
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

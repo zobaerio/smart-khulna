@@ -1310,25 +1310,41 @@ export default function App() {
     e.preventDefault();
     if (!newServiceName || !newServicePhone || !newServiceAddress) return;
 
-    const newSubmission = {
-      id: 'sub_' + Date.now(),
+    const newId = 'ser_' + Date.now();
+    const newService: Service = {
+      id: newId,
       name: newServiceName,
-      phone: newServicePhone,
+      slug: newServiceName.toLowerCase().replace(/[^a-zA-Z0-9]/g, '-'),
+      description: newServiceDescription || 'ব্যবহারকারী কর্তৃক জমা দেওয়া স্থানীয় সেবা প্রতিষ্ঠান।',
       category_id: newServiceCategory,
       district_id: newServiceDistrict,
       upazila_id: newServiceUpazila || 'সদর',
       address: newServiceAddress,
-      description: newServiceDescription,
-      website: newServiceWebsite,
-      facebook: newServiceFacebook,
+      phone: newServicePhone,
+      website: newServiceWebsite || '',
+      facebook: newServiceFacebook || '',
+      latitude: 22.82,
+      longitude: 89.54,
+      opening_hours: 'সকাল ৯:০০ - রাত ৮:০০',
+      is_verified: false,
       status: 'PENDING',
-      submitted_by: currentUser?.email || 'অতিথি ব্যবহারকারী',
-      created_at: new Date().toISOString()
+      created_by: currentUser?.uid || 'guest',
+      owner_id: currentUser?.uid || 'guest',
+      submitted_by: currentUser?.email || currentUser?.displayName || 'অতিথি ব্যবহারকারী',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
-    setSubmissions(prev => [newSubmission, ...prev]);
+    setServices(prev => [newService, ...prev]);
+    setSubmissions(prev => [newService, ...prev]);
     setFormSubmittedSuccess(true);
     await logAction('নতুন তথ্য সাবমিশন', `ব্যবহারকারী "${newServiceName}" তথ্য যোগ করার অনুরোধ করেছেন`);
+
+    try {
+      await setDoc(doc(db, 'services', newId), newService);
+    } catch (e) {
+      console.warn("Firestore service submission fallback:", e);
+    }
 
     // Reset Form
     setNewServiceName('');
@@ -1397,8 +1413,8 @@ export default function App() {
   // Filter and search services lists
   const filteredServices = useMemo(() => {
     return services.filter(s => {
-      // Ensure only published services are shown to normal users
-      if (s.status !== 'PUBLISHED') return false;
+      // Ensure only approved or published services are shown to normal users
+      if (s.status !== 'APPROVED' && s.status !== 'PUBLISHED') return false;
 
       // Filter by District
       if (s.district_id !== selectedDistrict) return false;
@@ -1435,8 +1451,8 @@ export default function App() {
   const stats = useMemo(() => {
     return {
       totalServices: services.length,
-      publishedServices: services.filter(s => s.status === 'PUBLISHED').length,
-      pendingSubmissions: submissions.filter(s => s.status === 'PENDING').length,
+      publishedServices: services.filter(s => s.status === 'APPROVED' || s.status === 'PUBLISHED').length,
+      pendingSubmissions: services.filter(s => s.status === 'PENDING').length,
       verifiedServices: services.filter(s => s.is_verified).length,
       totalLogs: auditLogs.length
     };
@@ -1444,36 +1460,87 @@ export default function App() {
 
   // Handle Submissions Actions (Approve/Reject)
   const handleApproveSubmission = async (sub: any) => {
-    // Convert submission to a service
-    const newService: Service = {
-      id: 'ser_' + Date.now(),
-      name: sub.name,
-      slug: sub.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, '-'),
-      description: sub.description || 'ব্যবহারকারী কর্তৃক জমা দেওয়া স্থানীয় সেবা প্রতিষ্ঠান।',
-      category_id: sub.category_id,
-      district_id: sub.district_id,
-      upazila_id: sub.upazila_id || 'সদর',
-      address: sub.address,
-      phone: sub.phone,
-      website: sub.website || '',
-      facebook: sub.facebook || '',
-      latitude: 22.82,
-      longitude: 89.54,
-      opening_hours: 'সকাল ৯:০০ - রাত ৮:০০',
+    const updatedService = {
+      ...sub,
+      status: 'APPROVED',
       is_verified: true,
-      status: 'PUBLISHED',
-      created_at: new Date().toISOString(),
+      approved_at: new Date().toISOString(),
+      approved_by: currentUser?.uid || '',
       updated_at: new Date().toISOString()
     };
 
-    setServices(prev => [newService, ...prev]);
-    setSubmissions(prev => prev.map(s => s.id === sub.id ? { ...s, status: 'APPROVED' } : s));
+    setServices(prev => prev.map(s => s.id === sub.id ? updatedService : s));
+    setSubmissions(prev => prev.map(s => s.id === sub.id ? updatedService : s));
+
+    try {
+      await setDoc(doc(db, 'services', sub.id), updatedService, { merge: true });
+    } catch (e) {
+      console.warn("Firestore service approval sync fallback:", e);
+    }
+
+    // Send notification to user
+    const recipientUid = sub.created_by || sub.owner_id;
+    if (recipientUid && recipientUid !== 'guest') {
+      const notifId = 'notif_' + Date.now();
+      const notif = {
+        id: notifId,
+        recipientUid,
+        title: 'সেবা অনুমোদিত হয়েছে',
+        message: `আপনার সেবা "${sub.name}" অনুমোদিত হয়েছে এবং এখন Smart Khulna-তে দেখা যাচ্ছে।`,
+        read: false,
+        createdAt: new Date().toISOString()
+      };
+      try {
+        await setDoc(doc(db, 'notifications', notifId), notif);
+      } catch (e) {
+        console.warn("Notification sync fallback:", e);
+      }
+    }
+
     await logAction('অনুমোদন ও প্রকাশ', `অ্যাডমিন "${sub.name}" সেবাটি অনুমোদন করে ওয়েবসাইটে প্রকাশ করেছেন`);
+    alert('সেবা সফলভাবে অনুমোদিত এবং প্রকাশিত হয়েছে!');
   };
 
-  const handleRejectSubmission = async (sub: any) => {
-    setSubmissions(prev => prev.map(s => s.id === sub.id ? { ...s, status: 'REJECTED' } : s));
-    await logAction('প্রত্যাখ্যান', `অ্যাডমিন "${sub.name}" সেবাটি প্রত্যাখ্যান করেছেন`);
+  const handleRejectSubmission = async (sub: any, reason: string = 'যথাযথ তথ্য বা শর্ত পূরণ না হওয়ায় প্রত্যাখ্যান করা হয়েছে') => {
+    const updatedService = {
+      ...sub,
+      status: 'REJECTED',
+      rejectionReason: reason,
+      rejected_at: new Date().toISOString(),
+      rejected_by: currentUser?.uid || '',
+      updated_at: new Date().toISOString()
+    };
+
+    setServices(prev => prev.map(s => s.id === sub.id ? updatedService : s));
+    setSubmissions(prev => prev.map(s => s.id === sub.id ? updatedService : s));
+
+    try {
+      await setDoc(doc(db, 'services', sub.id), updatedService, { merge: true });
+    } catch (e) {
+      console.warn("Firestore service rejection sync fallback:", e);
+    }
+
+    // Send notification to user
+    const recipientUid = sub.created_by || sub.owner_id;
+    if (recipientUid && recipientUid !== 'guest') {
+      const notifId = 'notif_' + Date.now();
+      const notif = {
+        id: notifId,
+        recipientUid,
+        title: 'সেবা অনুমোদিত হয়নি',
+        message: `আপনার সেবা "${sub.name}" অনুমোদিত হয়নি। কারণ: ${reason}`,
+        read: false,
+        createdAt: new Date().toISOString()
+      };
+      try {
+        await setDoc(doc(db, 'notifications', notifId), notif);
+      } catch (e) {
+        console.warn("Notification sync fallback:", e);
+      }
+    }
+
+    await logAction('প্রত্যাখ্যান', `অ্যাডমিন "${sub.name}" সেবাটি প্রত্যাখ্যান করেছেন। কারণ: ${reason}`);
+    alert('সেবা প্রত্যাখ্যান করা হয়েছে এবং ব্যবহারকারীকে কারণসহ জানানো হয়েছে।');
   };
 
   // Handle Emergency contacts updates
@@ -1749,18 +1816,31 @@ export default function App() {
     const currentAvatar = userProfile?.avatar || currentUser.photoURL || '';
 
     if (editingPost) {
+      const createdAtTime = new Date(editingPost.createdAt).getTime();
+      if (Date.now() - createdAtTime > 2 * 60 * 60 * 1000) {
+        alert('২ ঘণ্টা সময়সীমা পার হয়ে যাওয়ায় এই পোস্টটি আর সম্পাদনা করা যাবে না।');
+        setEditingPost(null);
+        return;
+      }
+
+      const updateData = {
+        ...postData,
+        isEdited: true,
+        editedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
       setCommunityPosts(prev => prev.map(p => {
         if (p.id === editingPost.id) {
           return {
             ...p,
-            ...postData,
-            updatedAt: new Date().toISOString()
+            ...updateData
           } as CommunityPost;
         }
         return p;
       }));
       try {
-        await setDoc(doc(db, 'posts', editingPost.id), postData, { merge: true });
+        await setDoc(doc(db, 'posts', editingPost.id), updateData, { merge: true });
       } catch (e) {
         console.warn("Firestore post edit sync fallback:", e);
       }
@@ -1786,7 +1866,8 @@ export default function App() {
         sharesCount: 0,
         savedBy: [],
         status: postData.status || 'published',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        createdAtMillis: Date.now()
       };
       setCommunityPosts(prev => [newPost, ...prev]);
       try {
@@ -2069,9 +2150,24 @@ export default function App() {
         await setDoc(currentUserProfileRef, {
           followingCount: currentFollowingCount + 1
         }, { merge: true });
-        await setDoc(targetUserProfileRef, {
-          followersCount: targetFollowersCount + 1
-        }, { merge: true });
+        const targetProfileSnapCheck = await getDoc(targetUserProfileRef);
+        if (targetProfileSnapCheck.exists()) {
+          const freshFollowersCount = targetProfileSnapCheck.data().followersCount || 0;
+          await setDoc(targetUserProfileRef, {
+            followersCount: freshFollowersCount + 1
+          }, { merge: true });
+        } else {
+          const targetUserObj = allCommunityUsers.find(u => u.uid === targetUid);
+          await setDoc(targetUserProfileRef, {
+            uid: targetUid,
+            name: targetUserObj?.name || 'ব্যবহারকারী',
+            email: targetUserObj?.email || '',
+            avatar: targetUserObj?.avatar || '',
+            followersCount: 1,
+            followingCount: 0,
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+        }
 
         // Add Notification in Firestore
         const newNotifId = 'notif_' + Date.now();
@@ -2188,7 +2284,8 @@ export default function App() {
       text,
       attachments,
       isRead: false,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      createdAtMillis: Date.now()
     };
 
     // Save to Firestore
@@ -2287,6 +2384,34 @@ export default function App() {
       await deleteDoc(doc(db, 'conversations', conversationId, 'messages', messageId));
     } catch (err) {
       console.warn('Firestore message deletion notice (local state updated):', err);
+    }
+  };
+
+  const handleEditMessage = async (conversationId: string, messageId: string, newText: string) => {
+    if (!currentUser) return;
+    const msgList = messagesMap[conversationId] || [];
+    const msg = msgList.find(m => m.id === messageId);
+    if (!msg) return;
+
+    if (Date.now() - new Date(msg.createdAt).getTime() > 2 * 60 * 60 * 1000) {
+      alert('২ ঘণ্টা সময়সীমা পার হয়ে যাওয়ায় এই বার্তাটি আর সম্পাদনা করা যাবে না।');
+      return;
+    }
+
+    try {
+      const msgRef = doc(db, 'conversations', conversationId, 'messages', messageId);
+      await updateDoc(msgRef, {
+        text: newText,
+        isEdited: true,
+        editedAt: new Date().toISOString()
+      });
+      setMessagesMap(prev => ({
+        ...prev,
+        [conversationId]: (prev[conversationId] || []).map(m => m.id === messageId ? { ...m, text: newText, isEdited: true, editedAt: new Date().toISOString() } : m)
+      }));
+    } catch (e) {
+      console.error("Failed to edit message:", e);
+      alert('বার্তা সম্পাদনা করতে সমস্যা হয়েছে (সম্ভবত ২ ঘণ্টা সময়সীমা পার হয়ে গেছে)।');
     }
   };
 

@@ -31,7 +31,8 @@ import {
   Square,
   Award,
   Bot,
-  Sparkles
+  Sparkles,
+  Edit2
 } from 'lucide-react';
 import {
   Conversation,
@@ -67,6 +68,7 @@ interface MessagingCenterProps {
   messagesMap: { [convId: string]: ChatMessage[] };
   blockedUserIds: string[];
   onViewProfile?: (uid: string, name: string, email: string, avatar?: string) => void;
+  onEditMessage?: (convId: string, messageId: string, newText: string) => void;
 }
 
 export const MessagingCenter: React.FC<MessagingCenterProps> = ({
@@ -89,7 +91,8 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
   onRequireAuth,
   messagesMap,
   blockedUserIds,
-  onViewProfile
+  onViewProfile,
+  onEditMessage
 }) => {
   const [chatSearchQuery, setChatSearchQuery] = useState('');
   const [showNewChatModal, setShowNewChatModal] = useState(false);
@@ -98,6 +101,8 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
   const [attachments, setAttachments] = useState<MessageAttachment[]>([]);
   const [showChatMenu, setShowChatMenu] = useState(false);
   const [mobileShowChat, setMobileShowChat] = useState(Boolean(activeConversationId));
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editMessageText, setEditMessageText] = useState('');
 
   // Selection and Bulk Deletion States
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -794,17 +799,65 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                         )}
 
                         {/* MESSAGE TEXT */}
-                        {msg.text && <p className="whitespace-pre-wrap break-words">{msg.text}</p>}
+                        {editingMessageId === msg.id ? (
+                          <div className="space-y-2 mt-1">
+                            <textarea
+                              value={editMessageText}
+                              onChange={(e) => setEditMessageText(e.target.value)}
+                              className="w-full p-2 bg-white/90 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                              rows={2}
+                            />
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => {
+                                  setEditingMessageId(null);
+                                  setEditMessageText('');
+                                }}
+                                className="px-2 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold"
+                              >
+                                বাতিল
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (!editMessageText.trim() || !onEditMessage || !activeConversationId) return;
+                                  onEditMessage(activeConversationId, msg.id, editMessageText.trim());
+                                  setEditingMessageId(null);
+                                  setEditMessageText('');
+                                }}
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold"
+                              >
+                                সেভ করুন
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          msg.text && <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+                        )}
 
                         {/* TIME & READ STATUS */}
                         <div
-                          className={`mt-1 flex items-center gap-1 text-[9px] select-none ${
+                          className={`mt-1 flex items-center gap-1.5 text-[9px] select-none ${
                             isMine ? `${activeTheme.textMy} justify-end` : `${activeTheme.textOther} justify-end`
                           }`}
                         >
+                          {(msg.isEdited || msg.editedAt) && (
+                            <span className="opacity-75 italic">(সম্পাদিত)</span>
+                          )}
                           <span>{formatMessageTime(msg.createdAt)}</span>
+                          {isMine && ((Date.now() - new Date(msg.createdAt).getTime()) <= 2 * 60 * 60 * 1000) && editingMessageId !== msg.id && onEditMessage && (
+                            <button
+                              onClick={() => {
+                                setEditingMessageId(msg.id);
+                                setEditMessageText(msg.text);
+                              }}
+                              className="opacity-60 hover:opacity-100 transition p-0.5 ml-1 cursor-pointer"
+                              title="বার্তা সম্পাদনা"
+                            >
+                              <Edit2 size={10} />
+                            </button>
+                          )}
                           {isMine && (
-                            <span className="inline-flex items-center">
+                            <span className="inline-flex items-center ml-1">
                               {msg.isRead ? (
                                 <CheckCheck size={12} className="text-emerald-300 stroke-[2.5]" />
                               ) : (
