@@ -70,7 +70,7 @@ interface AdminPanelCompleteProps {
   onDeleteBanner?: (bannerId: string) => Promise<void> | void;
   onToggleBannerStatus?: (bannerId: string, isActive: boolean) => Promise<void> | void;
   onApproveSubmission: (sub: any) => Promise<void> | void;
-  onRejectSubmission: (sub: any) => Promise<void> | void;
+  onRejectSubmission: (sub: any, reason?: string) => Promise<void> | void;
   onResolveReport: (reportId: string, note: string) => Promise<void> | void;
   onDismissReport: (reportId: string) => Promise<void> | void;
   onHidePost: (postId: string, reason: string) => Promise<void> | void;

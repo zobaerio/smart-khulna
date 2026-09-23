@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   MessageCircle,
   Search,
@@ -195,19 +195,71 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
   // Filter conversations (only for logged in users, guest users can chat with Smart Khulna AI)
   const filteredConversations = currentUserId
     ? conversations.filter(conv => {
+        if (!conv || !conv.participantIds) return false;
         if (conv.hiddenForUserIds?.includes(currentUserId)) return false;
-        const otherParticipantUid = conv.participantIds.find(uid => uid !== currentUserId);
-        const otherParticipant = otherParticipantUid ? conv.participants[otherParticipantUid] : null;
-        const nameMatch = otherParticipant?.name.toLowerCase().includes(chatSearchQuery.toLowerCase());
-        const lastMsgMatch = conv.lastMessage?.text.toLowerCase().includes(chatSearchQuery.toLowerCase());
+        const otherUid = conv.participantIds.find(uid => uid !== currentUserId);
+        const otherObj = (otherUid && conv.participants) ? conv.participants[otherUid] : null;
+        const otherUserFromList = otherUid ? allUsers.find(u => u.uid === otherUid) : null;
+        const resolvedName = otherObj?.name || otherUserFromList?.name || 'ব্যবহারকারী';
+        const nameMatch = chatSearchQuery
+          ? resolvedName.toLowerCase().includes(chatSearchQuery.toLowerCase())
+          : true;
+        const lastMsgMatch = chatSearchQuery
+          ? (conv.lastMessage?.text || '').toLowerCase().includes(chatSearchQuery.toLowerCase())
+          : false;
         return nameMatch || lastMsgMatch;
       })
     : [];
 
-  // Get other participant in active conversation
-  const otherParticipantUid = activeConv?.participantIds.find(uid => uid !== currentUserId);
-  const otherParticipant: ConversationParticipant | undefined =
-    otherParticipantUid && activeConv ? activeConv.participants[otherParticipantUid] : undefined;
+  // Get other participant UID in active conversation (with fallback from conversation ID if conv not in array yet)
+  const otherParticipantUid = useMemo(() => {
+    if (!activeConversationId || activeConversationId === 'smart-khulna-ai') return null;
+    if (activeConv?.participantIds) {
+      return activeConv.participantIds.find(uid => uid !== currentUserId) || null;
+    }
+    if (activeConversationId.startsWith('conv_')) {
+      const parts = activeConversationId.replace('conv_', '').split('_');
+      if (currentUserId) {
+        return parts.find(uid => uid !== currentUserId) || parts[1] || parts[0] || null;
+      }
+      return parts[0] || null;
+    }
+    return null;
+  }, [activeConversationId, activeConv, currentUserId]);
+
+  // Resolve other participant object with multi-level fallback
+  const otherParticipant = useMemo(() => {
+    if (!otherParticipantUid) return null;
+    if (activeConv?.participants?.[otherParticipantUid]) {
+      const p = activeConv.participants[otherParticipantUid];
+      return {
+        uid: p.uid || otherParticipantUid,
+        name: p.name || 'ব্যবহারকারী',
+        email: p.email || '',
+        avatar: p.avatar || '',
+        badge: p.badge,
+        isOnline: !!p.isOnline
+      };
+    }
+    const foundUser = allUsers.find(u => u.uid === otherParticipantUid);
+    if (foundUser) {
+      return {
+        uid: foundUser.uid,
+        name: foundUser.name || 'ব্যবহারকারী',
+        email: foundUser.email || '',
+        avatar: foundUser.avatar || '',
+        badge: foundUser.badge,
+        isOnline: false
+      };
+    }
+    return {
+      uid: otherParticipantUid,
+      name: 'ব্যবহারকারী',
+      email: '',
+      avatar: '',
+      isOnline: false
+    };
+  }, [otherParticipantUid, activeConv, allUsers]);
 
   const isOtherBlocked = otherParticipantUid ? blockedUserIds.includes(otherParticipantUid) : false;
 
@@ -524,7 +576,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
             onBackToConversations={() => setMobileShowChat(false)}
             isMobile={mobileShowChat}
           />
-        ) : activeConv && otherParticipant ? (
+        ) : activeConversationId && otherParticipant ? (
           <>
             {/* CHAT HEADER (FIXED TOP) */}
             <div className="p-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/70 shrink-0 z-20">
@@ -648,7 +700,11 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                       <button
                         onClick={() => {
                           setShowChatMenu(false);
-                          onDeleteConversation(activeConv.id);
+                          if (activeConv?.id) {
+                            onDeleteConversation(activeConv.id);
+                          } else if (activeConversationId) {
+                            onDeleteConversation(activeConversationId);
+                          }
                           setMobileShowChat(false);
                         }}
                         className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700 cursor-pointer border-t border-slate-100"
@@ -1063,13 +1119,14 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
 
             <div className="p-2 overflow-y-auto max-h-72 divide-y divide-slate-100 text-xs">
               {allUsers
-                .filter(u => u.uid !== currentUserId)
-                .filter(
-                  u =>
-                    u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-                    u.email.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-                    (u.district && u.district.toLowerCase().includes(userSearchQuery.toLowerCase()))
-                )
+                .filter(u => u && u.uid !== currentUserId)
+                .filter(u => {
+                  const q = userSearchQuery.toLowerCase();
+                  const nameMatch = (u.name || '').toLowerCase().includes(q);
+                  const emailMatch = (u.email || '').toLowerCase().includes(q);
+                  const districtMatch = (u.district || '').toLowerCase().includes(q);
+                  return nameMatch || emailMatch || districtMatch;
+                })
                 .map(targetUser => (
                   <div
                     key={targetUser.uid}

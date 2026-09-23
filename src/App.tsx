@@ -739,7 +739,9 @@ export default function App() {
             linkedin: '',
             website: '',
             role: isSuperAdminEmail ? 'super_admin' : 'user',
-            savedServices: JSON.parse(localStorage.getItem(`favs_${firebaseUser.uid}`) || '[]')
+            savedServices: (() => {
+              try { return JSON.parse(localStorage.getItem(`favs_${firebaseUser.uid}`) || '[]'); } catch { return []; }
+            })()
           };
           setUserProfile(fallbackProfile);
         }
@@ -838,20 +840,24 @@ export default function App() {
     }
 
     // 1. Load cached fallbacks from user-specific local storage keys
-    const cacheLikes = localStorage.getItem(`likes_${currentUser.uid}`);
-    if (cacheLikes) setLikedCommunityPostIds(JSON.parse(cacheLikes));
+    try {
+      const cacheLikes = localStorage.getItem(`likes_${currentUser.uid}`);
+      if (cacheLikes) setLikedCommunityPostIds(JSON.parse(cacheLikes));
 
-    const cacheFollows = localStorage.getItem(`follows_${currentUser.uid}`);
-    if (cacheFollows) setFollowingUids(JSON.parse(cacheFollows));
+      const cacheFollows = localStorage.getItem(`follows_${currentUser.uid}`);
+      if (cacheFollows) setFollowingUids(JSON.parse(cacheFollows));
 
-    const cacheSaved = localStorage.getItem(`saved_${currentUser.uid}`);
-    if (cacheSaved) setSavedCommunityPostIds(JSON.parse(cacheSaved));
+      const cacheSaved = localStorage.getItem(`saved_${currentUser.uid}`);
+      if (cacheSaved) setSavedCommunityPostIds(JSON.parse(cacheSaved));
 
-    const cacheConvs = localStorage.getItem(`conversations_${currentUser.uid}`);
-    if (cacheConvs) setConversations(JSON.parse(cacheConvs));
+      const cacheConvs = localStorage.getItem(`conversations_${currentUser.uid}`);
+      if (cacheConvs) setConversations(JSON.parse(cacheConvs));
 
-    const cacheMsgs = localStorage.getItem(`messages_map_${currentUser.uid}`);
-    if (cacheMsgs) setMessagesMap(JSON.parse(cacheMsgs));
+      const cacheMsgs = localStorage.getItem(`messages_map_${currentUser.uid}`);
+      if (cacheMsgs) setMessagesMap(JSON.parse(cacheMsgs));
+    } catch (e) {
+      console.warn("Local storage cache parse warning:", e);
+    }
 
     // 2. Set up Firestore Real-Time Subscriptions
     // Likes Subscription
@@ -1281,7 +1287,12 @@ export default function App() {
     if (userProfile) {
       return userProfile.savedServices?.includes(serviceId) || false;
     }
-    const localFavs = JSON.parse(localStorage.getItem('smart_khulna_local_favs') || '[]');
+    let localFavs: string[] = [];
+    try {
+      localFavs = JSON.parse(localStorage.getItem('smart_khulna_local_favs') || '[]');
+    } catch {
+      localFavs = [];
+    }
     return localFavs.includes(serviceId);
   };
 
@@ -1304,14 +1315,23 @@ export default function App() {
         console.warn("Could not sync saved services with cloud, using local state", e);
       }
     } else {
-      const localFavs = JSON.parse(localStorage.getItem('smart_khulna_local_favs') || '[]');
+      let localFavs: string[] = [];
+      try {
+        localFavs = JSON.parse(localStorage.getItem('smart_khulna_local_favs') || '[]');
+      } catch {
+        localFavs = [];
+      }
       let updatedFavs: string[];
       if (localFavs.includes(serviceId)) {
         updatedFavs = localFavs.filter((id: string) => id !== serviceId);
       } else {
         updatedFavs = [...localFavs, serviceId];
       }
-      localStorage.setItem('smart_khulna_local_favs', JSON.stringify(updatedFavs));
+      try {
+        localStorage.setItem('smart_khulna_local_favs', JSON.stringify(updatedFavs));
+      } catch (e) {
+        console.warn("Error setting local_favs", e);
+      }
       // Force render update
       setActiveTab(activeTab); 
     }
@@ -2294,16 +2314,15 @@ export default function App() {
       
       try {
         await setDoc(doc(db, 'conversations', newConvId), existing);
-        setConversations(prev => [existing!, ...prev]);
       } catch (err) {
-        console.error('Failed to create conversation:', err);
-        alert('কথোপকথন শুরু করতে সমস্যা হয়েছে।');
-        return;
+        console.warn('Firestore setDoc conversation fallback:', err);
       }
+      setConversations(prev => [existing!, ...prev.filter(c => c.id !== existing!.id)]);
     }
 
     setActiveConversationId(existing.id);
     setActiveTab('messages');
+    setViewingProfileUid(null);
     setShowUserProfileModal(false);
   };
 

@@ -44,6 +44,10 @@ export interface Service {
   is_verified: boolean;
   status: 'DRAFT' | 'PENDING' | 'APPROVED' | 'PUBLISHED' | 'REJECTED' | 'NEEDS_CHANGES';
   created_by?: string;
+  owner_id?: string;
+  submitted_by?: string;
+  rejectionReason?: string;
+  rejection_reason?: string;
   approved_by?: string;
   created_at: string;
   updated_at: string;
@@ -835,10 +839,19 @@ export const defaultReleaseConfig: AppReleaseConfig = {
 };
 
 export const saveLocalData = (key: string, data: any) => {
-  localStorage.setItem(`smart_khulna_${key}`, JSON.stringify(data));
+  try {
+    localStorage.setItem(`smart_khulna_${key}`, JSON.stringify(data));
+  } catch (e) {
+    console.warn(`Error saving local data for smart_khulna_${key}:`, e);
+  }
 };
 
 export const getLocalData = (key: string, fallback: any) => {
-  const item = localStorage.getItem(`smart_khulna_${key}`);
-  return item ? JSON.parse(item) : fallback;
+  try {
+    const item = localStorage.getItem(`smart_khulna_${key}`);
+    return item ? JSON.parse(item) : fallback;
+  } catch (e) {
+    console.warn(`Error reading local data for smart_khulna_${key}:`, e);
+    return fallback;
+  }
 };
