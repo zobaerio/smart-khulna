@@ -4601,6 +4601,7 @@ export default function App() {
                 onSelectPost={(p) => setViewingPost(p)}
                 onSaveItem={(type, id) => toggleBookmark(type, id)}
                 isSaved={(type, id) => isBookmarked(type, id)}
+                onBack={() => navigateTo('home')}
               />
             )}
 
