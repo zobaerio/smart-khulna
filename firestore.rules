@@ -88,10 +88,37 @@ service cloud.firestore {
       allow update, delete: if isSuperAdmin();
     }
 
-    // 5. Notifications
+    // 5. Notifications & Broadcasts
     match /notifications/{notificationId} {
-      allow read, update, delete: if isAuthenticated() && resource.data.recipientUid == request.auth.uid;
-      allow create: if isAuthenticated();
+      allow read: if true;
+      allow create: if isAuthenticated() || isSuperAdmin();
+      allow update: if isSuperAdmin() || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deliveryStats', 'isRead', 'openedAt']));
+      allow delete: if isSuperAdmin();
+    }
+
+    // 5b. User Notifications (Per-user inbox)
+    match /user_notifications/{userId}/items/{itemId} {
+      allow read, update, delete: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+      allow create: if isAuthenticated() || isSuperAdmin();
+    }
+
+    // 5c. FCM Device Tokens & Users
+    match /fcm_tokens/{tokenId} {
+      allow read: if isSuperAdmin();
+      allow create, update: if true;
+      allow delete: if isSuperAdmin() || (isAuthenticated() && resource.data.uid == request.auth.uid);
+    }
+
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+      allow delete: if isSuperAdmin();
+    }
+
+    // 5d. Official Public Notices
+    match /notices/{noticeId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
     }
 
     // 6. Settings & Release Configuration

@@ -37,6 +37,8 @@ import {
   Crown,
   CheckCircle2,
   ClipboardList,
+  Bell,
+  X,
   Image as ImageIcon
 } from 'lucide-react';
 import { getSafeAvatarUrl } from '../lib/avatarHelper';
@@ -48,6 +50,7 @@ import { AdminDownloadsCMS } from './AdminDownloadsCMS';
 import { AdminBannersCMS } from './AdminBannersCMS';
 import { SubAdminPolicyView } from './SubAdminPolicyView';
 import { AIVerificationTool } from './AIVerificationTool';
+import { AdminBroadcastCenter } from './notifications/AdminBroadcastCenter';
 
 interface AdminPanelCompleteProps {
   currentUserRole: 'super_admin' | 'sub_admin' | 'moderator';
@@ -159,7 +162,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
     if (onRemovePost) return onRemovePost(postId, 'অ্যাডমিন মডারেশন দ্বারা মুছে ফেলা');
   };
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'policy' | 'sub_admins' | 'users' | 'posts' | 'banners' | 'services' | 'submissions' | 'reports' | 'ai_tools' | 'downloads' | 'logs' | 'notices'
+    'dashboard' | 'policy' | 'sub_admins' | 'users' | 'posts' | 'banners' | 'services' | 'submissions' | 'reports' | 'ai_tools' | 'downloads' | 'logs' | 'notices' | 'notifications'
   >('dashboard');
 
   const isSuperAdmin = currentUserRole === 'super_admin';
@@ -660,6 +663,17 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
           } ${!isSuperAdmin ? 'hidden' : ''}`}
         >
           <Bell size={14} /> নোটিশ ম্যানেজমেন্ট
+        </button>
+
+        <button
+          onClick={() => setActiveTab('notifications')}
+          className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+            activeTab === 'notifications'
+              ? 'bg-emerald-800 text-white shadow-xs'
+              : 'bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 text-emerald-900 border border-emerald-300'
+          }`}
+        >
+          <Sparkles size={14} className="text-emerald-600" /> ফায়ারবেস পুশ ব্রডকাস্ট হাব
         </button>
       </div>
 
@@ -2215,6 +2229,18 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
             </div>
           )}
         </div>
+      )}
+
+      {/* 13. FIREBASE NOTIFICATION & BROADCAST HUB */}
+      {activeTab === 'notifications' && (
+        <AdminBroadcastCenter
+          currentUser={{
+            uid: currentUserId || 'admin',
+            name: currentUserEmail.split('@')[0],
+            email: currentUserEmail,
+            role: currentUserRole
+          }}
+        />
       )}
     </div>
   );

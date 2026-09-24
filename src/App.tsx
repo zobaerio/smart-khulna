@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import {
   Phone,
@@ -157,6 +157,10 @@ import { MessagingCenter } from './components/community/MessagingCenter';
 import { CreatePostModal } from './components/community/CreatePostModal';
 import { UserProfileModal } from './components/community/UserProfileModal';
 import { NotificationCenter } from './components/community/NotificationCenter';
+import { NotificationCenterView } from './components/notifications/NotificationCenterView';
+import { InAppNotificationBanner } from './components/notifications/InAppNotificationBanner';
+import { notificationService } from './services/notificationService';
+import { UserNotificationItem } from './types/notifications';
 import { CommunityModerationDashboard } from './components/community/CommunityModerationDashboard';
 import { ReportModal } from './components/community/ReportModal';
 import { BloodBankHub } from './components/features/BloodBankHub';
@@ -277,6 +281,7 @@ export default function App() {
 
   // Navigation & View State
   const [activeTab, setActiveTab] = useState<'home' | 'services' | 'community' | 'messages' | 'profile' | 'add' | 'saved' | 'download' | 'search'>('home');
+  const [servicesSubTab, setServicesSubTab] = useState<'directory' | 'blood'>('directory');
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedDistrict, setSelectedDistrict] = useState<string>(() => {
@@ -284,6 +289,22 @@ export default function App() {
   });
   const [viewingDistrictId, setViewingDistrictId] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [activeFeatureHub, setActiveFeatureHub] = useState<'blood-bank' | 'tourism' | 'doctors' | 'weather' | 'complaints' | 'jobs' | 'tolet' | null>(null);
+  const [adminView, setAdminView] = useState<string | null>(null);
+  const [releaseConfig, setReleaseConfig] = useState<AppReleaseConfig>(() => getLocalData('release_config', defaultReleaseConfig));
+  const districtScrollRef = useRef<HTMLDivElement>(null);
+  const [isDistrictDragging, setIsDistrictDragging] = useState(false);
+  const [districtStartX, setDistrictStartX] = useState(0);
+  const [districtScrollLeft, setDistrictScrollLeft] = useState(0);
+
+  const scrollDistricts = (direction: 'left' | 'right') => {
+    if (districtScrollRef.current) {
+      const scrollAmount = direction === 'left' ? -220 : 220;
+      districtScrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
+  const { isInstallable, isInstalled, installPWA, isOnline, wasOffline, resetWasOffline, platform } = usePWA();
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     if (darkMode) {
@@ -305,11 +326,11 @@ export default function App() {
     { id: 'services', label: t('services'), icon: 'Grid', color: 'text-amber-600' },
     { id: 'community', label: t('community'), icon: 'Users', color: 'text-indigo-600', badge: 'নতুন' },
     { id: 'messages', label: t('messaging'), icon: 'MessageCircle', color: 'text-rose-600' },
-    { id: 'saved', label: 'সংরক্ষিত', icon: 'Heart', color: 'text-rose-500' },
+    { id: 'download', label: 'অ্যাপ আপডেট', icon: 'Download', color: 'text-emerald-600', badge: 'v' + (releaseConfig?.android?.version || releaseConfig?.pwa?.version || '1.0') },
     { id: 'profile', label: t('profile'), icon: 'User', color: 'text-slate-600' },
+    { id: 'saved', label: 'সংরক্ষিত', icon: 'Heart', color: 'text-rose-500' },
     { id: 'add', label: 'যোগ করুন', icon: 'PlusCircle', color: 'text-emerald-600' },
-    { id: 'download', label: t('downloads'), icon: 'Download', color: 'text-slate-600' },
-  ], [lang, currentUser]);
+  ], [lang, currentUser, releaseConfig]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showReactivateModal, setShowReactivateModal] = useState(false);
 
@@ -344,6 +365,8 @@ export default function App() {
   const [selectedProfileUser, setSelectedProfileUser] = useState<PublicUserProfile | null>(null);
   const [showUserProfileModal, setShowUserProfileModal] = useState(false);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+  const [userLiveNotifications, setUserLiveNotifications] = useState<UserNotificationItem[]>([]);
+  const [activeForegroundNotification, setActiveForegroundNotification] = useState<UserNotificationItem | null>(null);
   const [reportModalState, setReportModalState] = useState<{
     isOpen: boolean;
     targetType: 'post' | 'comment' | 'user' | 'message';
@@ -491,6 +514,67 @@ export default function App() {
     saveLocalData('release_config', releaseConfig);
   }, [releaseConfig]);
 
+  // Real-time Firebase Notification System Initialization & Listeners
+  useEffect(() => {
+    const uid = currentUser?.uid || 'guest';
+    const role = userProfile?.role || 'user';
+    const ward = (userProfile as any)?.ward || userProfile?.upazila;
+
+    // Initialize FCM token registration and topic subscriptions
+    notificationService.initFCM(uid, role, ward);
+
+    // Subscribe to live Firestore user notifications
+    const unsubUserNotifs = notificationService.subscribeUserNotifications(uid, (items) => {
+      setUserLiveNotifications(items);
+    });
+
+    // Listen for foreground notifications (heads-up banner / popup)
+    const unsubForeground = notificationService.onNotificationReceived((item) => {
+      setActiveForegroundNotification(item);
+    });
+
+    return () => {
+      unsubUserNotifs();
+      unsubForeground();
+    };
+  }, [currentUser?.uid, userProfile?.role, (userProfile as any)?.ward, userProfile?.upazila]);
+
+  // Deep Link Navigator Helper
+  const handleDeepLinkNavigation = (link?: string) => {
+    if (!link) return;
+    const cleanLink = link.toLowerCase().trim();
+
+    if (cleanLink.includes('service') || cleanLink === '/services') {
+      setActiveTab('services');
+      setActiveFeatureHub(null);
+    } else if (cleanLink.includes('blood') || cleanLink === '/blood-bank') {
+      setActiveFeatureHub('blood-bank');
+    } else if (cleanLink.includes('doctor') || cleanLink === '/doctors' || cleanLink === '/emergency') {
+      setActiveFeatureHub('doctors');
+    } else if (cleanLink.includes('weather') || cleanLink === '/weather') {
+      setActiveFeatureHub('weather');
+    } else if (cleanLink.includes('complaint') || cleanLink === '/complaints') {
+      setActiveFeatureHub('complaints');
+    } else if (cleanLink.includes('job') || cleanLink === '/jobs') {
+      setActiveFeatureHub('jobs');
+    } else if (cleanLink.includes('tolet') || cleanLink === '/tolet') {
+      setActiveFeatureHub('tolet');
+    } else if (cleanLink.includes('download') || cleanLink === '/downloads') {
+      setActiveTab('download');
+      setActiveFeatureHub(null);
+    } else if (cleanLink.includes('community') || cleanLink === '/community') {
+      setActiveTab('community');
+      setActiveFeatureHub(null);
+    } else if (cleanLink.includes('profile') || cleanLink === '/profile') {
+      setActiveTab('profile');
+      setActiveFeatureHub(null);
+    } else if (cleanLink.includes('message') || cleanLink === '/messages') {
+      setActiveTab('messages');
+      setActiveFeatureHub(null);
+    }
+    setShowNotificationCenter(false);
+  };
+
   // Initialize and test connection to Firestore
   useEffect(() => {
     testConnection();
@@ -579,7 +663,7 @@ export default function App() {
     return () => window.removeEventListener('popstate', handleUrlRouting);
   }, []);
 
-  const navigateTo = (tab: 'home' | 'services' | 'community' | 'messages' | 'profile' | 'add' | 'saved' | 'download') => {
+  const navigateTo = (tab: 'home' | 'services' | 'community' | 'messages' | 'profile' | 'add' | 'saved' | 'download' | 'search') => {
     setActiveTab(tab);
     setViewingDistrictId(null);
     if (tab === 'download') {
@@ -1663,7 +1747,8 @@ export default function App() {
       publishedServices: sList.filter(s => s && (s.status === 'APPROVED' || s.status === 'PUBLISHED')).length,
       pendingSubmissions: sList.filter(s => s && s.status === 'PENDING').length,
       verifiedServices: sList.filter(s => s && s.is_verified).length,
-      totalLogs: logList.length
+      totalLogs: logList.length,
+      districtsCount: initialDistricts.length
     };
   }, [services, submissions, auditLogs]);
 
@@ -1863,9 +1948,11 @@ export default function App() {
   };
 
   const totalUnreadNotifications = useMemo(() => {
-    const list = Array.isArray(communityNotifications) ? communityNotifications : [];
-    return list.filter(n => n && !n.isRead).length;
-  }, [communityNotifications]);
+    const liveUnread = userLiveNotifications.filter(n => !n.isRead).length;
+    const commList = Array.isArray(communityNotifications) ? communityNotifications : [];
+    const commUnread = commList.filter(n => n && !n.isRead && (!currentUser || n.recipientUid === currentUser.uid || n.recipientUid === 'all')).length;
+    return liveUnread + commUnread;
+  }, [userLiveNotifications, communityNotifications, currentUser]);
 
   const totalUnreadMessages = useMemo(() => {
     if (!currentUser?.uid || !Array.isArray(conversations)) return 0;
@@ -3420,6 +3507,7 @@ export default function App() {
             navigateTo('profile');
             setViewingProfileUid(null);
           }}
+          onNavigateSearch={() => navigateTo('search')}
           lang={lang}
           onToggleLang={() => setLang(lang === 'bn' ? 'en' : 'bn')}
           isInstallable={isInstallable}
@@ -3431,6 +3519,7 @@ export default function App() {
           totalUnreadNotifications={totalUnreadNotifications}
           onToggleNotifications={() => setShowNotificationCenter(prev => !prev)}
           t={t}
+          activeNotice={activeNotice}
         />
 
 
@@ -3450,26 +3539,71 @@ export default function App() {
             {activeTab === 'home' && !viewingDistrictId && (
               <>
                 {/* 1. DISTRICT SELECTOR (Required top of the page) */}
-                <div className="bg-gradient-to-br from-emerald-50 to-lime-50/50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-bold text-emerald-950 flex items-center gap-1.5">
-                      <MapPin size={16} className="text-emerald-700" />
+                <div className="bg-gradient-to-br from-emerald-50 to-lime-50/50 dark:from-slate-850 dark:to-emerald-950/20 p-3.5 sm:p-4 rounded-2xl border border-emerald-100 dark:border-slate-800 shadow-sm relative">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <h3 className="text-xs sm:text-sm font-bold text-emerald-950 dark:text-emerald-300 flex items-center gap-1.5">
+                      <MapPin size={16} className="text-emerald-700 dark:text-emerald-400" />
                       আপনার জেলা নির্বাচন করুন
                     </h3>
-                    <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">
-                      ১০টি জেলা
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] sm:text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/50 px-2.5 py-0.5 rounded-full">
+                        ১০টি জেলা
+                      </span>
+                      {/* Desktop Navigation Arrow Controls */}
+                      <div className="hidden sm:flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => scrollDistricts('left')}
+                          aria-label="Previous Districts"
+                          className="w-6 h-6 rounded-full bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center hover:bg-emerald-50 dark:hover:bg-slate-700 transition cursor-pointer"
+                        >
+                          <ChevronLeft size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => scrollDistricts('right')}
+                          aria-label="Next Districts"
+                          className="w-6 h-6 rounded-full bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center hover:bg-emerald-50 dark:hover:bg-slate-700 transition cursor-pointer"
+                        >
+                          <ChevronRight size={14} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  {/* Horizontal Scroll Selector */}
-                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-emerald-200">
+
+                  {/* Horizontal Scroll Selector with Drag & Wheel support */}
+                  <div 
+                    ref={districtScrollRef}
+                    onWheel={(e) => {
+                      if (e.deltaY !== 0 && districtScrollRef.current) {
+                        districtScrollRef.current.scrollLeft += e.deltaY;
+                      }
+                    }}
+                    onMouseDown={(e) => {
+                      if (!districtScrollRef.current) return;
+                      setIsDistrictDragging(true);
+                      setDistrictStartX(e.pageX - districtScrollRef.current.offsetLeft);
+                      setDistrictScrollLeft(districtScrollRef.current.scrollLeft);
+                    }}
+                    onMouseLeave={() => setIsDistrictDragging(false)}
+                    onMouseUp={() => setIsDistrictDragging(false)}
+                    onMouseMove={(e) => {
+                      if (!isDistrictDragging || !districtScrollRef.current) return;
+                      e.preventDefault();
+                      const x = e.pageX - districtScrollRef.current.offsetLeft;
+                      const walk = (x - districtStartX) * 1.5;
+                      districtScrollRef.current.scrollLeft = districtScrollLeft - walk;
+                    }}
+                    className="flex gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-thin scrollbar-thumb-emerald-300 dark:scrollbar-thumb-slate-700 scroll-smooth select-none cursor-grab active:cursor-grabbing"
+                  >
                     {initialDistricts.map(d => (
                       <button
                         key={d.id}
                         onClick={() => handleSelectDistrict(d.id)}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer shrink-0 ${
+                        className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer shrink-0 ${
                           selectedDistrict === d.id
-                            ? 'bg-emerald-700 text-white shadow-md'
-                            : 'bg-white hover:bg-emerald-50 text-slate-700 border border-slate-200'
+                            ? 'bg-emerald-700 text-white shadow-md ring-2 ring-emerald-600/30'
+                            : 'bg-white dark:bg-slate-900 hover:bg-emerald-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/90 dark:border-slate-700/80 shadow-xs'
                         }`}
                       >
                         {d.name}
@@ -4978,19 +5112,19 @@ export default function App() {
           {/* PERSISTENT BOTTOM NAVIGATION (Unified Structure) */}
           <nav
             id="main-bottom-navigation"
-            className="sticky bottom-0 left-0 right-0 w-full bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800/90 pt-2 px-1 flex justify-around items-center shrink-0 z-40 shadow-lg md:hidden"
+            className="sticky bottom-0 left-0 right-0 w-full bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800/90 pt-1.5 px-0.5 flex justify-around items-center shrink-0 z-40 shadow-lg md:hidden"
             style={{
               paddingBottom: 'max(0.65rem, calc(env(safe-area-inset-bottom, 0px) + 0.35rem))',
             }}
           >
-            {navItems.filter(i => ['home', 'search', 'services', 'community', 'messages', 'profile'].includes(i.id)).map(item => (
+            {navItems.filter(i => ['home', 'services', 'community', 'messages', 'download', 'profile'].includes(i.id)).map(item => (
               <button
                 key={item.id}
                 onClick={() => navigateTo(item.id as any)}
-                className={`flex flex-col items-center gap-1 text-[9px] font-bold transition flex-1 cursor-pointer py-1 relative ${
+                className={`flex flex-col items-center gap-0.5 text-[9px] font-bold transition flex-1 cursor-pointer py-1 relative ${
                   activeTab === item.id && !viewingDistrictId 
-                    ? 'text-emerald-700 dark:text-emerald-400' 
-                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+                    ? 'text-emerald-700 dark:text-emerald-400 font-extrabold' 
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
                 <div className="relative">
@@ -5000,8 +5134,14 @@ export default function App() {
                       {totalUnreadMessages}
                     </span>
                   )}
+                  {item.id === 'download' && (
+                    <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                  )}
                 </div>
-                <span className="truncate w-full text-center">{item.label.split(' ')[0]}</span>
+                <span className="truncate w-full text-center">{item.id === 'download' ? 'আপডেট' : item.label.split(' ')[0]}</span>
               </button>
             ))}
           </nav>
@@ -5233,13 +5373,17 @@ export default function App() {
         onReportUser={(uid, name) => handleReport('user', uid, name)}
       />
 
-      {/* MODAL: NOTIFICATION CENTER */}
-      <NotificationCenter
+      {/* MODAL: FIREBASE NOTIFICATION CENTER & USER INBOX */}
+      <NotificationCenterView
         isOpen={showNotificationCenter}
         onClose={() => setShowNotificationCenter(false)}
-        notifications={communityNotifications.filter(n => !currentUser || n.recipientUid === currentUser.uid || n.recipientUid === 'all')}
-        onMarkAllRead={handleMarkAllNotificationsRead}
-        onSelectNotification={handleSelectNotification}
+        currentUser={currentUser}
+        onNavigateDeepLink={handleDeepLinkNavigation}
+      />
+
+      {/* FOREGROUND HEADS-UP / IN-APP BANNER NOTIFICATION */}
+      <InAppNotificationBanner
+        onNavigateDeepLink={handleDeepLinkNavigation}
       />
 
       {/* MODAL: REPORT ABUSE / CONTENT */}

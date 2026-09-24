@@ -69,3 +69,55 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// PWA Push Notifications Listener
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+  try {
+    const data = event.data.json();
+    const title = data.title || 'স্মার্ট খুলনা বিজ্ঞপ্তি';
+    const options = {
+      body: data.body || 'নতুন বিজ্ঞপ্তি এসেছে।',
+      icon: data.icon || '/pwa-192x192.png',
+      badge: '/icon.svg',
+      image: data.image || undefined,
+      data: {
+        url: data.deepLink || '/',
+        notificationId: data.id,
+        category: data.category || 'notice',
+        priority: data.priority || 'medium'
+      },
+      tag: data.tag || 'smart-khulna-pwa',
+      renotify: true,
+      requireInteraction: data.priority === 'high' || data.category === 'emergency',
+      vibrate: data.category === 'emergency' ? [300, 100, 300, 100, 300] : [200, 100, 200]
+    };
+    event.waitUntil(self.registration.showNotification(title, options));
+  } catch (err) {
+    console.error('Error handling push event:', err);
+  }
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url && 'focus' in client) {
+          client.postMessage({
+            type: 'NOTIFICATION_DEEP_LINK',
+            url: targetUrl,
+            data: event.notification.data
+          });
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+

@@ -329,7 +329,7 @@ export const DiscoverySearch: React.FC<DiscoverySearchProps> = ({
               আপনার সার্চ কিউয়ার্ড বা ফিল্টার পরিবর্তন করে পুনরায় চেষ্টা করুন।
             </p>
             <button
-              onClick={() => { setQuery(''); setFilterCategory('all'); setSelectedDistrict('all'); }}
+              onClick={() => { setQuery(''); setSelectedCategory('all'); setSelectedDistrict('all'); }}
               className="mt-6 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-600/20 cursor-pointer"
             >
               সব রিসেট করুন
@@ -452,7 +452,7 @@ const UserResultCard = ({ user, onSelect, onSave, isSaved }: { user: PublicUserP
           alt={user.name} 
           className="w-full h-full rounded-full object-cover border-2 border-white dark:border-slate-800 shadow-sm"
         />
-        {user.role === 'super_admin' && (
+        {(user.badge === 'admin' || (user as any).role === 'super_admin') && (
           <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-1 rounded-full border-2 border-white dark:border-slate-800">
             <CheckCircle size={10} />
           </div>

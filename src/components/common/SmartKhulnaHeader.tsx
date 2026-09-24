@@ -7,7 +7,7 @@ export interface SmartKhulnaHeaderProps {
   onOpenDrawer: () => void;
   onNavigateHome: () => void;
   onNavigateProfile: () => void;
-  onNavigateSearch: () => void;
+  onNavigateSearch?: () => void;
   lang: 'bn' | 'en';
   onToggleLang: () => void;
   isInstallable: boolean;
@@ -19,6 +19,7 @@ export interface SmartKhulnaHeaderProps {
   totalUnreadNotifications: number;
   onToggleNotifications: () => void;
   t: (key: string) => string;
+  activeNotice?: { title: string; priority?: string } | null;
 }
 
 /**
@@ -61,7 +62,7 @@ export const SmartKhulnaHeader: React.FC<SmartKhulnaHeaderProps> = ({
       <LuxuryNoticeTicker
         noticeText={activeNotice?.title || t('notice')}
         noticeLabel={t('noticeLabel')}
-        priority={activeNotice?.priority}
+        priority={activeNotice?.priority as ('High' | 'Medium' | 'Low' | undefined)}
       />
 
       {/* 2. PRIMARY NAVIGATION BAR (Strict 8px Material Design 3 Grid Layout) */}
@@ -164,11 +165,12 @@ export const SmartKhulnaHeader: React.FC<SmartKhulnaHeaderProps> = ({
           <button
             id="header-profile-btn"
             onClick={onNavigateProfile}
-            className="h-9 text-xs bg-emerald-800 hover:bg-emerald-900 text-white font-bold px-3 rounded-full flex items-center gap-1.5 shadow-sm transition-all duration-150 active:scale-95 cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-emerald-500/50"
+            className="h-9 text-xs bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-extrabold px-3 sm:px-3.5 rounded-full flex items-center gap-1.5 shadow-md hover:shadow-lg border border-emerald-400/40 dark:border-emerald-400/30 transition-all duration-150 active:scale-95 cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-emerald-400/60 shrink-0"
             title="আমার প্রোফাইল / My Profile"
+            aria-label="আমার প্রোফাইল / My Profile"
           >
-            <User size={15} />
-            <span className="hidden sm:inline font-serif font-bold">প্রোফাইল</span>
+            <User size={16} className="text-emerald-100" strokeWidth={2.4} />
+            <span className="font-serif font-bold text-xs tracking-wide">প্রোফাইল</span>
           </button>
 
           {/* 5. Notification Center Bell Toggle (40px touch target) */}
