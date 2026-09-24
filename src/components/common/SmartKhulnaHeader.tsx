@@ -49,7 +49,8 @@ export const SmartKhulnaHeader: React.FC<SmartKhulnaHeaderProps> = ({
   onToggleDarkMode,
   totalUnreadNotifications,
   onToggleNotifications,
-  t
+  t,
+  activeNotice
 }) => {
   return (
     <header 
@@ -58,8 +59,9 @@ export const SmartKhulnaHeader: React.FC<SmartKhulnaHeaderProps> = ({
     >
       {/* 1. TOP LUXURY NOTICE TICKER & LARGE HERO ROYAL BENGAL TIGER */}
       <LuxuryNoticeTicker
-        noticeText={t('notice')}
+        noticeText={activeNotice?.title || t('notice')}
         noticeLabel={t('noticeLabel')}
+        priority={activeNotice?.priority}
       />
 
       {/* 2. PRIMARY NAVIGATION BAR (Strict 8px Material Design 3 Grid Layout) */}

@@ -97,6 +97,11 @@ interface AdminPanelCompleteProps {
   onDeleteUser?: (targetUid: string) => Promise<void> | void;
   onClearLogs?: () => void;
   onClose?: () => void;
+  // Notice props
+  notices?: any[];
+  onAddNotice?: (notice: any) => Promise<void> | void;
+  onUpdateNotice?: (id: string, updates: any) => Promise<void> | void;
+  onDeleteNotice?: (id: string) => Promise<void> | void;
 }
 
 export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
@@ -142,6 +147,10 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
   onDeleteUser,
   onClearLogs,
   onClose,
+  notices = [],
+  onAddNotice,
+  onUpdateNotice,
+  onDeleteNotice,
 }) => {
   const effectivePosts = posts || communityPosts || [];
   const effectiveReports = reports || communityReports || [];
@@ -150,10 +159,18 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
     if (onRemovePost) return onRemovePost(postId, 'অ্যাডমিন মডারেশন দ্বারা মুছে ফেলা');
   };
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'policy' | 'sub_admins' | 'users' | 'posts' | 'banners' | 'services' | 'submissions' | 'reports' | 'ai_tools' | 'downloads' | 'logs'
+    'dashboard' | 'policy' | 'sub_admins' | 'users' | 'posts' | 'banners' | 'services' | 'submissions' | 'reports' | 'ai_tools' | 'downloads' | 'logs' | 'notices'
   >('dashboard');
 
   const isSuperAdmin = currentUserRole === 'super_admin';
+
+  // State for Notice Management
+  const [isAddingNoticeModal, setIsAddingNoticeModal] = useState(false);
+  const [editingNotice, setEditingNotice] = useState<any | null>(null);
+  const [newNoticeTitle, setNewNoticeTitle] = useState('');
+  const [newNoticeDesc, setNewNoticeDesc] = useState('');
+  const [newNoticePriority, setNewNoticePriority] = useState<'High' | 'Medium' | 'Low'>('Low');
+  const [newNoticeActive, setNewNoticeActive] = useState(true);
 
   // State for Users List
   const [usersList, setUsersList] = useState<UserProfile[]>([]);
@@ -632,6 +649,17 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
           } ${!isSuperAdmin && !currentUserPermissions?.canViewLogs ? 'hidden' : ''}`}
         >
           <Lock size={14} /> অডিট লগ ({auditLogs.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('notices')}
+          className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+            activeTab === 'notices'
+              ? 'bg-rose-900 text-white shadow-xs'
+              : 'bg-rose-50 hover:bg-rose-100 text-rose-700'
+          } ${!isSuperAdmin ? 'hidden' : ''}`}
+        >
+          <Bell size={14} /> নোটিশ ম্যানেজমেন্ট
         </button>
       </div>
 
@@ -2007,6 +2035,185 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* 10. NOTICE MANAGEMENT */}
+      {activeTab === 'notices' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-xs font-bold text-slate-900">ডাইনামিক নোটিশ ও ঘোষণা ব্যবস্থাপনা</h3>
+            <button
+              onClick={() => {
+                setEditingNotice(null);
+                setNewNoticeTitle('');
+                setNewNoticeDesc('');
+                setNewNoticePriority('Low');
+                setNewNoticeActive(true);
+                setIsAddingNoticeModal(true);
+              }}
+              className="px-3 py-1.5 bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 hover:bg-emerald-900 transition cursor-pointer"
+            >
+              <Plus size={14} /> নতুন নোটিশ যুক্ত করুন
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {notices.length === 0 ? (
+              <div className="col-span-full py-12 text-center text-slate-400 text-xs">
+                কোনো নোটিশ পাওয়া যায়নি।
+              </div>
+            ) : (
+              notices.map((notice) => (
+                <div key={notice.id} className={`p-4 rounded-2xl border transition-all ${notice.isActive ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
+                  <div className="flex justify-between items-start gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                          notice.priority === 'High' ? 'bg-rose-100 text-rose-700' : 
+                          notice.priority === 'Medium' ? 'bg-amber-100 text-amber-700' : 
+                          'bg-emerald-100 text-emerald-700'
+                        }`}>
+                          {notice.priority} Priority
+                        </span>
+                        {!notice.isActive && <span className="px-2 py-0.5 bg-slate-200 text-slate-600 rounded-full text-[9px] font-black uppercase">Inactive</span>}
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900 line-clamp-1">{notice.title}</h4>
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">{notice.description}</p>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <button 
+                        onClick={() => {
+                          setEditingNotice(notice);
+                          setNewNoticeTitle(notice.title);
+                          setNewNoticeDesc(notice.description);
+                          setNewNoticePriority(notice.priority);
+                          setNewNoticeActive(notice.isActive);
+                          setIsAddingNoticeModal(true);
+                        }}
+                        className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button 
+                        onClick={() => onDeleteNotice && onDeleteNotice(notice.id)}
+                        className="p-2 hover:bg-rose-50 rounded-lg text-rose-600 transition"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-50">
+                    <span className="text-[10px] text-slate-400">তৈরি: {notice.createdAt?.seconds ? new Date(notice.createdAt.seconds * 1000).toLocaleDateString('bn-BD') : 'এখনই'}</span>
+                    <button 
+                      onClick={() => onUpdateNotice && onUpdateNotice(notice.id, { isActive: !notice.isActive })}
+                      className={`text-[10px] font-bold px-3 py-1 rounded-lg border transition ${notice.isActive ? 'border-rose-200 text-rose-600 hover:bg-rose-50' : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'}`}
+                    >
+                      {notice.isActive ? 'বন্ধ করুন' : 'চালু করুন'}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* ADD/EDIT NOTICE MODAL */}
+          {isAddingNoticeModal && (
+            <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                  <h3 className="font-bold text-slate-900 text-base font-serif">
+                    {editingNotice ? 'নোটিশ আপডেট করুন' : 'নতুন নোটিশ যুক্ত করুন'}
+                  </h3>
+                  <button onClick={() => setIsAddingNoticeModal(false)} className="text-slate-400 hover:text-slate-600">
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">নোটিশের শিরোনাম *</label>
+                    <input 
+                      type="text"
+                      value={newNoticeTitle}
+                      onChange={e => setNewNoticeTitle(e.target.value)}
+                      placeholder="যেমন: স্মার্ট খুলনা অ্যাপের নতুন আপডেট আসছে..."
+                      className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-xs focus:ring-1 focus:ring-emerald-700 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">বিস্তারিত বিবরণ</label>
+                    <textarea 
+                      rows={4}
+                      value={newNoticeDesc}
+                      onChange={e => setNewNoticeDesc(e.target.value)}
+                      placeholder="নোটিশের বিস্তারিত এখানে লিখুন..."
+                      className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-xs focus:ring-1 focus:ring-emerald-700 outline-none resize-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">গুরুত্ব (Priority)</label>
+                      <select 
+                        value={newNoticePriority}
+                        onChange={e => setNewNoticePriority(e.target.value as any)}
+                        className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-xs"
+                      >
+                        <option value="Low">Low</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2 pt-5">
+                      <input 
+                        type="checkbox"
+                        id="notice-active"
+                        checked={newNoticeActive}
+                        onChange={e => setNewNoticeActive(e.target.checked)}
+                        className="w-4 h-4 accent-emerald-700"
+                      />
+                      <label htmlFor="notice-active" className="text-xs font-bold text-slate-700">সক্রিয় রাখুন</label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4 border-t border-slate-100">
+                  <button 
+                    onClick={() => setIsAddingNoticeModal(false)}
+                    className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
+                  >
+                    বাতিল
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      if (!newNoticeTitle.trim()) {
+                        alert("দয়া করে শিরোনাম লিখুন।");
+                        return;
+                      }
+                      const noticeData = {
+                        title: newNoticeTitle.trim(),
+                        description: newNoticeDesc.trim(),
+                        priority: newNoticePriority,
+                        isActive: newNoticeActive
+                      };
+
+                      if (editingNotice) {
+                        if (onUpdateNotice) await onUpdateNotice(editingNotice.id, noticeData);
+                      } else {
+                        if (onAddNotice) await onAddNotice(noticeData);
+                      }
+                      setIsAddingNoticeModal(false);
+                    }}
+                    className="flex-1 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition shadow-md"
+                  >
+                    {editingNotice ? 'আপডেট করুন' : 'যোগ করুন'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

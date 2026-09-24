@@ -61,7 +61,9 @@ interface ProfileVisitor {
   visitorUid: string;
   visitorName: string;
   visitorAvatar: string;
-  timestamp: string;
+  timestamp: any;
+  visitCount?: number;
+  lastVisitedAt?: any;
 }
 
 import { PostCard } from './PostCard';
@@ -170,10 +172,11 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
 
   const dropdownRef = React.useRef<HTMLDivElement>(null);
 
-  const formatVisitorTime = (timestamp: string) => {
+  const formatVisitorTime = (timestamp: any) => {
     if (!timestamp) return 'সম্প্রতি';
     try {
-      const date = new Date(timestamp);
+      // Handle Firestore Timestamp or ISO string
+      const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
       const now = new Date();
       const diffMs = now.getTime() - date.getTime();
       const diffSec = Math.floor(diffMs / 1000);
@@ -232,40 +235,39 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
 
   const [isUploadingCover, setIsUploadingCover] = useState(false);
 
-  // Fetch visitors for own profile (up to 50 recent visitors with local fallback)
+  // Fetch visitors for own profile (real-time from profileVisits sub-collection)
   useEffect(() => {
     if (!isOwnProfile || !profile.uid || profile.uid === 'guest') return;
     
-    const visitorsRef = collection(db, 'profiles', profile.uid, 'visitors');
+    // Correct collection path from App.tsx handleTrackProfileVisit
+    const visitorsRef = collection(db, 'profiles', profile.uid, 'profileVisits');
     let unsub: (() => void) | null = null;
 
     const setupVisitorListener = (useOrdering = true) => {
-      const q = useOrdering ? query(visitorsRef, orderBy('timestamp', 'desc'), limit(50)) : query(visitorsRef, limit(50));
+      const q = useOrdering 
+        ? query(visitorsRef, orderBy('lastVisitedAt', 'desc'), limit(50)) 
+        : query(visitorsRef, limit(50));
+
       return onSnapshot(q, (snapshot) => {
-        const docs = snapshot.docs.map(doc => doc.data() as ProfileVisitor);
-        docs.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
-        setVisitors(docs);
-        try {
-          localStorage.setItem(`profile_visitors_${profile.uid}`, JSON.stringify(docs));
-        } catch (e) {
-          console.warn("Local storage visitors write warning:", e);
-        }
+        const docs = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as any));
+
+        const formattedVisitors: ProfileVisitor[] = docs.map(d => ({
+          id: d.id,
+          visitorUid: d.visitorUid,
+          visitorName: d.visitorName,
+          visitorAvatar: d.visitorPhoto || d.visitorAvatar, // support both naming conventions
+          timestamp: d.lastVisitedAt || d.visitedAt,
+          visitCount: d.visitCount
+        }));
+
+        setVisitors(formattedVisitors);
       }, (error) => {
-        console.warn("Real-time profile visitors listener error, trying fallback:", error);
-        if (useOrdering) {
+        console.warn("Real-time profile visitors listener error:", error);
+        if (useOrdering && error.message.includes('requires an index')) {
           unsub = setupVisitorListener(false);
-        } else {
-          try {
-            const cached = localStorage.getItem(`profile_visitors_${profile.uid}`);
-            if (cached) {
-              const parsed = JSON.parse(cached);
-              if (Array.isArray(parsed)) {
-                setVisitors(parsed);
-              }
-            }
-          } catch (e) {
-            console.warn("Local storage visitors read warning:", e);
-          }
         }
       });
     };
@@ -277,36 +279,8 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
   }, [isOwnProfile, profile.uid]);
 
   const handleSimulateVisitor = async () => {
-    if (!profile.uid) return;
-    const sampleVisitors = [
-      { visitorUid: 'user_tanvir_1', visitorName: 'তানভীর আহমেদ', visitorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80' },
-      { visitorUid: 'user_rajib_2', visitorName: 'ড. রাজিব হোসেন', visitorAvatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=150&q=80' },
-      { visitorUid: 'user_nasrin_3', visitorName: 'নাসরীন জাহান', visitorAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80' }
-    ];
-    const randomV = sampleVisitors[Math.floor(Math.random() * sampleVisitors.length)];
-    const newVisit: ProfileVisitor = {
-      id: `${profile.uid}_${randomV.visitorUid}_${Date.now()}`,
-      visitorUid: randomV.visitorUid,
-      visitorName: randomV.visitorName,
-      visitorAvatar: randomV.visitorAvatar,
-      timestamp: new Date().toISOString()
-    };
-
-    setVisitors(prev => {
-      const updated = [newVisit, ...prev.filter(v => v.visitorUid !== randomV.visitorUid)];
-      try {
-        localStorage.setItem(`profile_visitors_${profile.uid}`, JSON.stringify(updated));
-      } catch (e) {
-        console.warn("Local storage visitor simulate warning:", e);
-      }
-      return updated;
-    });
-
-    try {
-      await setDoc(doc(db, 'profiles', profile.uid, 'visitors', randomV.visitorUid), newVisit, { merge: true });
-    } catch (e) {
-      console.warn("Simulate visitor Firestore warning:", e);
-    }
+    // Disabled simulation as we want real data now
+    alert('রিয়েল-টাইম প্রোফাইল ভিজিটর সিস্টেম সক্রিয় আছে।');
   };
 
   const districtName = useMemo(() => {
@@ -2228,8 +2202,13 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                           <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">
                             <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium">
                               <Eye size={10} />
-                              ভিজিট করেছেন: {formatVisitorTime(v.timestamp)}
+                              {formatVisitorTime(v.timestamp)}
                             </span>
+                            {v.visitCount && v.visitCount > 1 && (
+                              <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded text-[9px] font-bold">
+                                {v.visitCount} বার ভিউ করেছেন
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>

@@ -98,6 +98,8 @@ import {
   query,
   where,
   orderBy,
+  serverTimestamp,
+  increment,
   onSnapshot
 } from 'firebase/firestore';
 import {
@@ -214,81 +216,10 @@ const IconComponent = ({ name, className, size = 20, strokeWidth = 1.5 }: { name
 };
 
 export default function App() {
-  // Navigation & View State
-  const [activeTab, setActiveTab] = useState<'home' | 'services' | 'community' | 'messages' | 'profile' | 'add' | 'saved' | 'download' | 'search'>('home');
-  
-  const toggleBookmark = async (type: string, id: string) => {
-    if (!currentUser) {
-      alert("সংরক্ষণ করতে দয়া করে লগইন করুন।");
-      return;
-    }
-
-    const currentSaved = userProfile?.savedServices || [];
-    const itemKey = `${type}:${id}`;
-    let updatedSaved: string[];
-
-    if (currentSaved.includes(itemKey)) {
-      updatedSaved = currentSaved.filter(i => i !== itemKey);
-    } else {
-      updatedSaved = [...currentSaved, itemKey];
-    }
-
-    try {
-      const userRef = doc(db, 'profiles', currentUser.uid);
-      await updateDoc(userRef, {
-        savedServices: updatedSaved
-      });
-      setUserProfile(prev => prev ? { ...prev, savedServices: updatedSaved } : null);
-    } catch (e) {
-      handleFirestoreError(e, OperationType.UPDATE, 'UserProfile');
-      setUserProfile(prev => prev ? { ...prev, savedServices: updatedSaved } : null);
-    }
-  };
-
-  const isBookmarked = (type: string, id: string) => {
-    const itemKey = `${type}:${id}`;
-    return userProfile?.savedServices?.includes(itemKey) || false;
-  };
-
-  const [servicesSubTab, setServicesSubTab] = useState<'directory' | 'blood'>('directory');
-  const [activeFeatureHub, setActiveFeatureHub] = useState<'blood-bank' | 'tourism' | 'doctors' | 'weather' | 'complaints' | 'jobs' | 'tolet' | null>(null);
-  const [adminView, setAdminView] = useState<'dashboard' | 'submissions' | 'emergencies' | 'services' | 'logs' | 'settings' | 'downloads' | 'community_moderation' | null>(null);
-
-  // Cross-Platform App & PWA Logic
-  const { isInstallable, isInstalled, isOnline, wasOffline, resetWasOffline, platform, installPWA } = usePWA();
-  const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem('smart_khulna_splash_shown'));
-  const [releaseConfig, setReleaseConfig] = useState<AppReleaseConfig>(() => {
-    const local = getLocalData('release_config', defaultReleaseConfig);
-    return {
-      ...defaultReleaseConfig,
-      ...(local || {}),
-      android: { ...defaultReleaseConfig.android, ...(local?.android || {}) },
-      ios: { ...defaultReleaseConfig.ios, ...(local?.ios || {}) },
-      windows: { ...defaultReleaseConfig.windows, ...(local?.windows || {}) },
-      macos: { ...defaultReleaseConfig.macos, ...(local?.macos || {}) },
-      linux: { ...defaultReleaseConfig.linux, ...(local?.linux || {}) },
-      releaseNotes: Array.isArray(local?.releaseNotes) ? local.releaseNotes : defaultReleaseConfig.releaseNotes
-    };
-  });
-  
-  // District & Data States
-  const [selectedDistrict, setSelectedDistrict] = useState<string>(() => {
-    return localStorage.getItem('smart_khulna_selected_district') || 'khulna';
-  });
-  const [viewingDistrictId, setViewingDistrictId] = useState<string | null>(null);
-  const [selectedService, setSelectedService] = useState<Service | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(() => {
-    return localStorage.getItem('theme') === 'dark';
-  });
-
+  // Lang state must be initialized first to be used by t()
   const [lang, setLang] = useState<'bn' | 'en'>(() => {
     return (localStorage.getItem('lang') as 'bn' | 'en') || 'bn';
   });
-
-  useEffect(() => {
-    localStorage.setItem('lang', lang);
-  }, [lang]);
 
   const t = (key: string) => {
     const dictionary: Record<'bn' | 'en', Record<string, string>> = {
@@ -296,6 +227,7 @@ export default function App() {
         title: "স্মার্ট খুলনা",
         subtitle: "খুলনা জেলা ডিজিটাল নাগরিক সেবা ডিরেক্টরি",
         home: "হোম",
+        services: "নাগরিক সেবা (Services)",
         community: "কমিউনিটি",
         messaging: "বার্তা",
         blood: "রক্তদান",
@@ -319,6 +251,7 @@ export default function App() {
         title: "Smart Khulna",
         subtitle: "Khulna District Digital Citizen Service Directory",
         home: "Home",
+        services: "Services",
         community: "Community",
         messaging: "Messages",
         blood: "Blood Donation",
@@ -339,8 +272,18 @@ export default function App() {
         adminPanel: "Admin Panel",
       }
     };
-    return dictionary[lang][key] || key;
+    return (dictionary[lang] && dictionary[lang][key]) ? dictionary[lang][key] : key;
   };
+
+  // Navigation & View State
+  const [activeTab, setActiveTab] = useState<'home' | 'services' | 'community' | 'messages' | 'profile' | 'add' | 'saved' | 'download' | 'search'>('home');
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedDistrict, setSelectedDistrict] = useState<string>(() => {
+    return localStorage.getItem('smart_khulna_selected_district') || 'khulna';
+  });
+  const [viewingDistrictId, setViewingDistrictId] = useState<string | null>(null);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
 
   useEffect(() => {
     if (darkMode) {
@@ -843,6 +786,37 @@ export default function App() {
 
     return () => unsubscribe();
   }, [selectedDistrict]);
+
+  const [notices, setNotices] = useState<any[]>([]);
+  const [activeNotice, setActiveNotice] = useState<{ title: string; priority: string } | null>(null);
+
+  // Real-time Notices Subscription
+  useEffect(() => {
+    const q = query(collection(db, 'notices'), where('isActive', '==', true), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const noticeList: any[] = [];
+      snapshot.forEach((doc) => {
+        noticeList.push({ id: doc.id, ...doc.data() });
+      });
+      setNotices(noticeList);
+      if (noticeList.length > 0) {
+        // Find highest priority notice first, then newest
+        const sorted = [...noticeList].sort((a, b) => {
+          const priorityMap: { [key: string]: number } = { 'High': 3, 'Medium': 2, 'Low': 1 };
+          const pA = priorityMap[a.priority] || 0;
+          const pB = priorityMap[b.priority] || 0;
+          if (pB !== pA) return pB - pA;
+          return new Date(b.createdAt?.seconds * 1000 || 0).getTime() - new Date(a.createdAt?.seconds * 1000 || 0).getTime();
+        });
+        setActiveNotice(sorted[0]);
+      } else {
+        setActiveNotice(null);
+      }
+    }, (error) => {
+      console.warn("Firestore notices subscription error:", error);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Real-time Community Posts Subscription
   useEffect(() => {
@@ -1427,6 +1401,93 @@ export default function App() {
     localStorage.setItem('smart_khulna_selected_district', districtId);
   };
 
+  const handleAddNotice = async (notice: any) => {
+    try {
+      await addDoc(collection(db, 'notices'), {
+        ...notice,
+        createdAt: serverTimestamp(),
+        createdBy: currentUser?.uid || 'admin',
+        isActive: true
+      });
+      await logAction('নোটিশ তৈরি', `নতুন নোটিশ "${notice.title}" যোগ করা হয়েছে`);
+    } catch (e) {
+      console.error("Error adding notice:", e);
+      alert('নোটিশ যোগ করতে সমস্যা হয়েছে।');
+    }
+  };
+
+  const handleUpdateNotice = async (id: string, updates: any) => {
+    try {
+      await updateDoc(doc(db, 'notices', id), updates);
+      await logAction('নোটিশ আপডেট', `নোটিশ ID ${id} আপডেট করা হয়েছে`);
+    } catch (e) {
+      console.error("Error updating notice:", e);
+    }
+  };
+
+  const isBookmarked = (type: string, id: string) => {
+    const key = `smart_khulna_saved_${type}s`;
+    let saved: string[] = [];
+    try {
+      saved = JSON.parse(localStorage.getItem(key) || '[]');
+    } catch {
+      saved = [];
+    }
+    return saved.includes(id);
+  };
+
+  const toggleBookmark = async (type: string, id: string) => {
+    const key = `smart_khulna_saved_${type}s`;
+    let saved: string[] = [];
+    try {
+      saved = JSON.parse(localStorage.getItem(key) || '[]');
+    } catch {
+      saved = [];
+    }
+    
+    let updated: string[];
+    if (saved.includes(id)) {
+      updated = saved.filter(savedId => savedId !== id);
+    } else {
+      updated = [...saved, id];
+    }
+    
+    localStorage.setItem(key, JSON.stringify(updated));
+    // Force refresh the saved tab if active
+    if (activeTab === 'saved') {
+      setActiveTab('saved');
+    }
+  };
+
+  const handleDeleteNotice = async (id: string) => {
+    if (!window.confirm('আপনি কি নিশ্চিত যে এই নোটিশটি মুছে ফেলতে চান?')) return;
+    try {
+      await deleteDoc(doc(db, 'notices', id));
+      await logAction('নোটিশ মুছে ফেলা', `নোটিশ ID ${id} মুছে ফেলা হয়েছে`);
+    } catch (e) {
+      console.error("Error deleting notice:", e);
+    }
+  };
+
+  const handleTrackProfileVisit = async (profileOwnerUid: string) => {
+    if (!currentUser || currentUser.uid === profileOwnerUid) return;
+    
+    // Check privacy settings of owner (simplified for now, full privacy check can be added later)
+    try {
+      const visitRef = doc(db, 'profiles', profileOwnerUid, 'profileVisits', currentUser.uid);
+      await setDoc(visitRef, {
+        visitorUid: currentUser.uid,
+        visitorName: currentUser.displayName || userProfile?.name || 'ব্যবহারকারী',
+        visitorPhoto: currentUser.photoURL || userProfile?.avatar || '',
+        visitedAt: serverTimestamp(),
+        lastVisitedAt: serverTimestamp(),
+        visitCount: increment(1)
+      }, { merge: true });
+    } catch (e) {
+      console.warn("Profile visit tracking error:", e);
+    }
+  };
+
   // Saved/Favorites Operations
   const isSaved = (serviceId: string) => {
     if (userProfile) {
@@ -1443,44 +1504,7 @@ export default function App() {
   };
 
   const toggleSaveService = async (serviceId: string) => {
-    if (currentUser && userProfile) {
-      const saved = Array.isArray(userProfile.savedServices) ? userProfile.savedServices : [];
-      let updatedFavs: string[];
-      if (saved.includes(serviceId)) {
-        updatedFavs = saved.filter(id => id !== serviceId);
-      } else {
-        updatedFavs = [...saved, serviceId];
-      }
-
-      const updatedProfile = { ...userProfile, savedServices: updatedFavs };
-      setUserProfile(updatedProfile);
-
-      try {
-        await updateDoc(doc(db, 'profiles', currentUser.uid), { savedServices: updatedFavs });
-      } catch (e) {
-        console.warn("Could not sync saved services with cloud, using local state", e);
-      }
-    } else {
-      let localFavs: string[] = [];
-      try {
-        localFavs = JSON.parse(localStorage.getItem('smart_khulna_local_favs') || '[]');
-      } catch {
-        localFavs = [];
-      }
-      let updatedFavs: string[];
-      if (localFavs.includes(serviceId)) {
-        updatedFavs = localFavs.filter((id: string) => id !== serviceId);
-      } else {
-        updatedFavs = [...localFavs, serviceId];
-      }
-      try {
-        localStorage.setItem('smart_khulna_local_favs', JSON.stringify(updatedFavs));
-      } catch (e) {
-        console.warn("Error setting local_favs", e);
-      }
-      // Force render update
-      setActiveTab(activeTab); 
-    }
+    await toggleBookmark('service', serviceId);
   };
 
   // Submit Information
@@ -4710,6 +4734,10 @@ export default function App() {
                       onBanUser={handleBanUser}
                       onSaveReleaseConfig={(config) => setReleaseConfig(config)}
                       onClose={() => setAdminView(null)}
+                      notices={notices}
+                      onAddNotice={handleAddNotice}
+                      onUpdateNotice={handleUpdateNotice}
+                      onDeleteNotice={handleDeleteNotice}
                     />
                   </div>
                 ) : (
