@@ -69,6 +69,10 @@ export interface CommunityPost {
   isEdited?: boolean;
   updatedAt?: string;
   isPinned?: boolean;
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: string;
+  fileType?: string;
 }
 
 export interface MessageAttachment {

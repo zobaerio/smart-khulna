@@ -16,7 +16,9 @@ import {
   Edit2,
   CheckCircle2,
   UserPlus,
-  UserCheck
+  UserCheck,
+  Paperclip,
+  Download
 } from 'lucide-react';
 import { CommunityPost, PostComment, VerifiedBadgeType } from '../../types/community';
 import { District } from '../../dbData';
@@ -46,6 +48,7 @@ interface PostCardProps {
   onViewProfile: (authorId: string, authorName: string, authorEmail: string, authorAvatar?: string) => void;
   onStartMessage: (authorId: string, authorName: string, authorEmail: string, authorAvatar?: string) => void;
   onSelectHashtag?: (tag: string) => void;
+  onPostClick?: (post: CommunityPost) => void;
 }
 
 export const PostCard: React.FC<PostCardProps> = ({
@@ -68,7 +71,8 @@ export const PostCard: React.FC<PostCardProps> = ({
   onEditPost,
   onViewProfile,
   onStartMessage,
-  onSelectHashtag
+  onSelectHashtag,
+  onPostClick
 }) => {
   const [showComments, setShowComments] = useState(false);
   const [commentInput, setCommentInput] = useState('');
@@ -349,7 +353,12 @@ export const PostCard: React.FC<PostCardProps> = ({
       </div>
 
       {/* POST TITLE & CONTENT (WITH SEE MORE / SEE LESS TOGGLE) */}
-      <div className="px-4 pb-3">
+      <div 
+        className="px-4 pb-3 cursor-pointer"
+        onClick={() => {
+          if (onPostClick) onPostClick(post);
+        }}
+      >
         {post.title && (
           <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm font-serif mb-1 leading-snug">
             {post.title}
@@ -359,7 +368,10 @@ export const PostCard: React.FC<PostCardProps> = ({
           {getTruncatedContent()}
           {isLongContent && (
             <button
-              onClick={() => setIsExpanded(!isExpanded)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded(!isExpanded);
+              }}
               className="inline-block ml-1.5 text-emerald-700 font-bold hover:text-emerald-800 hover:underline cursor-pointer focus:outline-none"
             >
               {isExpanded ? '...কম দেখুন (See less)' : '...আরও দেখুন (See more)'}
@@ -401,6 +413,45 @@ export const PostCard: React.FC<PostCardProps> = ({
           authorName={post.authorName}
           className="border-t border-b border-slate-100"
         />
+      )}
+
+      {/* ATTACHED FILE CARD */}
+      {post.fileUrl && (
+        <div className="mx-4 my-3 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="p-2.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 rounded-xl shrink-0">
+              <Paperclip size={20} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-slate-900 dark:text-white truncate font-serif">
+                {post.fileName || 'Attached Document'}
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 uppercase">
+                {post.fileType || 'FILE'} {post.fileSize ? `• ${post.fileSize}` : ''}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <a
+              href={post.fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-bold rounded-xl text-xs transition flex items-center gap-1 cursor-pointer"
+            >
+              <span>View</span>
+            </a>
+            <a
+              href={post.fileUrl}
+              download={post.fileName || 'download'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs transition flex items-center gap-1 cursor-pointer shadow-sm"
+            >
+              <Download size={13} />
+              <span>Download</span>
+            </a>
+          </div>
+        </div>
       )}
 
       {/* ACTION BAR (LIKE, COMMENT, SHARE, SAVE) */}

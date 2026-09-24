@@ -1501,7 +1501,21 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                   <p className="text-slate-600 text-[11px] font-mono">ফোন: {svc.phone}</p>
 
                   <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-                    <span className="text-[10px] text-slate-400">স্ট্যাটাস: {svc.status}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-400">স্ট্যাটাস: {svc.status}</span>
+                      <button
+                        onClick={async () => {
+                          const updated = { ...svc, isFeatured: !svc.isFeatured, updated_at: new Date().toISOString() };
+                          await onUpdateService(updated);
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer flex items-center gap-1 ${
+                          svc.isFeatured ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                        }`}
+                        title="হোম পেজে ফিচার্ড সেকশনে দেখান"
+                      >
+                        <span>⭐ {svc.isFeatured ? 'Featured On Home' : 'Set Featured'}</span>
+                      </button>
+                    </div>
                     <div className="flex gap-2">
                       <button
                         onClick={() => {

@@ -58,15 +58,15 @@ import {
   Sparkles,
   BarChart2,
   ThumbsUp,
+  Users,
+  MessageCircle,
+  Download,
   X,
   FileSpreadsheet,
-  Download,
   Smartphone,
   Laptop,
   Monitor,
-  Users,
   MessageSquare,
-  MessageCircle,
   AlertOctagon,
   LayoutGrid,
   Camera,
@@ -78,9 +78,11 @@ import {
   Tractor,
   Sun,
   Moon,
-  Menu
+  Menu,
+  Star
 } from 'lucide-react';
 import { EnhancedProfileView } from './components/community/EnhancedProfileView';
+import { PostCard } from './components/community/PostCard';
 import { compressImage } from './lib/imageCompressor';
 import { auth, googleProvider, db } from './firebase';
 import { signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged, updateProfile, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
@@ -167,6 +169,7 @@ import { ProfileSettingsModal } from './components/community/ProfileSettingsModa
 import { getSafeAvatarUrl } from './lib/avatarHelper';
 import { SmartKhulnaHeader } from './components/common/SmartKhulnaHeader';
 import { SmartKhulnaLogo } from './components/common/SmartKhulnaLogo';
+import { DiscoverySearch } from './components/DiscoverySearch';
 
 // Category Color Scheme Mapping for Compact Visual Cards
 const getCategoryStyle = (catId: string) => {
@@ -204,7 +207,7 @@ const IconComponent = ({ name, className, size = 20, strokeWidth = 1.5 }: { name
     Building2, HeartPulse, GraduationCap, Bus, Landmark, Truck, Scale, MapPin, Sprout, Tractor,
     Briefcase, Home, HardHat, UserCheck, Car, Zap, Wrench, Settings, Utensils, Bed, Compass, Grid,
     PhoneCall, Info, ShieldAlert, Shield, Flame, Ambulance, Sparkles, BarChart2, Plus, Bell, Clock, Edit2, LayoutGrid,
-    AlertTriangle, User
+    AlertTriangle, User, Search, Users, MessageCircle, PlusCircle, Download, Heart
   };
   const Comp = icons[name] || Grid;
   return <Comp className={className} size={size} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />;
@@ -212,7 +215,41 @@ const IconComponent = ({ name, className, size = 20, strokeWidth = 1.5 }: { name
 
 export default function App() {
   // Navigation & View State
-  const [activeTab, setActiveTab] = useState<'home' | 'services' | 'community' | 'messages' | 'profile' | 'add' | 'saved' | 'download'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'services' | 'community' | 'messages' | 'profile' | 'add' | 'saved' | 'download' | 'search'>('home');
+  
+  const toggleBookmark = async (type: string, id: string) => {
+    if (!currentUser) {
+      alert("সংরক্ষণ করতে দয়া করে লগইন করুন।");
+      return;
+    }
+
+    const currentSaved = userProfile?.savedServices || [];
+    const itemKey = `${type}:${id}`;
+    let updatedSaved: string[];
+
+    if (currentSaved.includes(itemKey)) {
+      updatedSaved = currentSaved.filter(i => i !== itemKey);
+    } else {
+      updatedSaved = [...currentSaved, itemKey];
+    }
+
+    try {
+      const userRef = doc(db, 'profiles', currentUser.uid);
+      await updateDoc(userRef, {
+        savedServices: updatedSaved
+      });
+      setUserProfile(prev => prev ? { ...prev, savedServices: updatedSaved } : null);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, 'UserProfile');
+      setUserProfile(prev => prev ? { ...prev, savedServices: updatedSaved } : null);
+    }
+  };
+
+  const isBookmarked = (type: string, id: string) => {
+    const itemKey = `${type}:${id}`;
+    return userProfile?.savedServices?.includes(itemKey) || false;
+  };
+
   const [servicesSubTab, setServicesSubTab] = useState<'directory' | 'blood'>('directory');
   const [activeFeatureHub, setActiveFeatureHub] = useState<'blood-bank' | 'tourism' | 'doctors' | 'weather' | 'complaints' | 'jobs' | 'tolet' | null>(null);
   const [adminView, setAdminView] = useState<'dashboard' | 'submissions' | 'emergencies' | 'services' | 'logs' | 'settings' | 'downloads' | 'community_moderation' | null>(null);
@@ -317,6 +354,19 @@ export default function App() {
 
   // Authentication & Users
   const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // Unified Navigation Configuration
+  const navItems = useMemo(() => [
+    { id: 'home', label: t('home'), icon: 'Home', color: 'text-emerald-700' },
+    { id: 'search', label: 'খুঁজুন (Search)', icon: 'Search', color: 'text-blue-600' },
+    { id: 'services', label: t('services'), icon: 'Grid', color: 'text-amber-600' },
+    { id: 'community', label: t('community'), icon: 'Users', color: 'text-indigo-600', badge: 'নতুন' },
+    { id: 'messages', label: t('messaging'), icon: 'MessageCircle', color: 'text-rose-600' },
+    { id: 'saved', label: 'সংরক্ষিত', icon: 'Heart', color: 'text-rose-500' },
+    { id: 'profile', label: t('profile'), icon: 'User', color: 'text-slate-600' },
+    { id: 'add', label: 'যোগ করুন', icon: 'PlusCircle', color: 'text-emerald-600' },
+    { id: 'download', label: t('downloads'), icon: 'Download', color: 'text-slate-600' },
+  ], [lang, currentUser]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showReactivateModal, setShowReactivateModal] = useState(false);
 
@@ -379,6 +429,8 @@ export default function App() {
   const [editBio, setEditBio] = useState('');
   const [editCoverPhoto, setEditCoverPhoto] = useState('');
   const [viewingProfileUid, setViewingProfileUid] = useState<string | null>(null);
+  const [viewingPost, setViewingPost] = useState<CommunityPost | null>(null);
+  const [profileScrollPosition, setProfileScrollPosition] = useState<number>(0);
   const [editProfession, setEditProfession] = useState('');
   const [editBloodGroup, setEditBloodGroup] = useState('');
   const [editDistrict, setEditDistrict] = useState('khulna');
@@ -2990,78 +3042,29 @@ export default function App() {
 
             {/* Navigation Links - Scrollable */}
             <div className="flex-1 overflow-y-auto p-4 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-800">
-              <button
-                onClick={() => {
-                  navigateTo('home');
-                  setIsDrawerOpen(false);
-                }}
-                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
-                  activeTab === 'home' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                <span className="flex items-center gap-2.5"><Home size={16} /> হোম পেজ</span>
-              </button>
-              <button
-                onClick={() => {
-                  navigateTo('services');
-                  setIsDrawerOpen(false);
-                }}
-                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
-                  activeTab === 'services' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                <span className="flex items-center gap-2.5"><Grid size={16} /> সকল নাগরিক সেবা</span>
-              </button>
-              <button
-                onClick={() => {
-                  navigateTo('community');
-                  setIsDrawerOpen(false);
-                }}
-                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
-                  activeTab === 'community' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                <span className="flex items-center gap-2.5"><Users size={16} /> কমিউনিটি সোশ্যাল ফিড</span>
-                <span className="text-[9px] bg-emerald-700/80 text-lime-300 px-1.5 py-0.5 rounded-full font-bold">নতুন</span>
-              </button>
-              <button
-                onClick={() => {
-                  navigateTo('messages');
-                  setIsDrawerOpen(false);
-                }}
-                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
-                  activeTab === 'messages' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                <span className="flex items-center gap-2.5"><MessageSquare size={16} /> ব্যক্তিগত মেসেজ</span>
-                {totalUnreadMessages > 0 && (
-                  <span className="text-[9px] bg-emerald-500 text-white px-1.5 py-0.5 rounded-full font-bold">
-                    {totalUnreadMessages}
+              {navItems.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    navigateTo(item.id as any);
+                    setIsDrawerOpen(false);
+                  }}
+                  className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
+                    activeTab === item.id ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <IconComponent name={item.icon} size={16} /> 
+                    {item.label}
                   </span>
-                )}
-              </button>
-              <button
-                onClick={() => {
-                  navigateTo('saved');
-                  setIsDrawerOpen(false);
-                }}
-                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
-                  activeTab === 'saved' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                <span className="flex items-center gap-2.5"><Heart size={16} /> সংরক্ষিত সেবা</span>
-              </button>
-              <button
-                onClick={() => {
-                  navigateTo('add');
-                  setIsDrawerOpen(false);
-                }}
-                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
-                  activeTab === 'add' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                <span className="flex items-center gap-2.5"><Plus size={16} /> নতুন তথ্য যোগ করুন</span>
-              </button>
+                  {item.badge && <span className="text-[9px] bg-emerald-700/80 text-lime-300 px-1.5 py-0.5 rounded-full font-bold">{item.badge}</span>}
+                  {item.id === 'messages' && totalUnreadMessages > 0 && (
+                    <span className="text-[9px] bg-emerald-500 text-white px-1.5 py-0.5 rounded-full font-bold">
+                      {totalUnreadMessages}
+                    </span>
+                  )}
+                </button>
+              ))}
 
               {/* Special Citizen Hubs in Drawer */}
               <div className="pt-2 mt-2 border-t border-slate-800/80 space-y-0.5">
@@ -3178,7 +3181,33 @@ export default function App() {
             </p>
 
             {/* Desktop Navigation Links */}
-            <div className="space-y-1 mb-5">
+            <div className="space-y-1.5 mb-5">
+              {navItems.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => navigateTo(item.id as any)}
+                  className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer group ${
+                    activeTab === item.id ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <IconComponent 
+                      name={item.icon} 
+                      size={17} 
+                      className={activeTab === item.id ? 'text-lime-300' : 'text-slate-500 group-hover:text-slate-300'} 
+                    /> 
+                    {item.label}
+                  </span>
+                  {item.badge && <span className="text-[9px] bg-emerald-700/80 text-lime-300 px-1.5 py-0.5 rounded-full font-bold">{item.badge}</span>}
+                  {item.id === 'messages' && totalUnreadMessages > 0 && (
+                    <span className="text-[9px] bg-emerald-500 text-white px-1.5 py-0.5 rounded-full font-bold">
+                      {totalUnreadMessages}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="hidden">
               <button
                 onClick={() => navigateTo('home')}
                 className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
@@ -3232,6 +3261,17 @@ export default function App() {
                 }`}
               >
                 <span className="flex items-center gap-2"><Plus size={15} /> নতুন তথ্য যোগ করুন</span>
+              </button>
+              <button
+                onClick={() => {
+                  navigateTo('profile');
+                  setViewingProfileUid(null);
+                }}
+                className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
+                  activeTab === 'profile' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <span className="flex items-center gap-2"><User size={15} /> আমার প্রোফাইল</span>
               </button>
 
               {/* Special Citizen Hubs in Sidebar */}
@@ -3352,6 +3392,10 @@ export default function App() {
         <SmartKhulnaHeader
           onOpenDrawer={() => setIsDrawerOpen(true)}
           onNavigateHome={() => navigateTo('home')}
+          onNavigateProfile={() => {
+            navigateTo('profile');
+            setViewingProfileUid(null);
+          }}
           lang={lang}
           onToggleLang={() => setLang(lang === 'bn' ? 'en' : 'bn')}
           isInstallable={isInstallable}
@@ -3791,15 +3835,19 @@ export default function App() {
                 </section>
 
                 {/* 6. PROMOTED / FEATURED LOCAL SERVICES */}
-                {(Array.isArray(services) ? services : []).filter(s => s && s.isFeatured && s.status === 'PUBLISHED' && s.district_id === selectedDistrict).length > 0 && (
+                {(Array.isArray(services) ? services : []).filter(s => s && s.isFeatured && s.status === 'PUBLISHED').length > 0 && (
                   <section className="space-y-3">
-                    <h2 className="text-base font-extrabold text-emerald-950 flex items-center gap-1.5 font-serif">
-                      <ThumbsUp size={18} className="text-emerald-700" />
-                      স্পেশাল ও ভেরিফাইড সেবা
-                    </h2>
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-base font-extrabold text-emerald-950 dark:text-emerald-200 flex items-center gap-1.5 font-serif">
+                        <Star size={18} className="text-amber-500 fill-amber-500" />
+                        ⭐ জনপ্রিয় ও গুরুত্বপূর্ণ সেবা (Featured Services)
+                      </h2>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">হোম পেজে প্রদর্শিত সেবা</span>
+                    </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                       {(Array.isArray(services) ? services : [])
-                        .filter(s => s && s.isFeatured && s.status === 'PUBLISHED' && s.district_id === selectedDistrict)
+                        .filter(s => s && s.isFeatured && s.status === 'PUBLISHED')
+                        .slice(0, 8)
                         .map(service => {
                           const cat = initialCategories.find(c => c && c.id === service.category_id);
                           const style = getCategoryStyle(service.category_id);
@@ -3807,7 +3855,7 @@ export default function App() {
                             <div
                               key={service.id}
                               onClick={() => setSelectedService(service)}
-                              className="bg-white hover:bg-emerald-50/20 border border-emerald-100 hover:border-emerald-200 p-3 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-sm transition cursor-pointer group"
+                              className="bg-white dark:bg-slate-900 hover:bg-emerald-50/20 dark:hover:bg-slate-850 border border-emerald-100 dark:border-slate-800 hover:border-emerald-200 p-3 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-sm transition cursor-pointer group"
                             >
                               <div>
                                 <div className="flex items-center justify-between mb-2">
@@ -3818,23 +3866,24 @@ export default function App() {
                                       <IconComponent name={cat?.iconName || 'Grid'} className={style.text} />
                                     )}
                                   </div>
-                                  <span className="bg-lime-100 text-emerald-900 text-[9px] font-extrabold px-1.5 py-0.5 rounded">ফিচার্ড</span>
+                                  <span className="bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200 text-[9px] font-extrabold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                    <Star size={9} className="fill-amber-600 text-amber-600" /> ফিচার্ড
+                                  </span>
                                 </div>
-                                <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold uppercase inline-block mb-1">
+                                <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-bold uppercase inline-block mb-1">
                                   {cat?.name || 'সেবা'}
                                 </span>
-                                <h3 className="text-xs font-extrabold text-slate-900 line-clamp-2 leading-tight">{service.name}</h3>
-                                <p className="text-[10px] text-slate-500 line-clamp-1 mt-1">{service.address}</p>
+                                <h3 className="text-xs font-extrabold text-slate-900 dark:text-white line-clamp-2 leading-tight">{service.name}</h3>
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-1">{service.address}</p>
                               </div>
                               
-                              <div className="flex items-center justify-between text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-50">
+                              <div className="flex items-center justify-between text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-50 dark:border-slate-800">
                                 <span className="flex items-center gap-0.5 truncate max-w-[80px]">
-                                  <Clock size={10} className="text-emerald-700 shrink-0" />
+                                  <Clock size={10} className="text-emerald-700 dark:text-emerald-400 shrink-0" />
                                   <span className="truncate">{service.opening_hours}</span>
                                 </span>
-                                <span className="text-emerald-700 font-extrabold flex items-center gap-0.5 group-hover:translate-x-0.5 transition">
-                                  দেখুন
-                                  <ChevronRight size={11} />
+                                <span className="text-emerald-700 dark:text-emerald-400 font-extrabold flex items-center gap-0.5 group-hover:translate-x-0.5 transition">
+                                  View Service →
                                 </span>
                               </div>
                             </div>
@@ -4380,77 +4429,111 @@ export default function App() {
               </div>
             )}
 
+            {/* TAB VIEW - SEARCH & DISCOVERY */}
+            {activeTab === 'search' && (
+              <DiscoverySearch 
+                services={services}
+                posts={communityPosts}
+                users={allCommunityUsers}
+                districts={initialDistricts}
+                categories={initialCategories}
+                currentUser={currentUser}
+                onSelectService={(s) => setSelectedService(s)}
+                onSelectProfile={(uid) => handleViewProfile(uid)}
+                onSelectPost={(p) => setViewingPost(p)}
+                onSaveItem={(type, id) => toggleBookmark(type, id)}
+                isSaved={(type, id) => isBookmarked(type, id)}
+              />
+            )}
+
             {/* TAB VIEW - SAVED / BOOKMARKS */}
             {activeTab === 'saved' && (
-              <div className="space-y-4">
+              <div className="space-y-6 max-w-4xl mx-auto py-2">
                 <div>
-                  <h2 className="text-base font-extrabold text-slate-900 font-serif">আপনার সংরক্ষিত তালিকা</h2>
-                  <p className="text-xs text-slate-500">জরুরি প্রয়োজনের জন্য বুকমার্ক করে রাখা সেবা এবং প্রতিষ্ঠান সমূহ।</p>
+                  <h2 className="text-base font-extrabold text-slate-900 dark:text-white font-serif">আপনার সংরক্ষিত তালিকা</h2>
+                  <p className="text-xs text-slate-500">জরুরি প্রয়োজনের জন্য বুকমার্ক করে রাখা সেবা, পোস্ট এবং প্রোফাইল সমূহ।</p>
                 </div>
 
                 {/* Filter saved list */}
                 {(() => {
-                  const savedList = (Array.isArray(services) ? services : []).filter(s => s && isSaved(s.id));
-                  if (savedList.length === 0) {
+                  const savedServices = services.filter(s => isBookmarked('service', s.id));
+                  const savedPosts = communityPosts.filter(p => isBookmarked('post', p.id));
+                  const savedProfiles = allCommunityUsers.filter(u => isBookmarked('profile', u.uid));
+                  
+                  const totalSaved = savedServices.length + savedPosts.length + savedProfiles.length;
+
+                  if (totalSaved === 0) {
                     return (
-                      <div className="bg-white border border-slate-100 rounded-2xl p-8 text-center space-y-3 shadow-sm">
+                      <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-8 text-center space-y-3 shadow-sm">
                         <Heart className="text-slate-300 mx-auto" size={32} />
                         <p className="text-xs font-bold text-slate-500">তালিকাটি বর্তমানে খালি আছে</p>
                         <p className="text-[11px] text-slate-400">গুরুত্বপূর্ণ সেবাগুলোর পাশে সংরক্ষণ (♡) আইকনে ক্লিক করে জমা রাখুন।</p>
                         <button
-                          onClick={() => setActiveTab('services')}
-                          className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold py-1.5 px-4 rounded-lg transition mt-2"
+                          onClick={() => navigateTo('search')}
+                          className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold py-1.5 px-4 rounded-lg transition mt-2 cursor-pointer"
                         >
-                          সেবা সমূহে যান
+                          নতুন কিছু খুঁজুন
                         </button>
                       </div>
                     );
                   }
+                  
                   return (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                      {savedList.map(s => {
-                        const cat = initialCategories.find(c => c.id === s.category_id);
-                        const style = getCategoryStyle(s.category_id);
-                        return (
-                          <div
-                            key={s.id}
-                            className="bg-white hover:bg-emerald-50/20 border border-slate-100 hover:border-emerald-200 p-3 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-sm transition group"
-                          >
-                            <div className="cursor-pointer" onClick={() => setSelectedService(s)}>
-                              <div className="flex items-center justify-between mb-2">
-                                <div className={`w-10 h-10 rounded-xl ${style.bg} ${style.text} flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition`}>
-                                  <IconComponent name={cat?.iconName || 'Grid'} className={style.text} />
+                    <div className="space-y-8 pb-20">
+                      {savedServices.length > 0 && (
+                        <div className="space-y-4">
+                          <h3 className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider px-1">সংরক্ষিত সেবা ({savedServices.length})</h3>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            {savedServices.map(s => {
+                              const cat = initialCategories.find(c => c.id === s.category_id);
+                              return (
+                                <div key={s.id} className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs">
+                                  <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">{s.name}</h4>
+                                  <div className="mt-2 flex items-center justify-between">
+                                    <button onClick={() => setSelectedService(s)} className="text-[9px] font-bold text-emerald-600">বিস্তারিত</button>
+                                    <button onClick={() => toggleBookmark('service', s.id)} className="text-rose-500"><Trash2 size={12} /></button>
+                                  </div>
                                 </div>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleSaveService(s.id);
-                                  }}
-                                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-full transition cursor-pointer"
-                                  title="সংরক্ষণ বাতিল"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                              <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold uppercase inline-block mb-1">
-                                {cat?.name || 'সেবা'}
-                              </span>
-                              <h3 className="text-xs font-extrabold text-slate-900 line-clamp-2 leading-tight">{s.name}</h3>
-                              <p className="text-[10px] text-slate-500 line-clamp-1 mt-1">{s.address}</p>
-                            </div>
-                            
-                            <div className="mt-3 pt-2 border-t border-slate-50 flex items-center justify-end">
-                              <button
-                                onClick={() => setSelectedService(s)}
-                                className="text-[10px] text-emerald-700 font-extrabold flex items-center gap-0.5 hover:underline cursor-pointer"
-                              >
-                                বিস্তারিত দেখুন
-                                <ChevronRight size={11} />
-                              </button>
-                            </div>
+                              );
+                            })}
                           </div>
-                        );
-                      })}
+                        </div>
+                      )}
+
+                      {savedPosts.length > 0 && (
+                        <div className="space-y-4">
+                          <h3 className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider px-1">সংরক্ষিত পোস্ট ({savedPosts.length})</h3>
+                          <div className="space-y-3">
+                            {savedPosts.map(p => (
+                              <div key={p.id} className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                                <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-1 flex-1 pr-4">{p.content}</p>
+                                <div className="flex items-center gap-2">
+                                  <button onClick={() => setViewingPost(p)} className="text-[10px] font-bold text-blue-600">দেখুন</button>
+                                  <button onClick={() => toggleBookmark('post', p.id)} className="text-rose-500"><Trash2 size={12} /></button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {savedProfiles.length > 0 && (
+                        <div className="space-y-4">
+                          <h3 className="text-xs font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider px-1">সংরক্ষিত প্রোফাইল ({savedProfiles.length})</h3>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            {savedProfiles.map(u => (
+                              <div key={u.uid} className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 text-center">
+                                <img src={u.avatar} className="w-10 h-10 rounded-full mx-auto mb-2" alt="" />
+                                <h4 className="text-[11px] font-bold text-slate-900 dark:text-white truncate">{u.name}</h4>
+                                <div className="mt-2 flex items-center justify-center gap-3">
+                                  <button onClick={() => handleViewProfile(u.uid)} className="text-[9px] font-bold text-indigo-600">প্রোফাইল</button>
+                                  <button onClick={() => toggleBookmark('profile', u.uid)} className="text-rose-500"><Trash2 size={12} /></button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
@@ -4631,7 +4714,49 @@ export default function App() {
                   </div>
                 ) : (
                   <ErrorBoundary fallbackText="প্রোফাইল লোড করতে সাময়িক বিলম্ব ঘটেছে। নিচে রিফ্রেশ বাটনে চাপ দিয়ে পুনরায় চেষ্টা করুন।">
-                    <EnhancedProfileView
+                    {viewingPost ? (
+                      <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+                        <button
+                          onClick={() => {
+                            setViewingPost(null);
+                            setTimeout(() => {
+                              window.scrollTo({ top: profileScrollPosition, behavior: 'smooth' });
+                            }, 50);
+                          }}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold rounded-xl text-xs transition cursor-pointer"
+                        >
+                          <span>← প্রোফাইলে ফিরে যান</span>
+                        </button>
+                        <PostCard
+                          post={viewingPost}
+                          districts={initialDistricts}
+                          currentUserId={currentUser?.uid}
+                          comments={communityComments[viewingPost.id] || []}
+                          isLiked={likedCommunityPostIds.includes(viewingPost.id)}
+                          isSaved={savedCommunityPostIds.includes(viewingPost.id)}
+                          isFollowing={followingUids.includes(viewingPost.authorId)}
+                          onToggleLike={handleToggleLikePost}
+                          onToggleSave={handleToggleSavePost}
+                          onAddComment={handleAddComment}
+                          onAddReply={handleAddReply}
+                          onDeleteComment={handleDeleteComment}
+                          onShare={handleShareCommunityPost}
+                          onReport={handleReport}
+                          onDeletePost={handleDeletePost}
+                          onEditPost={(p) => {
+                            setEditingPost(p);
+                            setShowCreatePostModal(true);
+                          }}
+                          onViewProfile={(uid) => {
+                            setViewingPost(null);
+                            handleViewProfile(uid);
+                          }}
+                          onStartMessage={handleStartMessage}
+                          onToggleFollow={handleFollow}
+                        />
+                      </div>
+                    ) : (
+                      <EnhancedProfileView
                       profile={targetProfile || {
                         uid: 'guest',
                         name: 'অতিথি নাগরিক',
@@ -4691,9 +4816,16 @@ export default function App() {
                       categories={initialCategories}
                       followers={targetFollowers}
                       following={targetFollowing}
-                      onPostClick={() => {}}
+                      onPostClick={(post) => {
+                        setProfileScrollPosition(window.scrollY);
+                        setViewingPost(post);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
                       onServiceClick={(s) => setSelectedService(s)}
-                      onUserClick={(uid) => handleViewProfile(uid)}
+                      onUserClick={(uid) => {
+                        setViewingPost(null);
+                        handleViewProfile(uid);
+                      }}
                       onUpdateCover={handleUpdateCover}
                       onLogout={handleLogout}
                       onToggleLike={handleToggleLikePost}
@@ -4723,6 +4855,7 @@ export default function App() {
                       onToggleLang={() => setLang(lang === 'bn' ? 'en' : 'bn')}
                       onToggleDarkMode={() => setDarkMode(!darkMode)}
                     />
+                  )}
                   </ErrorBoundary>
                 )}
               </div>
@@ -4814,98 +4947,35 @@ export default function App() {
 
 
 
-          {/* PERSISTENT BOTTOM NAVIGATION (5 Tab structure: Home, Services, Community, Messages, Profile) */}
+          {/* PERSISTENT BOTTOM NAVIGATION (Unified Structure) */}
           <nav
             id="main-bottom-navigation"
-            className="sticky bottom-0 left-0 right-0 w-full bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800/90 pt-2 px-3 flex justify-around items-center shrink-0 z-40 shadow-lg md:hidden"
+            className="sticky bottom-0 left-0 right-0 w-full bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800/90 pt-2 px-1 flex justify-around items-center shrink-0 z-40 shadow-lg md:hidden"
             style={{
               paddingBottom: 'max(0.65rem, calc(env(safe-area-inset-bottom, 0px) + 0.35rem))',
             }}
           >
-            <button
-              onClick={() => {
-                setActiveTab('home');
-                setViewingDistrictId(null);
-              }}
-              className={`flex flex-col items-center gap-1 text-[10px] font-bold transition flex-1 cursor-pointer ${
-                activeTab === 'home' && !viewingDistrictId 
-                  ? 'text-emerald-700 dark:text-emerald-400' 
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-              }`}
-            >
-              <Home size={18} />
-              হোম
-            </button>
-            
-            <button
-              onClick={() => {
-                setActiveTab('services');
-                setViewingDistrictId(null);
-              }}
-              className={`flex flex-col items-center gap-1 text-[10px] font-bold transition flex-1 cursor-pointer ${
-                activeTab === 'services' 
-                  ? 'text-emerald-700 dark:text-emerald-400' 
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-              }`}
-            >
-              <Grid size={18} />
-              সেবা
-            </button>
- 
-            <button
-              onClick={() => {
-                setActiveTab('community');
-                setViewingDistrictId(null);
-              }}
-              className={`flex flex-col items-center gap-1 text-[10px] font-bold transition flex-1 cursor-pointer relative ${
-                activeTab === 'community' 
-                  ? 'text-emerald-700 dark:text-emerald-400' 
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-              }`}
-            >
-              <Users size={18} />
-              কমিউনিটি
-            </button>
- 
-            <button
-              onClick={() => {
-                setActiveTab('messages');
-                setViewingDistrictId(null);
-              }}
-              className={`flex flex-col items-center gap-1 text-[10px] font-bold transition flex-1 cursor-pointer relative ${
-                activeTab === 'messages' 
-                  ? 'text-emerald-700 dark:text-emerald-400' 
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-              }`}
-            >
-              <div className="relative">
-                <MessageSquare size={18} />
-                {totalUnreadMessages > 0 && (
-                  <span className="absolute -top-1 -right-2 px-1 min-w-3.5 h-3.5 bg-emerald-600 text-white rounded-full text-[8px] font-bold flex items-center justify-center border border-white">
-                    {totalUnreadMessages}
-                  </span>
-                )}
-              </div>
-              মেসেজ
-            </button>
- 
-            <button
-              onClick={() => {
-                if (!currentUser) {
-                  setViewingProfileUid(null);
-                }
-                setActiveTab('profile');
-                setViewingDistrictId(null);
-              }}
-              className={`flex flex-col items-center gap-1 text-[10px] font-bold transition flex-1 cursor-pointer ${
-                activeTab === 'profile' 
-                  ? 'text-emerald-700 dark:text-emerald-400' 
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-              }`}
-            >
-              <User size={18} />
-              প্রোফাইল
-            </button>
+            {navItems.filter(i => ['home', 'search', 'services', 'community', 'messages', 'profile'].includes(i.id)).map(item => (
+              <button
+                key={item.id}
+                onClick={() => navigateTo(item.id as any)}
+                className={`flex flex-col items-center gap-1 text-[9px] font-bold transition flex-1 cursor-pointer py-1 relative ${
+                  activeTab === item.id && !viewingDistrictId 
+                    ? 'text-emerald-700 dark:text-emerald-400' 
+                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+                }`}
+              >
+                <div className="relative">
+                  <IconComponent name={item.icon} size={18} />
+                  {item.id === 'messages' && totalUnreadMessages > 0 && (
+                    <span className="absolute -top-1 -right-2 px-1 min-w-3.5 h-3.5 bg-emerald-600 text-white rounded-full text-[8px] font-bold flex items-center justify-center border border-white">
+                      {totalUnreadMessages}
+                    </span>
+                  )}
+                </div>
+                <span className="truncate w-full text-center">{item.label.split(' ')[0]}</span>
+              </button>
+            ))}
           </nav>
 
         </div>

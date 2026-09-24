@@ -1,11 +1,13 @@
 import React from 'react';
-import { Menu, Globe, Download, Map, Sun, Moon, Bell } from 'lucide-react';
+import { Menu, Globe, Download, Map, Sun, Moon, Bell, User, Search } from 'lucide-react';
 import { SmartKhulnaLogo } from './SmartKhulnaLogo';
 import { LuxuryNoticeTicker } from './LuxuryNoticeTicker';
 
 export interface SmartKhulnaHeaderProps {
   onOpenDrawer: () => void;
   onNavigateHome: () => void;
+  onNavigateProfile: () => void;
+  onNavigateSearch: () => void;
   lang: 'bn' | 'en';
   onToggleLang: () => void;
   isInstallable: boolean;
@@ -35,6 +37,8 @@ export interface SmartKhulnaHeaderProps {
 export const SmartKhulnaHeader: React.FC<SmartKhulnaHeaderProps> = ({
   onOpenDrawer,
   onNavigateHome,
+  onNavigateProfile,
+  onNavigateSearch,
   lang,
   onToggleLang,
   isInstallable,
@@ -88,6 +92,17 @@ export const SmartKhulnaHeader: React.FC<SmartKhulnaHeaderProps> = ({
 
         {/* RIGHT SECTION: ACTION CONTROLS & UTILITIES (8px Material Spacing) */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* 0. Global Search Quick Button */}
+          <button
+            id="header-search-btn"
+            onClick={onNavigateSearch}
+            className="w-10 h-10 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50/80 dark:hover:bg-slate-800/80 active:scale-95 rounded-full transition-all duration-150 cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-blue-500/40"
+            title="সার্চ করুন / Global Search"
+            aria-label="Global Search"
+          >
+            <Search size={20} strokeWidth={2.2} />
+          </button>
+
           {/* 1. Language Toggle (Globe) */}
           <button
             id="header-lang-toggle"
@@ -141,6 +156,17 @@ export const SmartKhulnaHeader: React.FC<SmartKhulnaHeaderProps> = ({
             ) : (
               <Moon size={19} className="text-emerald-800 transition-transform hover:-rotate-12" />
             )}
+          </button>
+
+          {/* Profile Quick Button */}
+          <button
+            id="header-profile-btn"
+            onClick={onNavigateProfile}
+            className="h-9 text-xs bg-emerald-800 hover:bg-emerald-900 text-white font-bold px-3 rounded-full flex items-center gap-1.5 shadow-sm transition-all duration-150 active:scale-95 cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-emerald-500/50"
+            title="আমার প্রোফাইল / My Profile"
+          >
+            <User size={15} />
+            <span className="hidden sm:inline font-serif font-bold">প্রোফাইল</span>
           </button>
 
           {/* 5. Notification Center Bell Toggle (40px touch target) */}

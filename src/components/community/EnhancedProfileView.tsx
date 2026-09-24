@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { compressImage } from '../../lib/imageCompressor';
+import { ImageLightbox } from './ImageLightbox';
 import { 
   Camera, 
   MapPin, 
@@ -164,6 +165,8 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
   const [blockingInput, setBlockingInput] = useState('');
   const [loadingSetting, setLoadingSetting] = useState<string | null>(null);
   const [twoFactorPinInput, setTwoFactorPinInput] = useState('');
+  const [lightboxImg, setLightboxImg] = useState<string | null>(null);
+  const [lightboxTitle, setLightboxTitle] = useState<string>('');
 
   const dropdownRef = React.useRef<HTMLDivElement>(null);
 
@@ -703,7 +706,15 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
         {/* Cover Photo */}
         <div className="h-40 sm:h-56 md:h-64 w-full bg-slate-200 dark:bg-slate-800 overflow-hidden relative">
           {profile.coverPhoto ? (
-            <img src={profile.coverPhoto} alt="Cover" className="w-full h-full object-cover" />
+            <img 
+              src={profile.coverPhoto} 
+              alt="Cover" 
+              className="w-full h-full object-cover cursor-pointer hover:opacity-95 transition"
+              onClick={() => {
+                setLightboxImg(profile.coverPhoto!);
+                setLightboxTitle(profile.name ? `${profile.name} - Cover Photo` : 'Cover Photo');
+              }}
+            />
           ) : (
             <div className="w-full h-full bg-gradient-to-r from-emerald-600 to-lime-600 opacity-80" />
           )}
@@ -731,7 +742,15 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
             <div className="flex flex-col items-center sm:items-start">
               <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white dark:border-slate-950 bg-white dark:bg-slate-800 overflow-hidden shadow-lg relative group/avatar">
                 {profile.avatar ? (
-                  <img src={profile.avatar} alt={profile.name} className="w-full h-full object-cover" />
+                  <img 
+                    src={profile.avatar} 
+                    alt={profile.name} 
+                    className="w-full h-full object-cover cursor-pointer hover:opacity-95 transition"
+                    onClick={() => {
+                      setLightboxImg(profile.avatar!);
+                      setLightboxTitle(profile.name ? `${profile.name} - Profile Photo` : 'Profile Photo');
+                    }}
+                  />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-slate-700">
                     <Users size={40} className="text-slate-400" />
@@ -981,6 +1000,7 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                     onViewProfile={onUserClick}
                     onStartMessage={onStartMessage}
                     onToggleFollow={onFollow}
+                    onPostClick={onPostClick}
                   />
                 ))
               ) : (
@@ -2278,6 +2298,18 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
         isOpen={showAppUpdateModal}
         onClose={() => setShowAppUpdateModal(false)}
       />
+
+      {/* Profile/Cover Photo Lightbox */}
+      {lightboxImg && (
+        <ImageLightbox
+          isOpen={Boolean(lightboxImg)}
+          images={[{ id: 'profile-lightbox-media', url: lightboxImg, caption: lightboxTitle }]}
+          initialIndex={0}
+          onClose={() => setLightboxImg(null)}
+          postTitle={lightboxTitle}
+          authorName={profile.name}
+        />
+      )}
     </div>
   );
 };
