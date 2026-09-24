@@ -125,6 +125,7 @@ import { SplashScreen } from './components/SplashScreen';
 import { DownloadPage } from './components/DownloadPage';
 import { AdminDownloadsCMS } from './components/AdminDownloadsCMS';
 import { AdminPanelComplete } from './components/AdminPanelComplete';
+import { JoinSmartKhulnaTeamSection } from './components/JoinSmartKhulnaTeamSection';
 import { DistrictBannerCarousel } from './components/DistrictBannerCarousel';
 import { testConnection, handleFirestoreError, OperationType } from './firestoreErrorHandler';
 import {
@@ -1245,6 +1246,35 @@ export default function App() {
     } catch (err: any) {
       alert('অথেন্টিকেশন ত্রুটি: ' + (err.message || err));
     }
+  };
+
+  const handleJoinTeamApplication = async (application: {
+    fullName: string;
+    phone: string;
+    email: string;
+    district: string;
+    upazila: string;
+    area: string;
+    role: 'sub_admin' | 'moderator';
+    reason: string;
+    experience: string;
+  }) => {
+    const newReq = {
+      ...application,
+      uid: currentUser?.uid || 'guest_' + Date.now(),
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
+    if (db) {
+      try {
+        await addDoc(collection(db, 'joinRequests'), newReq);
+      } catch (e) {
+        console.error('Error saving join request to firestore:', e);
+      }
+    }
+    const existingReqs = JSON.parse(localStorage.getItem('smart_khulna_join_requests') || '[]');
+    localStorage.setItem('smart_khulna_join_requests', JSON.stringify([newReq, ...existingReqs]));
+    await logAction('টিমে যুক্ত হওয়ার আবেদন', `${application.fullName} (${application.role}) পদের জন্য আবেদন করেছেন`);
   };
 
   const handleLogout = async () => {
@@ -2933,10 +2963,22 @@ export default function App() {
               </button>
 
               {/* Sidebar Branding */}
-              <div className="flex items-center gap-3 mb-4 mt-2">
-                <SmartKhulnaLogo size={40} showGlow={true} id="drawer-brand-logo" />
+              <div 
+                className="flex items-center gap-3 mb-4 mt-2 drawer-branding-interactive group cursor-pointer"
+                onClick={() => {
+                  navigateTo('home');
+                  setIsDrawerOpen(false);
+                }}
+                title="স্মার্ট খুলনা — হোম পেজ"
+              >
+                <SmartKhulnaLogo 
+                  size={40} 
+                  showGlow={true} 
+                  id="drawer-brand-logo" 
+                  className="transition-transform duration-300"
+                />
                 <div>
-                  <h2 className="text-base font-bold tracking-tight text-white font-serif">স্মার্ট খুলনা</h2>
+                  <h2 className="text-base font-bold tracking-tight text-white font-serif group-hover:text-emerald-300 transition-colors">স্মার্ট খুলনা</h2>
                   <p className="text-[9px] text-lime-400 font-medium">Smart Khulna local platform</p>
                 </div>
               </div>
@@ -3857,6 +3899,15 @@ export default function App() {
                     </button>
                   </div>
                 </div>
+
+                {/* JOIN SMART KHULNA TEAM SECTION */}
+                <JoinSmartKhulnaTeamSection
+                  districts={initialDistricts}
+                  currentUserName={currentUser?.displayName || userProfile?.name || ''}
+                  currentUserEmail={currentUser?.email || userProfile?.email || ''}
+                  currentUserPhone={currentUser?.phone || userProfile?.phone || ''}
+                  onSubmitApplication={handleJoinTeamApplication}
+                />
               </>
             )}
 

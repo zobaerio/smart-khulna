@@ -412,3 +412,48 @@ html, body, #root {
   mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent);
   -webkit-mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent);
 }
+
+/* Mobile Drawer Brand Logo Interactive Hover Animation */
+#drawer-brand-logo {
+  cursor: pointer;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.3s ease;
+  will-change: transform, filter;
+}
+
+@keyframes drawerLogoPulseRotate {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.15) rotate(-12deg);
+  }
+  50% {
+    transform: scale(1.08) rotate(10deg);
+  }
+  75% {
+    transform: scale(1.14) rotate(-4deg);
+  }
+  100% {
+    transform: scale(1.12) rotate(0deg);
+  }
+}
+
+#drawer-brand-logo:hover,
+.drawer-branding-interactive:hover #drawer-brand-logo {
+  animation: drawerLogoPulseRotate 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  filter: drop-shadow(0 0 14px rgba(16, 185, 129, 0.65));
+}
+
+#drawer-brand-logo:active {
+  transform: scale(0.95) rotate(-2deg);
+  transition-duration: 0.1s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #drawer-brand-logo:hover,
+  .drawer-branding-interactive:hover #drawer-brand-logo {
+    animation: none;
+    transform: scale(1.06);
+  }
+}
+

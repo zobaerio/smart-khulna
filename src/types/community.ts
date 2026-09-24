@@ -2,7 +2,7 @@
 
 export type PostType = 'general' | 'question' | 'local_info' | 'service_recommendation' | 'location_based' | 'personal_blog';
 
-export type VerifiedBadgeType = 'none' | 'govt_official' | 'emergency_service' | 'hospital' | 'admin' | 'verified_citizen';
+export type VerifiedBadgeType = 'none' | 'govt_official' | 'emergency_service' | 'hospital' | 'admin' | 'verified_citizen' | 'moderator';
 
 export interface PostImage {
   id: string;
@@ -240,7 +240,7 @@ export interface PublicUserProfile {
 export interface ModerationAction {
   id: string;
   adminEmail: string;
-  adminRole: 'super_admin' | 'sub_admin';
+  adminRole: 'super_admin' | 'sub_admin' | 'moderator';
   actionType: 'hide_post' | 'remove_post' | 'restore_post' | 'remove_comment' | 'suspend_user' | 'ban_user' | 'resolve_report' | 'dismiss_report';
   targetType: ReportTargetType;
   targetId: string;

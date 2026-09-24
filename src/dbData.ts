@@ -76,6 +76,8 @@ export interface SubAdminPermissions {
   canViewUsers?: boolean;
   canViewLogs?: boolean;
   canDeleteServices?: boolean;
+  canCollectInfo?: boolean;
+  canUseAITools?: boolean;
 }
 
 export interface UserProfile {
@@ -108,6 +110,7 @@ export interface UserProfile {
   isDeleted?: boolean;
   subAdminScope?: {
     districtId?: string;
+    upazilaId?: string;
     categoryId?: string;
     permissions?: SubAdminPermissions;
   };
