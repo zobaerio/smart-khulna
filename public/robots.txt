@@ -1,3 +1,8 @@
 User-agent: *
 Allow: /
-Sitemap: https://ais-pre-maygmb54fixmmk56jdfgol-62469897869.asia-southeast1.run.app/sitemap.xml
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /login
+Disallow: /profile
+
+Sitemap: https://ais-dev-maygmb54fixmmk56jdfgol-62469897869.asia-southeast1.run.app/sitemap.xml
