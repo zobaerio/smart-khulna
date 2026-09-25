@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Shield, Lock, Bell, Moon, Sun, Trash2, LogOut, ChevronRight, Settings, ArrowLeft, Eye, EyeOff, BellRing, Smartphone, DownloadCloud, Sparkles } from 'lucide-react';
+import { X, Shield, Lock, Bell, Moon, Sun, Trash2, LogOut, ChevronRight, Settings, ArrowLeft, Eye, EyeOff, BellRing, Smartphone, DownloadCloud, Sparkles, MessageCircle, Phone } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppUpdateModal } from '../ui/AppUpdateModal';
 
@@ -27,6 +27,13 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
 
   const currentSavedVersion = localStorage.getItem('smart_khulna_app_version') || '1.1.0';
 
+  const handleWhatsAppContact = () => {
+    const whatsappNumber = '8801832313998';
+    const defaultText = `আসসালামু আলাইকুম, স্মার্ট খুলনা অ্যাপে আমার একটি সমস্যা হয়েছে বা সহযোগিতা প্রয়োজন।\n\nসমস্যার বিবরণ:\n১. \n২. \n\nদয়া করে আমাকে এই বিষয়ে সহযোগিতা করুন। ধন্যবাদ!`;
+    const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(defaultText)}`;
+    window.open(url, '_blank');
+  };
+
   const settingsItems = [
     { 
       id: 'account',
@@ -48,6 +55,13 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
       label: 'প্রাইভেসি কন্ট্রোল', 
       desc: 'আপনার প্রোফাইল ও ডেটা সুরক্ষা',
       onClick: () => setActiveSection('privacy')
+    },
+    { 
+      id: 'contact',
+      icon: <MessageCircle className="text-emerald-500" size={18} />, 
+      label: 'কন্টাক্ট উইথ আস (WhatsApp)', 
+      desc: 'কোনো সমস্যা হলে সরাসরি হোয়াটসঅ্যাপে মেসেজ করুন (01832313998)',
+      onClick: handleWhatsAppContact
     },
     { 
       id: 'update',
@@ -132,6 +146,26 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                 </div>
               </div>
             ))}
+
+            {/* Privacy > WhatsApp Support Direct Banner */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={handleWhatsAppContact}
+                className="w-full flex items-center justify-between p-3.5 bg-gradient-to-r from-emerald-600 to-teal-700 rounded-2xl text-white text-left cursor-pointer shadow-md hover:from-emerald-700 hover:to-teal-800 transition"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-white/25 backdrop-blur-xs rounded-xl text-white">
+                    <MessageCircle size={18} />
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm font-bold">হোয়াটসঅ্যাপে আমাদের সাথে কন্টাক্ট করুন</p>
+                    <p className="text-[10px] text-emerald-100">০১৮৩২৩১৩৯৯৮ • সরাসরি চ্যাট ও সমস্যার সমাধান</p>
+                  </div>
+                </div>
+                <ChevronRight size={18} className="text-white" />
+              </button>
+            </div>
 
             {/* Privacy > Update Integration */}
             <div className="pt-2">

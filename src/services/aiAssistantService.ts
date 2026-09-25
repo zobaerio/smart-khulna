@@ -87,12 +87,13 @@ export class AiAssistantService {
   }
 
   /**
-   * Send text message with context to backend
+   * Send text message with context and optional image/file attachment to backend
    */
   static async sendMessage(
     message: string,
     history: AiChatMessage[] = [],
-    imageBase64?: string
+    imageBase64?: string,
+    imageMimeType?: string
   ): Promise<{ reply: string; model: string }> {
     const formattedHistory = history
       .filter(m => m.msgType !== 'image')
@@ -109,6 +110,7 @@ export class AiAssistantService {
         message,
         history: formattedHistory,
         imageBase64,
+        imageMimeType,
       }),
     });
 

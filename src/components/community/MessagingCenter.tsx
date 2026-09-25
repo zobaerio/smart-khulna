@@ -32,7 +32,14 @@ import {
   Award,
   Bot,
   Sparkles,
-  Edit2
+  Edit2,
+  Phone,
+  Video,
+  PhoneOff,
+  Mic,
+  MicOff,
+  Camera,
+  CameraOff
 } from 'lucide-react';
 import {
   Conversation,
@@ -121,6 +128,27 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
     return localStorage.getItem(`chat_theme_${activeConversationId || 'global'}`) || 'classic';
   });
   const [showThemeModal, setShowThemeModal] = useState(false);
+
+  // Audio and Video Call State
+  const [activeCall, setActiveCall] = useState<{
+    type: 'audio' | 'video';
+    targetName: string;
+    targetAvatar: string;
+    status: 'ringing' | 'connected';
+    durationSeconds: number;
+    isMuted: boolean;
+    isVideoOff: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    let timer: any;
+    if (activeCall && activeCall.status === 'connected') {
+      timer = setInterval(() => {
+        setActiveCall(prev => prev ? { ...prev, durationSeconds: prev.durationSeconds + 1 } : null);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [activeCall?.status]);
 
   const activeTheme = CHAT_THEMES[chatTheme] || CHAT_THEMES.classic;
 
@@ -665,6 +693,50 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                   title={isSelectionMode ? "সিলেকশন মোড বন্ধ করুন" : "একসাথে একাধিক মেসেজ সিলেক্ট করে মুছুন"}
                 >
                   <CheckSquare size={16} />
+                </button>
+
+                {/* Audio Call */}
+                <button
+                  onClick={() => {
+                    setActiveCall({
+                      type: 'audio',
+                      targetName: otherParticipant.name,
+                      targetAvatar: otherParticipant.avatar,
+                      status: 'ringing',
+                      durationSeconds: 0,
+                      isMuted: false,
+                      isVideoOff: false,
+                    });
+                    setTimeout(() => {
+                      setActiveCall(prev => prev ? { ...prev, status: 'connected' } : null);
+                    }, 2500);
+                  }}
+                  className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                  title="অডিও কল করুন"
+                >
+                  <Phone size={16} />
+                </button>
+
+                {/* Video Call */}
+                <button
+                  onClick={() => {
+                    setActiveCall({
+                      type: 'video',
+                      targetName: otherParticipant.name,
+                      targetAvatar: otherParticipant.avatar,
+                      status: 'ringing',
+                      durationSeconds: 0,
+                      isMuted: false,
+                      isVideoOff: false,
+                    });
+                    setTimeout(() => {
+                      setActiveCall(prev => prev ? { ...prev, status: 'connected' } : null);
+                    }, 2500);
+                  }}
+                  className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                  title="ভিডিও কল করুন"
+                >
+                  <Video size={16} />
                 </button>
 
                 {/* Theme Palette Toggle */}
@@ -1256,6 +1328,90 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                 className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 font-bold text-xs text-white shadow-md shadow-red-600/20 transition cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <Trash2 size={14} /> হ্যাঁ, মুছুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AUDIO / VIDEO CALL MODAL */}
+      {activeCall && (
+        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 sm:p-8 flex flex-col items-center shadow-2xl text-white text-center relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-tr from-emerald-600/10 via-transparent to-blue-600/10 pointer-events-none" />
+
+            {activeCall.type === 'video' && activeCall.status === 'connected' && !activeCall.isVideoOff ? (
+              <div className="w-full h-64 sm:h-72 bg-slate-950 rounded-2xl mb-6 relative overflow-hidden flex items-center justify-center border border-slate-800">
+                <div className="absolute inset-0 bg-gradient-to-tr from-emerald-950/40 to-slate-950 flex items-center justify-center">
+                  <img
+                    src={getSafeAvatarUrl(activeCall.targetAvatar, activeCall.targetName)}
+                    alt={activeCall.targetName}
+                    className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover border-4 border-emerald-500/50 shadow-lg animate-pulse"
+                  />
+                </div>
+                <div className="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur-xs px-3 py-1 rounded-full text-xs font-bold border border-slate-700 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                  {activeCall.targetName}
+                </div>
+                <div className="absolute top-3 right-3 w-20 h-28 bg-slate-900 rounded-xl border border-slate-700 overflow-hidden flex items-center justify-center shadow-md">
+                  <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs font-bold">
+                    আপনি
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="relative mb-6">
+                <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full p-1 bg-gradient-to-tr from-emerald-500 to-blue-500 animate-pulse shadow-xl">
+                  <img
+                    src={getSafeAvatarUrl(activeCall.targetAvatar, activeCall.targetName)}
+                    alt={activeCall.targetName}
+                    className="w-full h-full rounded-full object-cover bg-slate-900"
+                  />
+                </div>
+                {activeCall.status === 'ringing' && (
+                  <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-0.5 bg-amber-500 text-slate-950 text-[11px] font-bold rounded-full shadow-md animate-bounce">
+                    রিং হচ্ছে...
+                  </span>
+                )}
+              </div>
+            )}
+
+            <h3 className="text-lg sm:text-xl font-bold font-serif mb-1">{activeCall.targetName}</h3>
+            <p className="text-xs sm:text-sm text-slate-400 mb-6">
+              {activeCall.status === 'ringing'
+                ? (activeCall.type === 'video' ? 'ভিডিও কল রিং হচ্ছে...' : 'অডিও কল রিং হচ্ছে...')
+                : `${Math.floor(activeCall.durationSeconds / 60).toString().padStart(2, '0')}:${(activeCall.durationSeconds % 60).toString().padStart(2, '0')} • ${activeCall.type === 'video' ? 'ভিডিও কল চলমান' : 'অডিও কল চলমান'}`}
+            </p>
+
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setActiveCall(prev => prev ? { ...prev, isMuted: !prev.isMuted } : null)}
+                className={`p-4 rounded-full transition cursor-pointer shadow-md ${
+                  activeCall.isMuted ? 'bg-red-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                }`}
+                title={activeCall.isMuted ? 'আনমিউট করুন' : 'মিউট করুন'}
+              >
+                {activeCall.isMuted ? <MicOff size={20} /> : <Mic size={20} />}
+              </button>
+
+              {activeCall.type === 'video' && (
+                <button
+                  onClick={() => setActiveCall(prev => prev ? { ...prev, isVideoOff: !prev.isVideoOff } : null)}
+                  className={`p-4 rounded-full transition cursor-pointer shadow-md ${
+                    activeCall.isVideoOff ? 'bg-red-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                  }`}
+                  title={activeCall.isVideoOff ? 'ক্যামেরা চালু করুন' : 'ক্যামেরা বন্ধ করুন'}
+                >
+                  {activeCall.isVideoOff ? <CameraOff size={20} /> : <Camera size={20} />}
+                </button>
+              )}
+
+              <button
+                onClick={() => setActiveCall(null)}
+                className="p-4 rounded-full bg-red-600 hover:bg-red-700 text-white transition cursor-pointer shadow-lg animate-pulse"
+                title="কল কাটুন"
+              >
+                <PhoneOff size={22} />
               </button>
             </div>
           </div>

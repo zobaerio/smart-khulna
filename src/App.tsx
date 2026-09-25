@@ -4069,8 +4069,8 @@ export default function App() {
                           }}
                           className="bg-white dark:bg-slate-800/80 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 border border-slate-100 dark:border-slate-700 hover:border-emerald-200 dark:hover:border-emerald-500/40 p-2 sm:p-2.5 rounded-2xl flex flex-col items-center justify-center text-center shadow-xs hover:shadow-md hover:-translate-y-1 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ease-out cursor-pointer aspect-square min-h-[84px] sm:min-h-[92px] group"
                         >
-                          <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl ${style.bg} ${style.text} flex items-center justify-center mb-1 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shrink-0 shadow-2xs`}>
-                            <IconComponent name={cat.iconName} className={style.text} />
+                          <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl ${style.bg} ${style.text} flex items-center justify-center mb-1 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shrink-0 shadow-2xs animated-icon-badge`}>
+                            <IconComponent name={cat.iconName} className={style.text} size={22} strokeWidth={2.0} />
                           </div>
                           <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 text-center leading-tight line-clamp-2 w-full px-0.5 transition-colors duration-200">
                             {cat.name}
@@ -4112,8 +4112,8 @@ export default function App() {
                           }}
                           className="bg-white dark:bg-slate-800/80 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 border border-slate-100 dark:border-slate-700 hover:border-emerald-200 dark:hover:border-emerald-500/40 p-2 sm:p-2.5 rounded-2xl flex flex-col items-center justify-center text-center shadow-xs hover:shadow-md hover:-translate-y-1 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ease-out cursor-pointer aspect-square min-h-[84px] sm:min-h-[92px] group"
                         >
-                          <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl ${style.bg} ${style.text} flex items-center justify-center mb-1 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shrink-0 shadow-2xs`}>
-                            <IconComponent name={cat.iconName} className={style.text} />
+                          <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl ${style.bg} ${style.text} flex items-center justify-center mb-1 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shrink-0 shadow-2xs animated-icon-badge`}>
+                            <IconComponent name={cat.iconName} className={style.text} size={22} strokeWidth={2.0} />
                           </div>
                           <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 text-center leading-tight line-clamp-2 w-full px-0.5 transition-colors duration-200">
                             {cat.name}
