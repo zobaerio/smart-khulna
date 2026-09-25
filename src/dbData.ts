@@ -52,7 +52,9 @@ export interface Service {
   created_at: string;
   updated_at: string;
   photos?: string[];
+  image?: string;
   isFeatured?: boolean;
+  isForYou?: boolean;
 }
 
 export interface AuditLog {
@@ -89,6 +91,13 @@ export interface UserProfile {
   coverPhoto?: string;
   bio?: string;
   profession?: string;
+  workplace?: string;
+  designation?: string;
+  school?: string;
+  college?: string;
+  university?: string;
+  hometown?: string;
+  relationshipStatus?: string;
   bloodGroup?: string;
   district?: string;
   upazila?: string;

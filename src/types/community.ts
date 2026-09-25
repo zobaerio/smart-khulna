@@ -217,6 +217,13 @@ export interface PublicUserProfile {
   bio?: string;
   phone?: string;
   profession?: string;
+  workplace?: string;
+  designation?: string;
+  school?: string;
+  college?: string;
+  university?: string;
+  hometown?: string;
+  relationshipStatus?: string;
   bloodGroup?: string;
   district?: string;
   upazila?: string;

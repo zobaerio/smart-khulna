@@ -18,12 +18,24 @@ import {
   UserPlus,
   UserCheck,
   Paperclip,
-  Download
+  Download,
+  PlusCircle,
+  MinusCircle,
+  XCircle,
+  Bell,
+  Copy,
+  Check,
+  ChevronRight,
+  X,
+  User,
+  ExternalLink
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { CommunityPost, PostComment, VerifiedBadgeType } from '../../types/community';
 import { District } from '../../dbData';
 import { PostImageGrid } from './PostImageGrid';
 import { getSafeAvatarUrl } from '../../lib/avatarHelper';
+import { downloadImageSafely } from '../../lib/downloadHelper';
 
 interface PostCardProps {
   post: CommunityPost;
@@ -80,6 +92,101 @@ export const PostCard: React.FC<PostCardProps> = ({
   const [replyInput, setReplyInput] = useState('');
   const [showMenu, setShowMenu] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isInterested, setIsInterested] = useState<boolean | null>(null);
+  const [isNotificationsOn, setIsNotificationsOn] = useState(false);
+  const [isPostHidden, setIsPostHidden] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const triggerToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3000);
+  };
+
+  // Convert numbers to Bengali digits
+  const toBn = (n: number | string) => {
+    const bnNums = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    return n.toString().replace(/\d/g, d => bnNums[parseInt(d, 10)]);
+  };
+
+  // Collect all images attached to this post (from images array and image file attachments)
+  const allPostImages: { url: string; caption?: string; name: string }[] = [];
+  if (Array.isArray(post.images) && post.images.length > 0) {
+    post.images.forEach((img, idx) => {
+      if (img && img.url) {
+        allPostImages.push({
+          url: img.url,
+          caption: img.caption,
+          name: img.caption
+            ? `${img.caption.replace(/[^a-zA-Z0-9\u0980-\u09FF]/g, '_').slice(0, 30)}.jpg`
+            : `smartkhulna-post-${post.id.slice(0, 6)}-photo-${idx + 1}.jpg`
+        });
+      }
+    });
+  }
+
+  if (post.fileUrl) {
+    const isImageFile =
+      post.fileType?.toLowerCase().includes('image') ||
+      Boolean(post.fileUrl.match(/\.(jpeg|jpg|png|webp|gif|svg)(\?.*)?$/i));
+    if (isImageFile && !allPostImages.some(item => item.url === post.fileUrl)) {
+      allPostImages.push({
+        url: post.fileUrl,
+        caption: post.fileName,
+        name: post.fileName || `smartkhulna-post-${post.id.slice(0, 6)}-attachment.jpg`
+      });
+    }
+  }
+
+  const hasImages = allPostImages.length > 0;
+
+  const handleDownloadAllImages = async () => {
+    if (allPostImages.length === 0) return;
+    setIsDownloading(true);
+    setShowMenu(false);
+
+    if (allPostImages.length === 1) {
+      triggerToast('ছবি ডাউনলোড হচ্ছে...');
+      try {
+        await downloadImageSafely(allPostImages[0].url, allPostImages[0].name);
+        triggerToast('ছবি সফলভাবে ডাউনলোড হয়েছে!');
+      } catch {
+        triggerToast('ছবি ডাউনলোড সম্পন্ন হয়েছে');
+      } finally {
+        setIsDownloading(false);
+      }
+    } else {
+      triggerToast(`${toBn(allPostImages.length)}টি ছবি ডাউনলোড শুরু হয়েছে...`);
+      try {
+        for (let i = 0; i < allPostImages.length; i++) {
+          await downloadImageSafely(allPostImages[i].url, allPostImages[i].name);
+          if (i < allPostImages.length - 1) {
+            await new Promise(r => setTimeout(r, 600));
+          }
+        }
+        triggerToast(`সবকটি (${toBn(allPostImages.length)}টি) ছবি ডাউনলোড সম্পন্ন হয়েছে!`);
+      } catch {
+        triggerToast('ছবি ডাউনলোড সম্পন্ন হয়েছে');
+      } finally {
+        setIsDownloading(false);
+      }
+    }
+  };
+
+  const handleDownloadSingleImage = async (url: string, index: number, customName?: string) => {
+    setIsDownloading(true);
+    setShowMenu(false);
+    triggerToast(`ছবি #${toBn(index + 1)} ডাউনলোড হচ্ছে...`);
+    try {
+      const filename = customName || `smartkhulna-post-${post.id.slice(0, 6)}-${index + 1}.jpg`;
+      await downloadImageSafely(url, filename);
+      triggerToast(`ছবি #${toBn(index + 1)} ডাউনলোড সম্পন্ন হয়েছে!`);
+    } catch {
+      triggerToast('ছবি ডাউনলোড সম্পন্ন হয়েছে');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const districtObj = districts.find(d => d.id === post.districtId);
   const isAuthor = Boolean(currentUserId && post.authorId === currentUserId);
@@ -199,8 +306,19 @@ export const PostCard: React.FC<PostCardProps> = ({
     }
   };
 
+  if (isPostHidden) {
+    return (
+      <div className="bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 sm:rounded-2xl p-4 text-center my-2 text-xs text-slate-600 dark:text-slate-400 flex items-center justify-between w-full">
+        <span>পোস্টটি আপনার ফিড থেকে হাইড করা হয়েছে।</span>
+        <button onClick={() => setIsPostHidden(false)} className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline cursor-pointer">
+          আনহাইড করুন
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <article className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-sm transition duration-200 overflow-hidden text-slate-900 dark:text-slate-100">
+    <article className="bg-white dark:bg-slate-950 sm:rounded-2xl border-y sm:border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-sm transition duration-200 overflow-hidden text-slate-900 dark:text-slate-100 w-full">
       {/* CARD HEADER */}
       <div className="p-4 pb-3 flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -279,78 +397,367 @@ export const PostCard: React.FC<PostCardProps> = ({
           </div>
         </div>
 
-        {/* MORE OPTIONS MENU */}
+        {/* MORE OPTIONS MENU BUTTON */}
         <div className="relative">
           <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+            onClick={() => setShowMenu(true)}
+            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
             aria-label="More options"
           >
             <MoreHorizontal size={18} />
           </button>
+        </div>
+      </div>
 
-          {showMenu && (
-            <div className="absolute right-0 top-8 z-30 w-44 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-800 py-1.5 text-xs text-slate-700 dark:text-slate-300 animate-in fade-in duration-150">
-              {isAuthor ? (
-                <>
-                  {onEditPost && ((Date.now() - new Date(post.createdAt).getTime()) <= 2 * 60 * 60 * 1000) && (
+      {/* FACEBOOK-STYLE BOTTOM SHEET MENU MODAL */}
+      <AnimatePresence>
+        {showMenu && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs"
+              onClick={() => setShowMenu(false)}
+            />
+
+            {/* Bottom Sheet Modal Container */}
+            <motion.div
+              initial={{ y: '100%', opacity: 0.5 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 280 }}
+              className="bg-slate-100 dark:bg-slate-950 w-full max-w-lg rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl relative z-10 p-3 sm:p-4 max-h-[85vh] overflow-y-auto space-y-3"
+            >
+              {/* Top Drag Handle Bar */}
+              <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto my-1 cursor-grab" onClick={() => setShowMenu(false)} />
+
+              {/* Group 1: Feed Preference (Interested / Not interested) */}
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-2.5 shadow-xs border border-slate-200/80 dark:border-slate-800 space-y-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsInterested(true);
+                    triggerToast('ধন্যবাদ! আপনার ফিডে এই ধরনের পোস্ট বেশি দেখানো হবে।');
+                    setShowMenu(false);
+                  }}
+                  className={`w-full p-2.5 rounded-xl text-left flex items-start gap-3 transition cursor-pointer group ${
+                    isInterested === true ? 'bg-emerald-50 dark:bg-emerald-950/40' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/50 flex items-center justify-center shrink-0 transition">
+                    <PlusCircle size={20} className="text-slate-900 dark:text-slate-100 group-hover:text-emerald-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center justify-between">
+                      <span>Interested / আগ্রহী</span>
+                      {isInterested === true && <Check size={14} className="text-emerald-600" />}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">
+                      More of your posts will be like this. (এই ধরনের পোস্ট আরও বেশি দেখাবে)
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsInterested(false);
+                    triggerToast('আপনার ফিডে এই ধরনের পোস্ট কম দেখানো হবে।');
+                    setShowMenu(false);
+                  }}
+                  className={`w-full p-2.5 rounded-xl text-left flex items-start gap-3 transition cursor-pointer group ${
+                    isInterested === false ? 'bg-rose-50 dark:bg-rose-950/40' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-rose-100 dark:group-hover:bg-rose-900/50 flex items-center justify-center shrink-0 transition">
+                    <MinusCircle size={20} className="text-slate-900 dark:text-slate-100 group-hover:text-rose-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center justify-between">
+                      <span>Not interested / আগ্রহী নই</span>
+                      {isInterested === false && <Check size={14} className="text-rose-600" />}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">
+                      Less of your posts will be like this. (এই ধরনের পোস্ট কম দেখাবে)
+                    </p>
+                  </div>
+                </button>
+              </div>
+
+              {/* Group 2: Action Menu List */}
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-1.5 shadow-xs border border-slate-200/80 dark:border-slate-800 space-y-0.5">
+                {/* Download Photo(s) Option - shown ONLY if post has photo(s) */}
+                {hasImages && (
+                  <div className="p-1 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/60 mb-1">
                     <button
-                      onClick={() => {
-                        setShowMenu(false);
-                        onEditPost(post);
-                      }}
-                      className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2 cursor-pointer font-medium"
+                      type="button"
+                      onClick={handleDownloadAllImages}
+                      disabled={isDownloading}
+                      className="w-full p-2.5 rounded-xl text-left flex items-start gap-3 hover:bg-emerald-100/70 dark:hover:bg-emerald-900/50 transition cursor-pointer group"
                     >
-                      <Edit2 size={13} /> পোস্ট সম্পাদনা
+                      <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+                        <Download size={18} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-emerald-950 dark:text-emerald-200 flex items-center gap-1.5">
+                            <span>
+                              {allPostImages.length > 1
+                                ? `ছবি ডাউনলোড করুন (${toBn(allPostImages.length)}টি)`
+                                : 'ছবি ডাউনলোড করুন'}
+                            </span>
+                          </h4>
+                          <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-200/70 dark:bg-emerald-800/60 px-2 py-0.5 rounded-full shrink-0">
+                            {allPostImages.length > 1 ? `${toBn(allPostImages.length)}টি ছবি` : 'HD ছবি'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-emerald-700/90 dark:text-emerald-300/80 leading-tight mt-0.5">
+                          {allPostImages.length > 1
+                            ? 'পোস্টের সবকটি ছবি একসাথে গ্যালারিতে সেভ করুন'
+                            : 'পোস্টের স্পষ্ট ছবিটি সরাসরি আপনার ডিভাইসে সেভ করুন'}
+                        </p>
+                      </div>
                     </button>
-                  )}
-                  {onDeletePost && (
-                    <button
-                      onClick={() => {
-                        setShowMenu(false);
-                        onDeletePost(post.id);
-                      }}
-                      className="w-full text-left px-3.5 py-2 hover:bg-rose-50 text-rose-600 flex items-center gap-2 cursor-pointer font-medium"
-                    >
-                      <Trash2 size={13} /> পোস্ট মুছুন
-                    </button>
-                  )}
-                </>
-              ) : (
-                <>
+
+                    {/* If multiple images, also allow selecting individual photos to download */}
+                    {allPostImages.length > 1 && (
+                      <div className="mt-1.5 pt-1.5 border-t border-emerald-200/60 dark:border-emerald-800/40 px-1">
+                        <p className="text-[10px] font-medium text-emerald-800/80 dark:text-emerald-300/80 mb-1">
+                          বা নির্দিষ্ট ছবি ডাউনলোড করুন:
+                        </p>
+                        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+                          {allPostImages.map((img, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownloadSingleImage(img.url, idx, img.name);
+                              }}
+                              className="relative group shrink-0 w-12 h-12 rounded-lg overflow-hidden border border-emerald-300/80 dark:border-emerald-700 hover:border-emerald-600 transition cursor-pointer shadow-2xs"
+                              title={`ছবি ${toBn(idx + 1)} ডাউনলোড করুন`}
+                            >
+                              <img
+                                src={img.url}
+                                alt=""
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
+                              />
+                              <div className="absolute inset-0 bg-emerald-950/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition">
+                                <Download size={14} />
+                              </div>
+                              <span className="absolute bottom-0 right-0 bg-slate-900/80 text-[8px] text-white px-1 py-0.5 rounded-tl font-mono">
+                                #{toBn(idx + 1)}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Save post */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onToggleSave(post.id);
+                    triggerToast(isSaved ? 'পোস্টটি সেভ লিস্ট থেকে সরানো হয়েছে' : 'পোস্টটি সেভ করা হয়েছে');
+                    setShowMenu(false);
+                  }}
+                  className="w-full p-2.5 rounded-xl text-left flex items-start gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition cursor-pointer group"
+                >
+                  <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/50 flex items-center justify-center shrink-0 transition">
+                    <Bookmark size={18} className={isSaved ? "fill-emerald-600 text-emerald-600" : "text-slate-800 dark:text-slate-200"} />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                      {isSaved ? 'Unsave post (সেভ বাতিল করুন)' : 'Save post (পোস্ট সেভ করুন)'}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">
+                      {isSaved ? 'Remove this from your saved items.' : 'Add this to your saved items.'}
+                    </p>
+                  </div>
+                </button>
+
+                {/* Share */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onShare(post);
+                    setShowMenu(false);
+                  }}
+                  className="w-full p-2.5 rounded-xl text-left flex items-start gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition cursor-pointer group"
+                >
+                  <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50 flex items-center justify-center shrink-0 transition">
+                    <Share2 size={18} className="text-slate-800 dark:text-slate-200 group-hover:text-blue-600" />
+                  </div>
+                  <div className="flex-1 flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Share / শেয়ার করুন</h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">
+                        Share with friends or copy link
+                      </p>
+                    </div>
+                    <ChevronRight size={16} className="text-slate-400" />
+                  </div>
+                </button>
+
+                {/* Hide post */}
+                {!isAuthor && (
                   <button
+                    type="button"
                     onClick={() => {
+                      setIsPostHidden(true);
+                      triggerToast('পোস্টটি আপনার ফিড থেকে হাইড করা হয়েছে');
                       setShowMenu(false);
-                      onStartMessage(post.authorId, post.authorName, post.authorEmail, post.authorAvatar);
                     }}
-                    className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2 cursor-pointer font-medium"
+                    className="w-full p-2.5 rounded-xl text-left flex items-start gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition cursor-pointer group"
                   >
-                    <MessageCircle size={13} className="text-emerald-600" /> সরাসরি মেসেজ পাঠান
+                    <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-amber-100 dark:group-hover:bg-amber-900/50 flex items-center justify-center shrink-0 transition">
+                      <XCircle size={18} className="text-slate-800 dark:text-slate-200 group-hover:text-amber-600" />
+                    </div>
+                    <div className="flex-1 flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">I don't want to see this / পোস্টটি লুকাতে চাই</h4>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">
+                          See fewer posts like this
+                        </p>
+                      </div>
+                      <ChevronRight size={16} className="text-slate-400" />
+                    </div>
                   </button>
+                )}
+
+                {/* Report post */}
+                {!isAuthor && (
                   <button
-                    onClick={() => {
-                      setShowMenu(false);
-                      onViewProfile(post.authorId, post.authorName, post.authorEmail);
-                    }}
-                    className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2 cursor-pointer font-medium"
-                  >
-                    প্রোফাইল দেখুন
-                  </button>
-                  <button
+                    type="button"
                     onClick={() => {
                       setShowMenu(false);
                       onReport('post', post.id, post.title || post.content.slice(0, 30));
                     }}
-                    className="w-full text-left px-3.5 py-2 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-600 flex items-center gap-2 cursor-pointer font-medium border-t border-slate-100 dark:border-slate-800"
+                    className="w-full p-2.5 rounded-xl text-left flex items-start gap-3 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer group"
                   >
-                    <AlertTriangle size={13} /> পোস্ট রিপোর্ট করুন
+                    <div className="w-9 h-9 rounded-full bg-rose-100 dark:bg-rose-950/60 flex items-center justify-center shrink-0 transition">
+                      <AlertTriangle size={18} className="text-rose-600" />
+                    </div>
+                    <div className="flex-1 flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-bold text-rose-700 dark:text-rose-400">Report post / রিপোর্ট করুন</h4>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">
+                          We won't let {post.authorName} know who reported this.
+                        </p>
+                      </div>
+                      <ChevronRight size={16} className="text-slate-400" />
+                    </div>
                   </button>
-                </>
+                )}
+
+                {/* Turn on notifications for this post */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsNotificationsOn(!isNotificationsOn);
+                    triggerToast(!isNotificationsOn ? 'পোস্টের নোটিফিকেশন চালু করা হয়েছে' : 'নোটিফিকেশন বন্ধ করা হয়েছে');
+                    setShowMenu(false);
+                  }}
+                  className="w-full p-2.5 rounded-xl text-left flex items-start gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition cursor-pointer group"
+                >
+                  <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-amber-100 dark:group-hover:bg-amber-900/50 flex items-center justify-center shrink-0 transition">
+                    <Bell size={18} className={isNotificationsOn ? "fill-amber-500 text-amber-500" : "text-slate-800 dark:text-slate-200"} />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                      {isNotificationsOn ? 'Turn off notifications' : 'Turn on notifications for this post'}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">
+                      Get notified when someone interacts with this post.
+                    </p>
+                  </div>
+                </button>
+
+                {/* Copy link */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const postUrl = window.location.origin + '?post=' + post.id;
+                    navigator.clipboard.writeText(postUrl);
+                    triggerToast('পোস্টের সরাসরি লিংক কপি করা হয়েছে!');
+                    setShowMenu(false);
+                  }}
+                  className="w-full p-2.5 rounded-xl text-left flex items-start gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition cursor-pointer group"
+                >
+                  <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/50 flex items-center justify-center shrink-0 transition">
+                    <Copy size={18} className="text-slate-800 dark:text-slate-200 group-hover:text-emerald-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Copy link / লিংক কপি করুন</h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">
+                      Copy direct link to this post
+                    </p>
+                  </div>
+                </button>
+              </div>
+
+              {/* Group 3: Author Actions (Edit & Delete) */}
+              {isAuthor && (
+                <div className="bg-white dark:bg-slate-900 rounded-2xl p-1.5 shadow-xs border border-slate-200/80 dark:border-slate-800 space-y-0.5">
+                  {onEditPost && ((Date.now() - new Date(post.createdAt).getTime()) <= 2 * 60 * 60 * 1000) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMenu(false);
+                        onEditPost(post);
+                      }}
+                      className="w-full p-2.5 rounded-xl text-left flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-800 dark:text-slate-200 transition cursor-pointer"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                        <Edit2 size={18} className="text-emerald-600" />
+                      </div>
+                      <span className="text-xs font-bold">Edit post / পোস্ট সম্পাদনা করুন</span>
+                    </button>
+                  )}
+
+                  {onDeletePost && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMenu(false);
+                        onDeletePost(post.id);
+                      }}
+                      className="w-full p-2.5 rounded-xl text-left flex items-center gap-3 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-600 transition cursor-pointer"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-rose-100 dark:bg-rose-950/60 flex items-center justify-center shrink-0">
+                        <Trash2 size={18} className="text-rose-600" />
+                      </div>
+                      <span className="text-xs font-bold">Delete post / পোস্ট মুছে ফেলুন</span>
+                    </button>
+                  )}
+                </div>
               )}
-            </div>
-          )}
+
+              {/* Cancel Button */}
+              <button
+                type="button"
+                onClick={() => setShowMenu(false)}
+                className="w-full py-3 bg-white dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-extrabold transition text-center shadow-xs cursor-pointer border border-slate-200/80 dark:border-slate-800"
+              >
+                বাতিল করুন
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast Banner Notification */}
+      {toastMsg && (
+        <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 text-white text-xs font-bold px-5 py-3 rounded-full shadow-2xl backdrop-blur-md border border-slate-700 flex items-center gap-2 animate-in fade-in slide-in-from-bottom-3 duration-200 whitespace-nowrap pointer-events-none">
+          <Check size={16} className="text-emerald-400 shrink-0" />
+          <span>{toastMsg}</span>
         </div>
-      </div>
+      )}
 
       {/* POST TITLE & CONTENT (WITH SEE MORE / SEE LESS TOGGLE) */}
       <div 

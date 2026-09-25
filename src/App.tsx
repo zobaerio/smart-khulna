@@ -177,34 +177,34 @@ import { SmartKhulnaHeader } from './components/common/SmartKhulnaHeader';
 import { SmartKhulnaLogo } from './components/common/SmartKhulnaLogo';
 import { DiscoverySearch } from './components/DiscoverySearch';
 
-// Category Color Scheme Mapping for Compact Visual Cards
+// Category Color Scheme Mapping for Compact Visual Cards with 3D Gradients & Glossy Glow
 const getCategoryStyle = (catId: string) => {
   const styles: Record<string, { bg: string; text: string }> = {
-    govt: { bg: 'bg-emerald-50', text: 'text-emerald-700' },
-    health: { bg: 'bg-rose-50', text: 'text-rose-600' },
-    education: { bg: 'bg-blue-50', text: 'text-blue-600' },
-    transport: { bg: 'bg-amber-50', text: 'text-amber-600' },
-    emergency: { bg: 'bg-red-50', text: 'text-red-600' },
-    citizen: { bg: 'bg-purple-50', text: 'text-purple-600' },
-    banking: { bg: 'bg-sky-50', text: 'text-sky-600' },
-    courier: { bg: 'bg-teal-50', text: 'text-teal-600' },
-    car: { bg: 'bg-purple-50', text: 'text-purple-600' },
-    professional: { bg: 'bg-indigo-50', text: 'text-indigo-600' },
-    lawyer: { bg: 'bg-sky-50', text: 'text-sky-700' },
-    local: { bg: 'bg-emerald-50', text: 'text-emerald-600' },
-    agriculture: { bg: 'bg-lime-50', text: 'text-lime-700' },
-    business: { bg: 'bg-orange-50', text: 'text-orange-600' },
-    realestate: { bg: 'bg-teal-50', text: 'text-teal-700' },
-    engineering: { bg: 'bg-yellow-50', text: 'text-yellow-700' },
-    electrician: { bg: 'bg-amber-50', text: 'text-amber-600' },
-    plumber: { bg: 'bg-cyan-50', text: 'text-cyan-700' },
-    mechanic: { bg: 'bg-slate-100', text: 'text-slate-700' },
-    restaurant: { bg: 'bg-rose-50', text: 'text-rose-700' },
-    hotel: { bg: 'bg-indigo-50', text: 'text-indigo-700' },
-    tourism: { bg: 'bg-emerald-50', text: 'text-emerald-700' },
-    other: { bg: 'bg-slate-100', text: 'text-slate-600' },
+    govt: { bg: 'bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 text-white shadow-emerald-500/25 shadow-md border border-emerald-300/40 ring-1 ring-white/20', text: 'text-white' },
+    health: { bg: 'bg-gradient-to-tr from-rose-600 via-rose-500 to-pink-400 text-white shadow-rose-500/25 shadow-md border border-rose-300/40 ring-1 ring-white/20', text: 'text-white' },
+    education: { bg: 'bg-gradient-to-tr from-blue-600 via-indigo-500 to-sky-400 text-white shadow-blue-500/25 shadow-md border border-blue-300/40 ring-1 ring-white/20', text: 'text-white' },
+    transport: { bg: 'bg-gradient-to-tr from-amber-600 via-orange-500 to-yellow-400 text-white shadow-amber-500/25 shadow-md border border-amber-300/40 ring-1 ring-white/20', text: 'text-white' },
+    emergency: { bg: 'bg-gradient-to-tr from-red-700 via-red-600 to-rose-500 text-white shadow-red-500/35 shadow-md border border-red-400/50 ring-2 ring-red-400/30 animate-pulse', text: 'text-white' },
+    citizen: { bg: 'bg-gradient-to-tr from-purple-600 via-indigo-600 to-violet-400 text-white shadow-purple-500/25 shadow-md border border-purple-300/40 ring-1 ring-white/20', text: 'text-white' },
+    banking: { bg: 'bg-gradient-to-tr from-sky-600 via-blue-500 to-cyan-400 text-white shadow-sky-500/25 shadow-md border border-sky-300/40 ring-1 ring-white/20', text: 'text-white' },
+    courier: { bg: 'bg-gradient-to-tr from-teal-600 via-emerald-500 to-green-400 text-white shadow-teal-500/25 shadow-md border border-teal-300/40 ring-1 ring-white/20', text: 'text-white' },
+    car: { bg: 'bg-gradient-to-tr from-violet-700 via-purple-600 to-fuchsia-400 text-white shadow-violet-500/25 shadow-md border border-violet-300/40 ring-1 ring-white/20', text: 'text-white' },
+    professional: { bg: 'bg-gradient-to-tr from-indigo-700 via-blue-600 to-sky-500 text-white shadow-indigo-500/25 shadow-md border border-indigo-300/40 ring-1 ring-white/20', text: 'text-white' },
+    lawyer: { bg: 'bg-gradient-to-tr from-slate-700 via-slate-600 to-zinc-500 text-white shadow-slate-500/25 shadow-md border border-slate-400/40 ring-1 ring-white/20', text: 'text-white' },
+    local: { bg: 'bg-gradient-to-tr from-emerald-700 via-green-600 to-lime-400 text-white shadow-emerald-500/25 shadow-md border border-emerald-300/40 ring-1 ring-white/20', text: 'text-white' },
+    agriculture: { bg: 'bg-gradient-to-tr from-lime-600 via-emerald-500 to-green-400 text-white shadow-lime-500/25 shadow-md border border-lime-300/40 ring-1 ring-white/20', text: 'text-white' },
+    business: { bg: 'bg-gradient-to-tr from-orange-600 via-amber-500 to-yellow-400 text-white shadow-orange-500/25 shadow-md border border-orange-300/40 ring-1 ring-white/20', text: 'text-white' },
+    realestate: { bg: 'bg-gradient-to-tr from-teal-700 via-cyan-600 to-emerald-400 text-white shadow-teal-500/25 shadow-md border border-teal-300/40 ring-1 ring-white/20', text: 'text-white' },
+    engineering: { bg: 'bg-gradient-to-tr from-amber-700 via-yellow-600 to-orange-400 text-white shadow-amber-500/25 shadow-md border border-amber-300/40 ring-1 ring-white/20', text: 'text-white' },
+    electrician: { bg: 'bg-gradient-to-tr from-yellow-500 via-amber-500 to-orange-400 text-white shadow-yellow-500/25 shadow-md border border-yellow-300/40 ring-1 ring-white/20', text: 'text-white' },
+    plumber: { bg: 'bg-gradient-to-tr from-cyan-600 via-blue-500 to-sky-400 text-white shadow-cyan-500/25 shadow-md border border-cyan-300/40 ring-1 ring-white/20', text: 'text-white' },
+    mechanic: { bg: 'bg-gradient-to-tr from-zinc-700 via-slate-600 to-gray-500 text-white shadow-zinc-500/25 shadow-md border border-zinc-400/40 ring-1 ring-white/20', text: 'text-white' },
+    restaurant: { bg: 'bg-gradient-to-tr from-rose-600 via-red-500 to-orange-400 text-white shadow-rose-500/25 shadow-md border border-rose-300/40 ring-1 ring-white/20', text: 'text-white' },
+    hotel: { bg: 'bg-gradient-to-tr from-indigo-700 via-violet-600 to-purple-400 text-white shadow-indigo-500/25 shadow-md border border-indigo-300/40 ring-1 ring-white/20', text: 'text-white' },
+    tourism: { bg: 'bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-400 text-white shadow-emerald-500/25 shadow-md border border-emerald-300/40 ring-1 ring-white/20', text: 'text-white' },
+    other: { bg: 'bg-gradient-to-tr from-slate-600 via-slate-500 to-gray-400 text-white shadow-slate-500/25 shadow-md border border-slate-300/40 ring-1 ring-white/20', text: 'text-white' },
   };
-  return styles[catId] || { bg: 'bg-emerald-50', text: 'text-emerald-700' };
+  return styles[catId] || { bg: 'bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 text-white shadow-emerald-500/25 shadow-md border border-emerald-300/40 ring-1 ring-white/20', text: 'text-white' };
 };
 
 // Dynamic Icon Component
@@ -355,6 +355,8 @@ export default function App() {
   const [likedCommunityPostIds, setLikedCommunityPostIds] = useState<string[]>([]);
   const [savedCommunityPostIds, setSavedCommunityPostIds] = useState<string[]>([]);
   const [followingUids, setFollowingUids] = useState<string[]>([]);
+  const [realTargetFollowerUids, setRealTargetFollowerUids] = useState<string[]>([]);
+  const [realTargetFollowingUids, setRealTargetFollowingUids] = useState<string[]>([]);
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>(() => getLocalData('blocked_user_ids', []));
   const [allCommunityUsers, setAllCommunityUsers] = useState<PublicUserProfile[]>(() => getLocalData('community_users', initialSampleUsers));
   const [moderationAuditLogs, setModerationAuditLogs] = useState<ModerationAction[]>(() => getLocalData('moderation_audit_logs', []));
@@ -398,6 +400,13 @@ export default function App() {
   const [viewingPost, setViewingPost] = useState<CommunityPost | null>(null);
   const [profileScrollPosition, setProfileScrollPosition] = useState<number>(0);
   const [editProfession, setEditProfession] = useState('');
+  const [editWorkplace, setEditWorkplace] = useState('');
+  const [editDesignation, setEditDesignation] = useState('');
+  const [editSchool, setEditSchool] = useState('');
+  const [editCollege, setEditCollege] = useState('');
+  const [editUniversity, setEditUniversity] = useState('');
+  const [editHometown, setEditHometown] = useState('');
+  const [editRelationshipStatus, setEditRelationshipStatus] = useState('');
   const [editBloodGroup, setEditBloodGroup] = useState('');
   const [editDistrict, setEditDistrict] = useState('khulna');
   const [editUpazila, setEditUpazila] = useState('');
@@ -427,6 +436,10 @@ export default function App() {
   const [newServiceUpazila, setNewServiceUpazila] = useState('');
   const [newServiceWebsite, setNewServiceWebsite] = useState('');
   const [newServiceFacebook, setNewServiceFacebook] = useState('');
+  const [newServicePhoto, setNewServicePhoto] = useState('');
+  const [newServiceIsFeatured, setNewServiceIsFeatured] = useState(false);
+  const [newServiceIsForYou, setNewServiceIsForYou] = useState(false);
+  const [isCompressingServicePhoto, setIsCompressingServicePhoto] = useState(false);
   const [formSubmittedSuccess, setFormSubmittedSuccess] = useState(false);
 
   // Sync to local storage whenever core states change
@@ -1029,17 +1042,30 @@ export default function App() {
       console.warn("Firestore likes subscription error:", error);
     });
 
-    // Follows Subscription
-    const qFollows = query(collection(db, 'follows'), where('follower_id', '==', currentUser.uid));
+    // Follows Subscription (Syncs current user's followed accounts)
+    const qFollows = query(collection(db, 'follows'), where('followerUid', '==', currentUser.uid));
     const unsubFollows = onSnapshot(qFollows, (snapshot) => {
       const followedIds: string[] = [];
       snapshot.forEach((doc) => {
-        followedIds.push(doc.data().following_id);
+        const d = doc.data();
+        const targetId = d.followingUid || d.following_id || d.followingId;
+        if (targetId) followedIds.push(targetId);
       });
       setFollowingUids(followedIds);
       localStorage.setItem(`follows_${currentUser.uid}`, JSON.stringify(followedIds));
     }, (error) => {
-      console.warn("Firestore follows subscription error:", error);
+      // Fallback query for legacy schema
+      const qFollows2 = query(collection(db, 'follows'), where('follower_id', '==', currentUser.uid));
+      onSnapshot(qFollows2, (snapshot) => {
+        const followedIds: string[] = [];
+        snapshot.forEach((doc) => {
+          const d = doc.data();
+          const targetId = d.following_id || d.followingUid || d.followingId;
+          if (targetId) followedIds.push(targetId);
+        });
+        setFollowingUids(followedIds);
+        localStorage.setItem(`follows_${currentUser.uid}`, JSON.stringify(followedIds));
+      }, () => {});
     });
 
     // Conversations Subscription
@@ -1207,6 +1233,13 @@ export default function App() {
         phone: editPhone.trim(),
         bio: editBio.trim(),
         profession: editProfession.trim(),
+        workplace: editWorkplace.trim(),
+        designation: editDesignation.trim(),
+        school: editSchool.trim(),
+        college: editCollege.trim(),
+        university: editUniversity.trim(),
+        hometown: editHometown.trim(),
+        relationshipStatus: editRelationshipStatus.trim(),
         bloodGroup: editBloodGroup.trim(),
         district: editDistrict || selectedDistrict,
         selectedDistrict: editDistrict || selectedDistrict,
@@ -1618,7 +1651,11 @@ export default function App() {
       owner_id: currentUser?.uid || 'guest',
       submitted_by: currentUser?.email || currentUser?.displayName || 'অতিথি ব্যবহারকারী',
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      photos: newServicePhoto ? [newServicePhoto] : [],
+      image: newServicePhoto || '',
+      isFeatured: newServiceIsFeatured,
+      isForYou: newServiceIsForYou
     };
 
     setServices(prev => [newService, ...prev]);
@@ -1961,16 +1998,20 @@ export default function App() {
 
   const handleFollow = async (targetUid: string) => {
     if (!requireAuth('ফলো')) return;
-    if (targetUid === currentUser.uid) return;
+    if (!currentUser || targetUid === currentUser.uid) return;
     
     try {
       const followId = `${currentUser.uid}_${targetUid}`;
       await setDoc(doc(db, 'follows', followId), {
         followerUid: currentUser.uid,
         followingUid: targetUid,
+        follower_id: currentUser.uid,
+        following_id: targetUid,
+        followerId: currentUser.uid,
+        followingId: targetUid,
         createdAt: new Date().toISOString()
       });
-      setFollowingUids(prev => [...prev, targetUid]);
+      setFollowingUids(prev => [...new Set([...prev, targetUid])]);
       // Update counts locally
       setAllCommunityUsers(prev => prev.map(u => {
         if (u.uid === targetUid) return { ...u, followersCount: (u.followersCount || 0) + 1, isFollowing: true };
@@ -1979,7 +2020,8 @@ export default function App() {
       }));
       await logAction('ফলো', `আপনি ${targetUid} কে ফলো করা শুরু করেছেন`);
     } catch (e) {
-      console.error(e);
+      console.error("Follow error:", e);
+      alert('ফলো করতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
     }
   };
 
@@ -1997,7 +2039,19 @@ export default function App() {
       }));
       await logAction('আনফলো', `আপনি ${targetUid} কে আনফলো করেছেন`);
     } catch (e) {
-      console.error(e);
+      console.error("Unfollow error:", e);
+      alert('আনফলো করতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
+    }
+  };
+
+  const handleToggleFollow = async (targetUid: string) => {
+    if (!requireAuth('ফলো')) return;
+    if (!currentUser || targetUid === currentUser.uid) return;
+    const isCurrentlyFollowing = followingUids.includes(targetUid);
+    if (isCurrentlyFollowing) {
+      await handleUnfollow(targetUid);
+    } else {
+      await handleFollow(targetUid);
     }
   };
 
@@ -2081,13 +2135,34 @@ export default function App() {
         console.warn("Local storage visitor save warning:", e);
       }
 
-      // 2. Persist to Firestore
-      setDoc(doc(db, 'profiles', uid, 'visitors', currentUser.uid), visitObj, { merge: true })
+      // 2. Persist to Firestore (both profileVisits and visitors sub-collections)
+      const visitData = {
+        ...visitObj,
+        visitorPhoto: visitObj.visitorAvatar,
+        lastVisitedAt: new Date().toISOString(),
+        visitedAt: new Date().toISOString()
+      };
+      setDoc(doc(db, 'profiles', uid, 'profileVisits', currentUser.uid), visitData, { merge: true })
+        .catch(err => console.warn('Profile visit log Firestore warning:', err));
+      setDoc(doc(db, 'profiles', uid, 'visitors', currentUser.uid), visitData, { merge: true })
         .catch(err => console.warn('Profile visit log Firestore warning:', err));
     }
   };
 
   const targetProfileUid = viewingProfileUid || currentUser?.uid;
+
+  const targetFollowers = useMemo(() => {
+    if (!targetProfileUid) return [];
+    const list = Array.isArray(allCommunityUsers) ? allCommunityUsers : [];
+    return list.filter(u => u && u.uid !== targetProfileUid && realTargetFollowerUids.includes(u.uid));
+  }, [allCommunityUsers, targetProfileUid, realTargetFollowerUids]);
+
+  const targetFollowing = useMemo(() => {
+    if (!targetProfileUid) return [];
+    const list = Array.isArray(allCommunityUsers) ? allCommunityUsers : [];
+    return list.filter(u => u && u.uid !== targetProfileUid && realTargetFollowingUids.includes(u.uid));
+  }, [allCommunityUsers, targetProfileUid, realTargetFollowingUids]);
+
   const targetProfile = useMemo(() => {
     const safeUsers = Array.isArray(allCommunityUsers) ? allCommunityUsers : [];
     const safePosts = Array.isArray(communityPosts) ? communityPosts : [];
@@ -2132,6 +2207,13 @@ export default function App() {
         coverPhoto: userProfile?.coverPhoto || profileFromAll?.coverPhoto || '',
         phone: userProfile?.phone || profileFromAll?.phone || '',
         profession: userProfile?.profession || profileFromAll?.profession || '',
+        workplace: (userProfile as any)?.workplace || profileFromAll?.workplace || '',
+        designation: (userProfile as any)?.designation || profileFromAll?.designation || '',
+        school: (userProfile as any)?.school || profileFromAll?.school || '',
+        college: (userProfile as any)?.college || profileFromAll?.college || '',
+        university: (userProfile as any)?.university || profileFromAll?.university || '',
+        hometown: (userProfile as any)?.hometown || profileFromAll?.hometown || '',
+        relationshipStatus: (userProfile as any)?.relationshipStatus || profileFromAll?.relationshipStatus || '',
         bloodGroup: userProfile?.bloodGroup || profileFromAll?.bloodGroup || '',
         district: userProfile?.district || userProfile?.selectedDistrict || profileFromAll?.district || selectedDistrict || 'khulna',
         upazila: userProfile?.upazila || profileFromAll?.upazila || '',
@@ -2146,8 +2228,8 @@ export default function App() {
         joinedDate: userProfile?.joinedDate || profileFromAll?.joinedDate || new Date().toISOString(),
         badge: userProfile?.role === 'super_admin' ? 'admin' : (userProfile?.role === 'sub_admin' ? 'govt_official' : ((userProfile as any)?.badge || profileFromAll?.badge || 'none')),
         postsCount: profileFromAll?.postsCount || postsCount,
-        followersCount: profileFromAll?.followersCount || 0, 
-        followingCount: safeFollows.length,
+        followersCount: targetFollowers.length, 
+        followingCount: targetFollowing.length,
         isFollowing: false
       } as PublicUserProfile;
     }
@@ -2160,6 +2242,8 @@ export default function App() {
       return {
         ...profile,
         postsCount: profile.postsCount || postsCount,
+        followersCount: targetFollowers.length,
+        followingCount: targetFollowing.length,
         isFollowing: safeFollows.includes(targetProfileUid)
       };
     }
@@ -2182,11 +2266,11 @@ export default function App() {
       joinedDate: new Date().toISOString(),
       badge: 'none',
       postsCount,
-      followersCount: 0,
-      followingCount: 0,
+      followersCount: targetFollowers.length,
+      followingCount: targetFollowing.length,
       isFollowing: safeFollows.includes(targetProfileUid)
     } as PublicUserProfile;
-  }, [targetProfileUid, allCommunityUsers, currentUser, userProfile, selectedDistrict, communityPosts, followingUids]);
+  }, [targetProfileUid, allCommunityUsers, currentUser, userProfile, selectedDistrict, communityPosts, followingUids, targetFollowers, targetFollowing]);
 
   const targetPosts = useMemo(() => {
     const list = Array.isArray(communityPosts) ? communityPosts : [];
@@ -2200,21 +2284,63 @@ export default function App() {
     return list.filter(s => s && s.created_by === targetProfileUid);
   }, [services, targetProfileUid]);
 
-  const targetFollowers = useMemo(() => {
-    if (!targetProfileUid) return [];
-    const list = Array.isArray(allCommunityUsers) ? allCommunityUsers : [];
-    return list.filter(u => u && u.uid !== targetProfileUid).slice(0, 12);
-  }, [allCommunityUsers, targetProfileUid]);
-
-  const targetFollowing = useMemo(() => {
-    if (!targetProfileUid) return [];
-    const list = Array.isArray(allCommunityUsers) ? allCommunityUsers : [];
-    const safeFollows = Array.isArray(followingUids) ? followingUids : [];
-    if (targetProfileUid === currentUser?.uid) {
-      return list.filter(u => u && safeFollows.includes(u.uid));
+  // Real-time followers and following subscription for currently viewed profile
+  useEffect(() => {
+    if (!targetProfileUid) {
+      setRealTargetFollowerUids([]);
+      setRealTargetFollowingUids([]);
+      return;
     }
-    return list.filter(u => u && u.uid !== targetProfileUid).slice(5, 10);
-  }, [allCommunityUsers, targetProfileUid, currentUser, followingUids]);
+
+    const qFollowers = query(collection(db, 'follows'), where('followingUid', '==', targetProfileUid));
+    const unsubFollowers = onSnapshot(qFollowers, (snap) => {
+      const uids: string[] = [];
+      snap.forEach(d => {
+        const data = d.data();
+        const fUid = data.followerUid || data.follower_id || data.followerId;
+        if (fUid) uids.push(fUid);
+      });
+      setRealTargetFollowerUids(uids);
+    }, () => {
+      const qFollowers2 = query(collection(db, 'follows'), where('following_id', '==', targetProfileUid));
+      onSnapshot(qFollowers2, (snap) => {
+        const uids: string[] = [];
+        snap.forEach(d => {
+          const data = d.data();
+          const fUid = data.follower_id || data.followerUid || data.followerId;
+          if (fUid) uids.push(fUid);
+        });
+        setRealTargetFollowerUids(uids);
+      }, () => {});
+    });
+
+    const qFollowing = query(collection(db, 'follows'), where('followerUid', '==', targetProfileUid));
+    const unsubFollowing = onSnapshot(qFollowing, (snap) => {
+      const uids: string[] = [];
+      snap.forEach(d => {
+        const data = d.data();
+        const fUid = data.followingUid || data.following_id || data.followingId;
+        if (fUid) uids.push(fUid);
+      });
+      setRealTargetFollowingUids(uids);
+    }, () => {
+      const qFollowing2 = query(collection(db, 'follows'), where('follower_id', '==', targetProfileUid));
+      onSnapshot(qFollowing2, (snap) => {
+        const uids: string[] = [];
+        snap.forEach(d => {
+          const data = d.data();
+          const fUid = data.following_id || data.followingUid || data.followingId;
+          if (fUid) uids.push(fUid);
+        });
+        setRealTargetFollowingUids(uids);
+      }, () => {});
+    });
+
+    return () => {
+      unsubFollowers();
+      unsubFollowing();
+    };
+  }, [targetProfileUid]);
 
   const handleSavePost = async (postData: Partial<CommunityPost>) => {
     if (!currentUser) return;
@@ -2497,105 +2623,6 @@ export default function App() {
     } else {
       navigator.clipboard.writeText(shareText);
       alert('পোস্টের লিংক ক্লিপবোর্ডে কপি করা হয়েছে!');
-    }
-  };
-
-
-  const handleToggleFollow = async (targetUid: string) => {
-    if (!requireAuth('Follow')) return;
-    if (targetUid === currentUser.uid) return;
-    const isFollowing = followingUids.includes(targetUid);
-    const followDocId = `${currentUser.uid}_${targetUid}`;
-    const followRef = doc(db, 'follows', followDocId);
-
-    // References to profiles
-    const currentUserProfileRef = doc(db, 'profiles', currentUser.uid);
-    const targetUserProfileRef = doc(db, 'profiles', targetUid);
-
-    // Get current profiles counts from Firestore for precision
-    let currentFollowingCount = 0;
-    let targetFollowersCount = 0;
-
-    try {
-      const currentProfileSnap = await getDoc(currentUserProfileRef);
-      if (currentProfileSnap.exists()) {
-        currentFollowingCount = currentProfileSnap.data().followingCount || 0;
-      }
-      const targetProfileSnap = await getDoc(targetUserProfileRef);
-      if (targetProfileSnap.exists()) {
-        targetFollowersCount = targetProfileSnap.data().followersCount || 0;
-      }
-    } catch (e) {
-      console.warn("Could not get profiles for follow counts:", e);
-    }
-
-    if (isFollowing) {
-      // Optimistic updates
-      setFollowingUids(prev => prev.filter(id => id !== targetUid));
-      try {
-        await deleteDoc(followRef);
-        await setDoc(currentUserProfileRef, {
-          followingCount: Math.max(0, currentFollowingCount - 1)
-        }, { merge: true });
-        await setDoc(targetUserProfileRef, {
-          followersCount: Math.max(0, targetFollowersCount - 1)
-        }, { merge: true });
-      } catch (e) {
-        console.error("Firestore unfollow error:", e);
-        alert('ফলো রিমুভ করতে সমস্যা হয়েছে।');
-      }
-    } else {
-      // Optimistic updates
-      setFollowingUids(prev => [...prev, targetUid]);
-      try {
-        await setDoc(followRef, {
-          id: followDocId,
-          follower_id: currentUser.uid,
-          following_id: targetUid,
-          created_at: new Date().toISOString()
-        });
-
-        await setDoc(currentUserProfileRef, {
-          followingCount: currentFollowingCount + 1
-        }, { merge: true });
-        const targetProfileSnapCheck = await getDoc(targetUserProfileRef);
-        if (targetProfileSnapCheck.exists()) {
-          const freshFollowersCount = targetProfileSnapCheck.data().followersCount || 0;
-          await setDoc(targetUserProfileRef, {
-            followersCount: freshFollowersCount + 1
-          }, { merge: true });
-        } else {
-          const targetUserObj = allCommunityUsers.find(u => u.uid === targetUid);
-          await setDoc(targetUserProfileRef, {
-            uid: targetUid,
-            name: targetUserObj?.name || 'ব্যবহারকারী',
-            email: targetUserObj?.email || '',
-            avatar: targetUserObj?.avatar || '',
-            followersCount: 1,
-            followingCount: 0,
-            updatedAt: new Date().toISOString()
-          }, { merge: true });
-        }
-
-        // Add Notification in Firestore
-        const newNotifId = 'notif_' + Date.now();
-        const newNotif: CommunityNotification = {
-          id: newNotifId,
-          recipientUid: targetUid,
-          actorUid: currentUser.uid,
-          actorName: currentUser.displayName || 'ব্যবহারকারী',
-          actorAvatar: currentUser.photoURL || '',
-          type: 'new_follower',
-          title: 'নতুন ফলোয়ার',
-          message: `${currentUser.displayName || 'ব্যবহারকারী'} আপনাকে ফলো করতে শুরু করেছেন`,
-          isRead: false,
-          createdAt: new Date().toISOString()
-        };
-        await setDoc(doc(db, 'notifications', newNotifId), newNotif);
-      } catch (e) {
-        console.error("Firestore follow error:", e);
-        alert('ফলো করতে সমস্যা হয়েছে।');
-      }
     }
   };
 
@@ -3272,8 +3299,8 @@ export default function App() {
 
 
 
-      {/* Main Responsive Layout Wrapper */}
-      <div className="w-full max-w-5xl flex-1 h-full max-h-full bg-white shadow-xl flex flex-col md:flex-row relative overflow-hidden">
+      {/* Main Responsive Layout Wrapper - Full Screen */}
+      <div className="w-full flex-1 h-full max-h-full bg-white dark:bg-slate-900 flex flex-col md:flex-row relative overflow-hidden">
         
         {/* SIDE PANEL / DESKTOP PREVIEW FRAME (Visible only on medium/large screens) */}
         <div className="hidden md:flex md:w-80 bg-slate-900 text-slate-100 p-6 flex-col justify-between shrink-0 border-r border-slate-800 overflow-y-auto max-h-screen sticky top-0 scrollbar-thin scrollbar-thumb-slate-800">
@@ -3524,22 +3551,24 @@ export default function App() {
 
 
         {/* MAIN PAGE CONTAINER */}
-        <main className="flex-1 min-h-0 overflow-hidden relative flex flex-col">
-          <div className={`flex-1 min-h-0 flex flex-col ${
+        <main className="flex-1 min-h-0 overflow-hidden relative flex flex-col w-full">
+          <div className={`flex-1 min-h-0 flex flex-col w-full ${
             activeTab === 'messages' 
               ? 'h-full max-h-full flex-1 min-h-0 overflow-hidden' 
               : activeTab === 'profile'
               ? 'h-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain custom-chat-scrollbar'
               : activeTab === 'services'
-              ? 'h-full overflow-hidden p-4 pb-1'
-              : 'p-4 overflow-y-auto space-y-5'
+              ? 'h-full overflow-hidden p-2 sm:p-4 pb-1'
+              : activeTab === 'community'
+              ? 'h-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain no-scrollbar scrollbar-none p-0 w-full'
+              : 'px-0 sm:px-4 py-2 sm:py-4 overflow-y-auto overflow-x-hidden space-y-3.5 sm:space-y-5 custom-main-scrollbar'
           }`}>
 
             {/* TAB VIEW - HOME */}
             {activeTab === 'home' && !viewingDistrictId && (
               <>
                 {/* 1. DISTRICT SELECTOR (Required top of the page) */}
-                <div className="bg-gradient-to-br from-emerald-50 to-lime-50/50 dark:from-slate-850 dark:to-emerald-950/20 p-3.5 sm:p-4 rounded-2xl border border-emerald-100 dark:border-slate-800 shadow-sm relative">
+                <div className="bg-gradient-to-br from-emerald-50 to-lime-50/50 dark:from-slate-850 dark:to-emerald-950/20 p-3 sm:p-4 sm:rounded-2xl border-y sm:border border-emerald-100 dark:border-slate-800 shadow-sm relative w-full">
                   <div className="flex items-center justify-between mb-2.5">
                     <h3 className="text-xs sm:text-sm font-bold text-emerald-950 dark:text-emerald-300 flex items-center gap-1.5">
                       <MapPin size={16} className="text-emerald-700 dark:text-emerald-400" />
@@ -3992,63 +4021,131 @@ export default function App() {
                   </div>
                 </section>
 
-                {/* 6. PROMOTED / FEATURED LOCAL SERVICES */}
-                {(Array.isArray(services) ? services : []).filter(s => s && s.isFeatured && s.status === 'PUBLISHED').length > 0 && (
-                  <section className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-base font-extrabold text-emerald-950 dark:text-emerald-200 flex items-center gap-1.5 font-serif">
-                        <Star size={18} className="text-amber-500 fill-amber-500" />
-                        ⭐ জনপ্রিয় ও গুরুত্বপূর্ণ সেবা (Featured Services)
-                      </h2>
-                      <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">হোম পেজে প্রদর্শিত সেবা</span>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                      {(Array.isArray(services) ? services : [])
-                        .filter(s => s && s.isFeatured && s.status === 'PUBLISHED')
-                        .slice(0, 8)
-                        .map(service => {
-                          const cat = initialCategories.find(c => c && c.id === service.category_id);
-                          const style = getCategoryStyle(service.category_id);
-                          return (
-                            <div
-                              key={service.id}
-                              onClick={() => setSelectedService(service)}
-                              className="bg-white dark:bg-slate-900 hover:bg-emerald-50/20 dark:hover:bg-slate-850 border border-emerald-100 dark:border-slate-800 hover:border-emerald-200 p-3 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-sm transition cursor-pointer group"
-                            >
-                              <div>
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className={`w-10 h-10 rounded-xl ${style.bg} ${style.text} flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition`}>
-                                    {service.photos && service.photos[0] ? (
-                                      <img src={service.photos[0]} alt={service.name} className="w-full h-full object-cover rounded-xl" />
-                                    ) : (
-                                      <IconComponent name={cat?.iconName || 'Grid'} className={style.text} />
-                                    )}
+                {/* 6. PROMOTED / FEATURED & FOR YOU LOCAL SERVICES */}
+                {(Array.isArray(services) ? services : []).filter(s => s && (s.isFeatured || s.isForYou) && s.status === 'PUBLISHED').length > 0 && (
+                  <div className="space-y-4">
+                    {/* Featured Services */}
+                    {(Array.isArray(services) ? services : []).filter(s => s && s.isFeatured && s.status === 'PUBLISHED').length > 0 && (
+                      <section className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h2 className="text-base font-extrabold text-emerald-950 dark:text-emerald-200 flex items-center gap-1.5 font-serif">
+                            <Star size={18} className="text-amber-500 fill-amber-500" />
+                            <span>⭐ জনপ্রিয় ও গুরুত্বপূর্ণ সেবা (Featured Services)</span>
+                          </h2>
+                          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">হোম পেজে প্রদর্শিত সেবা</span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                          {(Array.isArray(services) ? services : [])
+                            .filter(s => s && s.isFeatured && s.status === 'PUBLISHED')
+                            .slice(0, 8)
+                            .map(service => {
+                              const cat = initialCategories.find(c => c && c.id === service.category_id);
+                              const style = getCategoryStyle(service.category_id);
+                              const photoUrl = service.image || (service.photos && service.photos[0]);
+                              return (
+                                <div
+                                  key={service.id}
+                                  onClick={() => setSelectedService(service)}
+                                  className="bg-white dark:bg-slate-900 hover:bg-emerald-50/20 dark:hover:bg-slate-850 border border-emerald-100 dark:border-slate-800 hover:border-emerald-200 p-3 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-sm transition cursor-pointer group"
+                                >
+                                  <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className={`w-10 h-10 rounded-xl ${style.bg} ${style.text} flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition overflow-hidden`}>
+                                        {photoUrl ? (
+                                          <img src={photoUrl} alt={service.name} className="w-full h-full object-cover rounded-xl" />
+                                        ) : (
+                                          <IconComponent name={cat?.iconName || 'Grid'} className={style.text} />
+                                        )}
+                                      </div>
+                                      <span className="bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200 text-[9px] font-extrabold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                        <Star size={9} className="fill-amber-600 text-amber-600" /> ফিচার্ড
+                                      </span>
+                                    </div>
+                                    <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-bold uppercase inline-block mb-1">
+                                      {cat?.name || 'সেবা'}
+                                    </span>
+                                    <h3 className="text-xs font-extrabold text-slate-900 dark:text-white line-clamp-2 leading-tight">{service.name}</h3>
+                                    <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-1">{service.address}</p>
                                   </div>
-                                  <span className="bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200 text-[9px] font-extrabold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                                    <Star size={9} className="fill-amber-600 text-amber-600" /> ফিচার্ড
-                                  </span>
+                                  
+                                  <div className="flex items-center justify-between text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-50 dark:border-slate-800">
+                                    <span className="flex items-center gap-0.5 truncate max-w-[80px]">
+                                      <Clock size={10} className="text-emerald-700 dark:text-emerald-400 shrink-0" />
+                                      <span className="truncate">{service.opening_hours}</span>
+                                    </span>
+                                    <span className="text-emerald-700 dark:text-emerald-400 font-extrabold flex items-center gap-0.5 group-hover:translate-x-0.5 transition">
+                                      View Service →
+                                    </span>
+                                  </div>
                                 </div>
-                                <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-bold uppercase inline-block mb-1">
-                                  {cat?.name || 'সেবা'}
-                                </span>
-                                <h3 className="text-xs font-extrabold text-slate-900 dark:text-white line-clamp-2 leading-tight">{service.name}</h3>
-                                <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-1">{service.address}</p>
-                              </div>
-                              
-                              <div className="flex items-center justify-between text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-50 dark:border-slate-800">
-                                <span className="flex items-center gap-0.5 truncate max-w-[80px]">
-                                  <Clock size={10} className="text-emerald-700 dark:text-emerald-400 shrink-0" />
-                                  <span className="truncate">{service.opening_hours}</span>
-                                </span>
-                                <span className="text-emerald-700 dark:text-emerald-400 font-extrabold flex items-center gap-0.5 group-hover:translate-x-0.5 transition">
-                                  View Service →
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  </section>
+                              );
+                            })}
+                        </div>
+                      </section>
+                    )}
+
+                    {/* For You Services */}
+                    {(Array.isArray(services) ? services : []).filter(s => s && s.isForYou && s.status === 'PUBLISHED').length > 0 && (
+                      <section className="space-y-3 pt-2">
+                        <div className="flex items-center justify-between">
+                          <h2 className="text-base font-extrabold text-purple-950 dark:text-purple-200 flex items-center gap-1.5 font-serif">
+                            <Sparkles size={18} className="text-purple-600 fill-purple-600" />
+                            <span>🎯 আপনার জন্য বিশেষ সেবা (For You Services)</span>
+                          </h2>
+                          <span className="text-xs text-purple-600 dark:text-purple-400 font-bold bg-purple-50 dark:bg-purple-950 px-2 py-0.5 rounded-full">
+                            স্পেশাল রিকমেন্ডেড
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                          {(Array.isArray(services) ? services : [])
+                            .filter(s => s && s.isForYou && s.status === 'PUBLISHED')
+                            .slice(0, 8)
+                            .map(service => {
+                              const cat = initialCategories.find(c => c && c.id === service.category_id);
+                              const style = getCategoryStyle(service.category_id);
+                              const photoUrl = service.image || (service.photos && service.photos[0]);
+                              return (
+                                <div
+                                  key={service.id}
+                                  onClick={() => setSelectedService(service)}
+                                  className="bg-gradient-to-br from-white to-purple-50/30 dark:from-slate-900 dark:to-purple-950/20 hover:bg-purple-50/40 border border-purple-100 dark:border-purple-900/50 hover:border-purple-300 p-3 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-md transition cursor-pointer group"
+                                >
+                                  <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className={`w-10 h-10 rounded-xl ${style.bg} ${style.text} flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition overflow-hidden`}>
+                                        {photoUrl ? (
+                                          <img src={photoUrl} alt={service.name} className="w-full h-full object-cover rounded-xl" />
+                                        ) : (
+                                          <IconComponent name={cat?.iconName || 'Grid'} className={style.text} />
+                                        )}
+                                      </div>
+                                      <span className="bg-purple-100 text-purple-900 dark:bg-purple-950 dark:text-purple-200 text-[9px] font-extrabold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                        <Sparkles size={9} className="fill-purple-600 text-purple-600" /> ফর ইউ
+                                      </span>
+                                    </div>
+                                    <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-bold uppercase inline-block mb-1">
+                                      {cat?.name || 'সেবা'}
+                                    </span>
+                                    <h3 className="text-xs font-extrabold text-slate-900 dark:text-white line-clamp-2 leading-tight">{service.name}</h3>
+                                    <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-1">{service.address}</p>
+                                  </div>
+                                  
+                                  <div className="flex items-center justify-between text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-50 dark:border-slate-800">
+                                    <span className="flex items-center gap-0.5 truncate max-w-[80px]">
+                                      <Clock size={10} className="text-purple-700 dark:text-purple-400 shrink-0" />
+                                      <span className="truncate">{service.opening_hours}</span>
+                                    </span>
+                                    <span className="text-purple-700 dark:text-purple-400 font-extrabold flex items-center gap-0.5 group-hover:translate-x-0.5 transition">
+                                      দেখুন →
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </section>
+                    )}
+                  </div>
                 )}
 
                 {/* 7. APP DOWNLOAD PROMO BANNER & QUICK SERVICE ADD CTA */}
@@ -4576,6 +4673,60 @@ export default function App() {
                       />
                     </div>
 
+                    {/* Service Photo Upload Field */}
+                    <div className="space-y-2 pt-2 border-t border-slate-100">
+                      <label className="block text-xs font-bold text-slate-700">সেবা / প্রতিষ্ঠানের ফটো (Service Photo / Image)</label>
+                      
+                      {newServicePhoto ? (
+                        <div className="relative w-full h-36 rounded-2xl overflow-hidden border border-slate-200 group">
+                          <img src={newServicePhoto} alt="Service preview" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setNewServicePhoto('')}
+                            className="absolute top-2 right-2 p-1.5 bg-rose-600 text-white rounded-full shadow-md hover:bg-rose-700 transition cursor-pointer"
+                            title="ছবিটি মুছুন"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <label className="flex-1 bg-slate-50 hover:bg-emerald-50/50 border-2 border-dashed border-slate-200 hover:border-emerald-300 p-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition text-xs text-slate-600 font-bold">
+                            <Camera size={18} className="text-emerald-600" />
+                            <span>{isCompressingServicePhoto ? 'ছবি প্রসেসিং হচ্ছে...' : 'ছবি আপলোড করুন'}</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                try {
+                                  setIsCompressingServicePhoto(true);
+                                  const compressed = await compressImage(file, 800, 600, 0.7);
+                                  setNewServicePhoto(compressed);
+                                } catch (err) {
+                                  console.warn('Image compression warning:', err);
+                                } finally {
+                                  setIsCompressingServicePhoto(false);
+                                }
+                              }}
+                            />
+                          </label>
+
+                          <div className="flex-1">
+                            <input
+                              type="url"
+                              placeholder="অথবা ইমেজের সরাসরি লিংক (URL)..."
+                              value={newServicePhoto}
+                              onChange={(e) => setNewServicePhoto(e.target.value)}
+                              className="w-full border border-slate-200 p-2.5 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-700"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     <button
                       type="submit"
                       className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold py-3 px-4 rounded-xl text-xs transition uppercase tracking-wider shadow-sm cursor-pointer"
@@ -4952,6 +5103,13 @@ export default function App() {
                         setEditPhone(targetProfile.phone || '');
                         setEditBio(targetProfile.bio || '');
                         setEditProfession(targetProfile.profession || '');
+                        setEditWorkplace(targetProfile.workplace || '');
+                        setEditDesignation(targetProfile.designation || '');
+                        setEditSchool(targetProfile.school || '');
+                        setEditCollege(targetProfile.college || '');
+                        setEditUniversity(targetProfile.university || '');
+                        setEditHometown(targetProfile.hometown || '');
+                        setEditRelationshipStatus(targetProfile.relationshipStatus || '');
                         setEditBloodGroup(targetProfile.bloodGroup || '');
                         setEditDistrict(targetProfile.district || selectedDistrict);
                         setEditUpazila(targetProfile.upazila || '');
@@ -5118,7 +5276,7 @@ export default function App() {
               paddingBottom: 'max(0.65rem, calc(env(safe-area-inset-bottom, 0px) + 0.35rem))',
             }}
           >
-            {navItems.filter(i => ['home', 'services', 'community', 'messages', 'download', 'profile'].includes(i.id)).map(item => (
+            {navItems.filter(i => ['home', 'services', 'community', 'messages', 'profile'].includes(i.id)).map(item => (
               <button
                 key={item.id}
                 onClick={() => navigateTo(item.id as any)}
@@ -5418,6 +5576,20 @@ export default function App() {
         setBio={setEditBio}
         profession={editProfession}
         setProfession={setEditProfession}
+        workplace={editWorkplace}
+        setWorkplace={setEditWorkplace}
+        designation={editDesignation}
+        setDesignation={setEditDesignation}
+        school={editSchool}
+        setSchool={setEditSchool}
+        college={editCollege}
+        setCollege={setEditCollege}
+        university={editUniversity}
+        setUniversity={setEditUniversity}
+        hometown={editHometown}
+        setHometown={setEditHometown}
+        relationshipStatus={editRelationshipStatus}
+        setRelationshipStatus={setEditRelationshipStatus}
         bloodGroup={editBloodGroup}
         setBloodGroup={setEditBloodGroup}
         district={editDistrict}

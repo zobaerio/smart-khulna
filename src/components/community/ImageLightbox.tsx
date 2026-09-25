@@ -13,6 +13,7 @@ import {
   Info
 } from 'lucide-react';
 import { PostImage } from '../../types/community';
+import { downloadImageSafely } from '../../lib/downloadHelper';
 
 interface ImageLightboxProps {
   images: PostImage[];
@@ -307,7 +308,23 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
             </button>
           )}
 
-          {/* Open full size in new tab / download */}
+          {/* Download button */}
+          <button
+            type="button"
+            onClick={async () => {
+              const suggestedName = currentImg.caption
+                ? `${currentImg.caption.replace(/[^a-zA-Z0-9\u0980-\u09FF]/g, '_').slice(0, 30)}.jpg`
+                : `smartkhulna-photo-${toBn(currentIndex + 1)}.jpg`;
+              await downloadImageSafely(currentImg.url, suggestedName);
+            }}
+            className="p-2 bg-emerald-600/90 hover:bg-emerald-600 text-white rounded-xl transition cursor-pointer shadow-sm flex items-center gap-1.5 text-xs font-bold"
+            title="ছবি ডাউনলোড করুন"
+          >
+            <Download size={16} />
+            <span className="hidden sm:inline">ডাউনলোড</span>
+          </button>
+
+          {/* Open full size in new tab */}
           <a
             href={currentImg.url}
             target="_blank"

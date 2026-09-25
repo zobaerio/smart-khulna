@@ -10,7 +10,8 @@ import {
   Sparkles,
   Compass,
   Bookmark,
-  FileText
+  FileText,
+  Edit3
 } from 'lucide-react';
 import { CommunityPost, PostComment } from '../../types/community';
 import { District, Category } from '../../dbData';
@@ -145,47 +146,58 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
   const displayedPosts = filteredPosts.slice(0, visibleCount);
 
   return (
-    <div className="space-y-4">
-      {/* TOP BANNER */}
-      <div className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-800 rounded-3xl p-4 sm:p-6 text-white shadow-sm">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 bg-emerald-600/60 rounded-full text-[11px] font-bold border border-emerald-400/30 flex items-center gap-1">
-              <Sparkles size={12} /> স্মার্ট খুলনা সোশ্যাল
+    <div className="w-full min-h-full space-y-3 sm:space-y-4 pb-24 px-2 sm:px-4 md:px-6 lg:px-8 overflow-x-hidden no-scrollbar scrollbar-none">
+      {/* 1. TOP BANNER */}
+      <div className="bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 sm:rounded-3xl p-4 sm:p-5 text-white shadow-sm relative overflow-hidden border-y sm:border border-emerald-800">
+        <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-lime-400/10 rounded-full blur-xl pointer-events-none"></div>
+        <div className="relative z-1">
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <span className="px-2.5 py-0.5 bg-emerald-600/50 rounded-full text-[10px] sm:text-[11px] font-bold border border-emerald-400/30 flex items-center gap-1">
+              <Sparkles size={11} className="text-lime-300" /> স্মার্ট খুলনা সোশ্যাল
             </span>
+
+            <button
+              onClick={onOpenCreatePost}
+              className="bg-lime-400 hover:bg-lime-300 active:scale-95 text-emerald-950 text-[11px] font-extrabold px-3 py-1.5 rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer shrink-0"
+            >
+              <Edit3 size={13} />
+              <span>পোস্ট লিখুন</span>
+            </button>
           </div>
-          <h2 className="text-lg sm:text-xl font-bold font-serif">
+
+          <h2 className="text-base sm:text-lg font-extrabold font-serif leading-tight">
             খুলনা বিভাগীয় কমিউনিটি ফিড
           </h2>
-          <p className="text-xs text-emerald-100 max-w-lg leading-relaxed mt-1">
+          <p className="text-[11px] sm:text-xs text-emerald-100/90 max-w-lg leading-relaxed mt-1">
             ১০ জেলার নাগরিক সেবা, জরুরি আপডেট, স্থানীয় তথ্য ও অভিজ্ঞতা সরাসরি শেয়ার করুন।
           </p>
         </div>
       </div>
 
-      {/* DISTRICT COMMUNITY TABS (ALL 10 DISTRICTS) */}
-      <div className="bg-white rounded-2xl p-2.5 border border-slate-200 shadow-xs">
-        <div className="flex items-center justify-between px-2 pb-2 text-xs font-bold text-slate-700">
-          <span className="flex items-center gap-1.5 text-emerald-800">
-            <MapPin size={14} className="text-emerald-600" /> জেলা ভিত্তিক কমিউনিটি
+      {/* 2. DISTRICT COMMUNITY TABS (ALL 10 DISTRICTS) */}
+      <div className="bg-white dark:bg-slate-900 sm:rounded-2xl p-2.5 sm:p-3 border-y sm:border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-2">
+        <div className="flex items-center justify-between px-1 text-xs font-bold text-slate-800 dark:text-slate-200">
+          <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-serif">
+            <MapPin size={13} className="text-emerald-600 dark:text-emerald-400" /> 
+            জেলা ভিত্তিক কমিউনিটি
           </span>
           {selectedFeedDistrict !== 'all' && (
             <button
               onClick={() => setSelectedFeedDistrict('all')}
-              className="text-[11px] text-emerald-700 hover:underline cursor-pointer"
+              className="text-[10px] text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer font-bold"
             >
               সব জেলা দেখুন
             </button>
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 pt-0.5 scrollbar-none no-scrollbar text-xs">
           <button
             onClick={() => setSelectedFeedDistrict('all')}
-            className={`px-3 py-1.5 rounded-xl font-bold transition flex-shrink-0 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl font-bold transition shrink-0 cursor-pointer text-xs ${
               selectedFeedDistrict === 'all'
                 ? 'bg-emerald-700 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-750'
             }`}
           >
             সব জেলা
@@ -196,10 +208,10 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
               <button
                 key={d.id}
                 onClick={() => setSelectedFeedDistrict(d.id)}
-                className={`px-3 py-1.5 rounded-xl font-bold transition flex-shrink-0 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl font-bold transition shrink-0 cursor-pointer text-xs ${
                   active
                     ? 'bg-emerald-700 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-750'
                 }`}
               >
                 {d.name} কমিউনিটি
@@ -209,23 +221,23 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
         </div>
       </div>
 
-      {/* FEED FILTER TABS & SEARCH BAR */}
-      <div className="bg-white rounded-2xl p-3 border border-slate-200 shadow-xs space-y-3">
+      {/* 3. FEED FILTER TABS & SEARCH BAR */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-2.5 sm:p-3 border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-2.5">
         {/* Search Bar */}
         <div className="relative">
-          <Search size={15} className="absolute left-3.5 top-2.5 text-slate-400" />
+          <Search size={14} className="absolute left-3 top-2.5 text-slate-400 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="পোস্ট, হ্যাশট্যাগ (#) বা লেখক অনুসন্ধান..."
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs focus:ring-2 focus:ring-emerald-600 focus:bg-white focus:outline-none placeholder:text-slate-400"
+            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-8.5 pr-3 py-2 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
           />
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+        {/* Filter Pills & Category Dropdown */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 pt-0.5 scrollbar-none no-scrollbar text-xs">
             {[
               { id: 'all', label: 'সবার পোস্ট', icon: Compass },
               ...(currentUserId ? [{ id: 'my_posts', label: 'আমার পোস্ট', icon: FileText }] : []),
@@ -241,10 +253,10 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
                 <button
                   key={tab.id}
                   onClick={() => setActiveFilter(tab.id as FeedFilterType)}
-                  className={`px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition flex-shrink-0 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl font-bold flex items-center gap-1 transition shrink-0 cursor-pointer text-[11px] sm:text-xs ${
                     active
                       ? 'bg-emerald-700 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-750'
                   }`}
                 >
                   <Icon size={12} />
@@ -255,42 +267,48 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
           </div>
 
           {/* Category Dropdown */}
-          <div className="flex items-center gap-1.5 text-xs text-slate-600 flex-shrink-0">
-            <Filter size={13} className="text-slate-400" />
-            <select
-              value={selectedCategory}
-              onChange={e => setSelectedCategory(e.target.value)}
-              className="bg-slate-100 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-600 cursor-pointer"
-            >
-              <option value="all">সকল ক্যাটাগরি</option>
-              {categories.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+          <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 dark:border-slate-800 text-xs">
+            <span className="text-[10px] font-bold text-slate-400 uppercase">ক্যাটাগরি অনুযায়ী ফিল্টার:</span>
+            <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300">
+              <Filter size={12} className="text-slate-400" />
+              <select
+                value={selectedCategory}
+                onChange={e => setSelectedCategory(e.target.value)}
+                className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+              >
+                <option value="all">সকল ক্যাটাগরি</option>
+                {categories.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* POSTS STREAM */}
-      <div className="space-y-3.5">
+      {/* 4. POSTS STREAM */}
+      <div className="space-y-3">
         {filteredPosts.length === 0 ? (
-          <div className="bg-white rounded-3xl p-10 border border-slate-200 text-center space-y-3">
-            <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto">
-              <FileText size={24} />
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200/90 dark:border-slate-800 text-center space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 flex items-center justify-center mx-auto">
+              <FileText size={22} />
             </div>
-            <h3 className="text-sm font-bold text-slate-900 font-serif">
-              কোনো পোস্ট পাওয়া যায়নি
-            </h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
-              এই ফিল্টারে কোনো তথ্য খুঁজে পাওয়া যায়নি। আপনার জেলার প্রথম পোস্টটি আপনিই তৈরি করুন!
-            </p>
+            <div>
+              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white font-serif">
+                কোনো পোস্ট পাওয়া যায়নি
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed mt-1">
+                এই ফিল্টারে কোনো তথ্য খুঁজে পাওয়া যায়নি। আপনার জেলার প্রথম পোস্টটি আপনিই তৈরি করুন!
+              </p>
+            </div>
             <button
               onClick={onOpenCreatePost}
-              className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+              className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer inline-flex items-center gap-1.5"
             >
-              + নতুন পোস্ট লিখুন
+              <Plus size={14} />
+              <span>নতুন পোস্ট লিখুন</span>
             </button>
           </div>
         ) : (
@@ -328,7 +346,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
               <div className="text-center pt-2">
                 <button
                   onClick={() => setVisibleCount(prev => prev + 10)}
-                  className="px-6 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-2xl text-xs font-bold transition cursor-pointer shadow-xs"
+                  className="px-6 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold transition cursor-pointer shadow-xs active:scale-95"
                 >
                   আরও পোস্ট দেখুন ({filteredPosts.length - visibleCount}টি বাকি)
                 </button>

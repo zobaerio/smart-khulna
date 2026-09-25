@@ -218,6 +218,9 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
   const [newServiceDistrict, setNewServiceDistrict] = useState('khulna');
   const [newServiceCategory, setNewServiceCategory] = useState('hospitals');
   const [newServiceDesc, setNewServiceDesc] = useState('');
+  const [newServicePhoto, setNewServicePhoto] = useState('');
+  const [newServiceIsFeatured, setNewServiceIsFeatured] = useState(false);
+  const [newServiceIsForYou, setNewServiceIsForYou] = useState(false);
   const [newServiceVerified, setNewServiceVerified] = useState(true);
 
   // State for Post Management
@@ -363,6 +366,9 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
       return;
     }
 
+    const photoUrl = newServicePhoto.trim();
+    const photosArr = photoUrl ? [photoUrl] : (editingService?.photos || []);
+
     if (editingService) {
       const updated: Service = {
         ...editingService,
@@ -373,6 +379,10 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
         category_id: newServiceCategory,
         description: newServiceDesc.trim(),
         is_verified: newServiceVerified,
+        photos: photosArr,
+        image: photoUrl || (editingService.image || ''),
+        isFeatured: newServiceIsFeatured,
+        isForYou: newServiceIsForYou,
         updated_at: new Date().toISOString()
       };
       await onUpdateService(updated);
@@ -393,6 +403,10 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
         latitude: 22.8456,
         longitude: 89.5403,
         opening_hours: '২৪ ঘণ্টা',
+        photos: photosArr,
+        image: photoUrl,
+        isFeatured: newServiceIsFeatured,
+        isForYou: newServiceIsForYou,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -404,6 +418,9 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
     setNewServicePhone('');
     setNewServiceAddress('');
     setNewServiceDesc('');
+    setNewServicePhoto('');
+    setNewServiceIsFeatured(false);
+    setNewServiceIsForYou(false);
   };
 
   // Filtered Users
@@ -1519,6 +1536,9 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                   setNewServicePhone('');
                   setNewServiceAddress('');
                   setNewServiceDesc('');
+                  setNewServicePhoto('');
+                  setNewServiceIsFeatured(false);
+                  setNewServiceIsForYou(false);
                   setIsAddingServiceModal(true);
                 }}
                 className="bg-emerald-800 hover:bg-emerald-900 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0"
@@ -1531,34 +1551,61 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {filteredServices.map(svc => {
               const districtName = districts.find(d => d.id === svc.district_id)?.name || 'খুলনা';
+              const photoUrl = svc.photos?.[0] || svc.image;
               return (
-                <div key={svc.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900 text-sm">{svc.name}</span>
-                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-bold">
-                      {districtName}
-                    </span>
+                <div key={svc.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs space-y-2.5">
+                  <div className="flex gap-3 items-start">
+                    {photoUrl ? (
+                      <img src={photoUrl} alt={svc.name} className="w-14 h-14 rounded-xl object-cover shrink-0 border border-slate-200" />
+                    ) : (
+                      <div className="w-14 h-14 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-lg shrink-0">
+                        🏛️
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-bold text-slate-900 text-sm truncate">{svc.name}</span>
+                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-bold shrink-0">
+                          {districtName}
+                        </span>
+                      </div>
+                      <p className="text-slate-600 text-[11px] truncate mt-0.5">ঠিকানা: {svc.address}</p>
+                      <p className="text-slate-600 text-[11px] font-mono">ফোন: {svc.phone}</p>
+                    </div>
                   </div>
-                  <p className="text-slate-600 text-[11px]">ঠিকানা: {svc.address}</p>
-                  <p className="text-slate-600 text-[11px] font-mono">ফোন: {svc.phone}</p>
+
+                  {/* Section Badges / Admin Toggles */}
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    <button
+                      onClick={async () => {
+                        const updated = { ...svc, isFeatured: !svc.isFeatured, updated_at: new Date().toISOString() };
+                        await onUpdateService(updated);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer flex items-center gap-1 ${
+                        svc.isFeatured ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                      }`}
+                      title="হোম পেজে ফিচার্ড সেকশনে দেখান"
+                    >
+                      ⭐ {svc.isFeatured ? 'ফিচার্ড সার্ভিস (Active)' : '+ ফিচার্ড সার্ভিসে দিন'}
+                    </button>
+
+                    <button
+                      onClick={async () => {
+                        const updated = { ...svc, isForYou: !svc.isForYou, updated_at: new Date().toISOString() };
+                        await onUpdateService(updated);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer flex items-center gap-1 ${
+                        svc.isForYou ? 'bg-purple-100 text-purple-900 border border-purple-300' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                      }`}
+                      title="হোম পেজে ফর ইউ সেকশনে দেখান"
+                    >
+                      🎯 {svc.isForYou ? 'ফর ইউ (Active)' : '+ ফর ইউ তে দিন'}
+                    </button>
+                  </div>
 
                   <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-400">স্ট্যাটাস: {svc.status}</span>
-                      <button
-                        onClick={async () => {
-                          const updated = { ...svc, isFeatured: !svc.isFeatured, updated_at: new Date().toISOString() };
-                          await onUpdateService(updated);
-                        }}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer flex items-center gap-1 ${
-                          svc.isFeatured ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                        }`}
-                        title="হোম পেজে ফিচার্ড সেকশনে দেখান"
-                      >
-                        <span>⭐ {svc.isFeatured ? 'Featured On Home' : 'Set Featured'}</span>
-                      </button>
-                    </div>
-                    <div className="flex gap-2">
+                    <span className="text-[10px] text-slate-400">স্ট্যাটাস: {svc.status}</span>
+                    <div className="flex gap-2.5">
                       <button
                         onClick={() => {
                           setEditingService(svc);
@@ -1568,6 +1615,9 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                           setNewServiceDistrict(svc.district_id);
                           setNewServiceCategory(svc.category_id);
                           setNewServiceDesc(svc.description || '');
+                          setNewServicePhoto(svc.photos?.[0] || svc.image || '');
+                          setNewServiceIsFeatured(!!svc.isFeatured);
+                          setNewServiceIsForYou(!!svc.isForYou);
                           setNewServiceVerified(svc.is_verified);
                           setIsAddingServiceModal(true);
                         }}
@@ -1593,13 +1643,22 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
             <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
               <form
                 onSubmit={handleCreateOrUpdateService}
-                className="bg-white rounded-3xl max-w-md w-full p-5 space-y-3 border border-slate-200 shadow-2xl"
+                className="bg-white rounded-3xl max-w-lg w-full p-5 space-y-3.5 border border-slate-200 shadow-2xl max-h-[90vh] overflow-y-auto"
               >
-                <h3 className="font-bold text-slate-900 text-sm font-serif">
-                  {editingService ? 'সেবা তথ্য সম্পাদনা করুন' : 'নতুন সেবা যোগ করুন'}
-                </h3>
+                <div className="flex justify-between items-center border-b border-slate-100 pb-2.5">
+                  <h3 className="font-bold text-slate-900 text-base font-serif">
+                    {editingService ? 'সেবা তথ্য সম্পাদনা করুন' : 'নতুন সেবা তথ্য যুক্ত করুন'}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingServiceModal(false)}
+                    className="p-1 text-slate-400 hover:text-slate-600 rounded-full"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
 
-                <div className="space-y-2 text-xs">
+                <div className="space-y-3 text-xs">
                   <div>
                     <label className="block font-bold text-slate-700 mb-1">সেবার নাম *</label>
                     <input
@@ -1608,7 +1667,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                       value={newServiceName}
                       onChange={e => setNewServiceName(e.target.value)}
                       placeholder="যেমন: খুলনা মেডিকেল কলেজ হাসপাতাল"
-                      className="w-full bg-slate-50 border border-slate-200 p-2 rounded-xl"
+                      className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-xs font-medium"
                     />
                   </div>
 
@@ -1618,7 +1677,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                       <select
                         value={newServiceDistrict}
                         onChange={e => setNewServiceDistrict(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 p-2 rounded-xl"
+                        className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl font-medium"
                       >
                         {districts.map(d => (
                           <option key={d.id} value={d.id}>
@@ -1633,7 +1692,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                       <select
                         value={newServiceCategory}
                         onChange={e => setNewServiceCategory(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 p-2 rounded-xl"
+                        className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl font-medium"
                       >
                         {categories.map(c => (
                           <option key={c.id} value={c.id}>
@@ -1652,7 +1711,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                       value={newServicePhone}
                       onChange={e => setNewServicePhone(e.target.value)}
                       placeholder="যেমন: 01711000000"
-                      className="w-full bg-slate-50 border border-slate-200 p-2 rounded-xl font-mono"
+                      className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl font-mono text-xs"
                     />
                   </div>
 
@@ -1663,8 +1722,97 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                       value={newServiceAddress}
                       onChange={e => setNewServiceAddress(e.target.value)}
                       placeholder="যেমন: বয়রা মেইন রোড, খুলনা"
-                      className="w-full bg-slate-50 border border-slate-200 p-2 rounded-xl"
+                      className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-xs"
                     />
+                  </div>
+
+                  {/* Photo addition feature */}
+                  <div className="space-y-1.5 p-3 bg-emerald-50/60 border border-emerald-100 rounded-2xl">
+                    <label className="block font-bold text-emerald-950 flex items-center justify-between">
+                      <span>📸 সেবার ফটো / ছবি (Photo Option)</span>
+                      <span className="text-[10px] text-emerald-700 font-normal">URL অথবা ডেমো বাছুন</span>
+                    </label>
+                    <input
+                      type="url"
+                      value={newServicePhoto}
+                      onChange={e => setNewServicePhoto(e.target.value)}
+                      placeholder="https://images.unsplash.com/... (ছবি লিংক দিন)"
+                      className="w-full bg-white border border-emerald-200 p-2.5 rounded-xl text-xs font-mono"
+                    />
+
+                    {/* Photo Presets for Easy Selection */}
+                    <div className="space-y-1 pt-1">
+                      <span className="text-[10px] font-bold text-slate-600 block">কুইক ফটো ডেমো প্রিসেট:</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setNewServicePhoto('https://images.unsplash.com/photo-1586773860418-d37222d8fce3?w=800&q=80')}
+                          className="px-2 py-1 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[10px] font-bold text-emerald-800"
+                        >
+                          🏥 হাসপাতাল
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewServicePhoto('https://images.unsplash.com/photo-1587745416684-47953f16f02f?w=800&q=80')}
+                          className="px-2 py-1 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[10px] font-bold text-emerald-800"
+                        >
+                          🚒 ফায়ার/জরুরি
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewServicePhoto('https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?w=800&q=80')}
+                          className="px-2 py-1 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[10px] font-bold text-emerald-800"
+                        >
+                          🏫 স্কুল/কলেজ
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewServicePhoto('https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=800&q=80')}
+                          className="px-2 py-1 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[10px] font-bold text-emerald-800"
+                        >
+                          🏦 ব্যাংক/অর্থ
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewServicePhoto('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80')}
+                          className="px-2 py-1 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[10px] font-bold text-emerald-800"
+                        >
+                          🍽️ রেস্তোরাঁ
+                        </button>
+                      </div>
+                    </div>
+
+                    {newServicePhoto && (
+                      <div className="pt-2 flex items-center gap-2">
+                        <img src={newServicePhoto} alt="Preview" className="w-12 h-12 rounded-xl object-cover border border-emerald-300" />
+                        <span className="text-[10px] text-emerald-700 font-bold">ছবি সফলভাবে সংযুক্ত হয়েছে!</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Section Designation Checkboxes (Featured & For You) */}
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                    <span className="block font-bold text-slate-800 mb-1">অ্যাডমিন সেকশন ট্যাগ (প্রদর্শন অবস্থান):</span>
+                    
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newServiceIsFeatured}
+                        onChange={e => setNewServiceIsFeatured(e.target.checked)}
+                        className="w-4 h-4 text-emerald-700 rounded focus:ring-emerald-700"
+                      />
+                      <span className="font-bold text-slate-800">⭐ ফিচারড সার্ভিস (Featured Services - হোম পেজে স্পেশাল কার্ড)</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newServiceIsForYou}
+                        onChange={e => setNewServiceIsForYou(e.target.checked)}
+                        className="w-4 h-4 text-purple-700 rounded focus:ring-purple-700"
+                      />
+                      <span className="font-bold text-purple-900">🎯 ফর ইউ (For You - আপনার জন্য সেকশন)</span>
+                    </label>
                   </div>
 
                   <div>
@@ -1674,22 +1822,22 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                       value={newServiceDesc}
                       onChange={e => setNewServiceDesc(e.target.value)}
                       placeholder="সেবা সম্পর্কে সংক্ষিপ্ত বিবরণ..."
-                      className="w-full bg-slate-50 border border-slate-200 p-2 rounded-xl resize-none"
+                      className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl resize-none text-xs"
                     />
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                   <button
                     type="button"
                     onClick={() => setIsAddingServiceModal(false)}
-                    className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                    className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
                   >
                     বাতিল
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold"
+                    className="px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition shadow-sm cursor-pointer"
                   >
                     সংরক্ষণ করুন
                   </button>

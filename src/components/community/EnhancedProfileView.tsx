@@ -14,6 +14,7 @@ import {
   MessageSquare, 
   UserPlus, 
   UserMinus, 
+  UserCheck,
   Edit2, 
   ExternalLink, 
   Globe,
@@ -46,7 +47,10 @@ import {
   CreditCard,
   Check,
   Trash2,
-  DownloadCloud
+  DownloadCloud,
+  GraduationCap,
+  Building,
+  Home as HomeIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PublicUserProfile, CommunityPost, VerifiedBadgeType } from '../../types/community';
@@ -888,7 +892,7 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
       </div>
 
       {/* Tab Content */}
-      <div className="p-4 max-w-screen-xl mx-auto pb-20">
+      <div className="px-0 sm:px-4 py-3 max-w-screen-xl mx-auto pb-20 w-full">
         {profile.isLocked && !isOwnProfile ? (
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 text-center max-w-md mx-auto my-8 shadow-sm">
             <div className="w-20 h-20 bg-blue-50 dark:bg-blue-950/40 rounded-full flex items-center justify-center mx-auto text-blue-600 dark:text-blue-400 border-4 border-blue-100 dark:border-blue-900/50 mb-5 relative">
@@ -918,11 +922,11 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="space-y-4"
+              className="space-y-4 w-full"
             >
               {/* Facebook-like Create Post Section */}
               {isOwnProfile && (
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm mb-4">
+                <div className="bg-white dark:bg-slate-900 border-y sm:border border-slate-200 dark:border-slate-800 sm:rounded-2xl p-4 shadow-sm mb-4 w-full">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-100 flex-shrink-0">
                       {profile.avatar && <img src={profile.avatar} alt="" className="w-full h-full object-cover" />}
@@ -992,35 +996,176 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-6"
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-6 space-y-6 shadow-xs"
             >
-              <div className="space-y-4">
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
-                  <Info size={16} className="text-emerald-600" />
-                  ব্যক্তিগত তথ্যাবলী
+              {/* Header with Quick Edit button for own profile */}
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 font-serif">
+                  <Info size={18} className="text-emerald-600" />
+                  পরিচিতি ও তথ্যাবলী (About)
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ইমেইল</p>
-                    <p className="text-sm text-slate-800 dark:text-slate-200 font-medium">{profile.email}</p>
-                  </div>
-                  {profile.phone && (
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ফোন নম্বর</p>
-                      <p className="text-sm text-emerald-700 dark:text-emerald-400 font-bold">{profile.phone}</p>
+                {isOwnProfile && (
+                  <button
+                    type="button"
+                    onClick={onEdit}
+                    className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Edit2 size={13} />
+                    <span>তথ্য সম্পাদনা</span>
+                  </button>
+                )}
+              </div>
+
+              {/* 1. Work & Profession */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Briefcase size={14} className="text-emerald-600" /> কর্মক্ষেত্র ও পেশা
+                </h4>
+                <div className="space-y-2.5 pl-1">
+                  {profile.workplace ? (
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full bg-emerald-50 dark:bg-slate-800 flex items-center justify-center text-emerald-600 shrink-0 mt-0.5">
+                        <Building size={16} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                          {profile.designation ? `${profile.designation} at ` : ''}{profile.workplace}
+                        </p>
+                        <p className="text-[11px] text-slate-500">কর্মক্ষেত্র / প্রতিষ্ঠান</p>
+                      </div>
+                    </div>
+                  ) : profile.profession ? (
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full bg-emerald-50 dark:bg-slate-800 flex items-center justify-center text-emerald-600 shrink-0 mt-0.5">
+                        <Briefcase size={16} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{profile.profession}</p>
+                        <p className="text-[11px] text-slate-500">বর্তমান পেশা</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 italic">কর্মক্ষেত্রের তথ্য যুক্ত করা হয়নি</p>
+                  )}
+                </div>
+              </div>
+
+              {/* 2. Education */}
+              <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <GraduationCap size={15} className="text-emerald-600" /> শিক্ষা জীবন (Education)
+                </h4>
+                <div className="space-y-3 pl-1">
+                  {profile.university && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-slate-800 flex items-center justify-center text-blue-600 shrink-0 mt-0.5">
+                        <GraduationCap size={16} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{profile.university}</p>
+                        <p className="text-[11px] text-slate-500">বিশ্ববিদ্যালয় (University)</p>
+                      </div>
                     </div>
                   )}
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">রক্তের গ্রুপ</p>
-                    <p className="text-sm text-rose-600 dark:text-rose-400 font-bold flex items-center gap-1">
-                      <Droplets size={14} />
-                      {profile.bloodGroup || 'উল্লেখ নেই'}
-                    </p>
+
+                  {profile.college && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-slate-800 flex items-center justify-center text-blue-600 shrink-0 mt-0.5">
+                        <GraduationCap size={16} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{profile.college}</p>
+                        <p className="text-[11px] text-slate-500">কলেজ (College)</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {profile.school && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-slate-800 flex items-center justify-center text-blue-600 shrink-0 mt-0.5">
+                        <GraduationCap size={16} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{profile.school}</p>
+                        <p className="text-[11px] text-slate-500">স্কুল (School)</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {!profile.university && !profile.college && !profile.school && (
+                    <p className="text-xs text-slate-400 italic">শিক্ষাগত তথ্য যুক্ত করা হয়নি</p>
+                  )}
+                </div>
+              </div>
+
+              {/* 3. Places & Personal Details */}
+              <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <MapPin size={14} className="text-emerald-600" /> আবাসন ও ব্যক্তিগত তথ্য
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-1">
+                  {profile.hometown && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full bg-amber-50 dark:bg-slate-800 flex items-center justify-center text-amber-600 shrink-0 mt-0.5">
+                        <HomeIcon size={16} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{profile.hometown}</p>
+                        <p className="text-[11px] text-slate-500">হোমটাউন / জন্মস্থান</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {profile.relationshipStatus && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full bg-rose-50 dark:bg-slate-800 flex items-center justify-center text-rose-600 shrink-0 mt-0.5">
+                        <Heart size={16} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{profile.relationshipStatus}</p>
+                        <p className="text-[11px] text-slate-500">বৈবাহিক অবস্থা</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-emerald-50 dark:bg-slate-800 flex items-center justify-center text-emerald-600 shrink-0 mt-0.5">
+                      <MapPin size={16} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{districtName}{profile.upazila ? `, ${profile.upazila}` : ''}</p>
+                      <p className="text-[11px] text-slate-500">বর্তমান অবস্থান / জেলা</p>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ঠিকানা</p>
-                    <p className="text-sm text-slate-700 dark:text-slate-300">{profile.address || 'তথ্য নেই'}</p>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-rose-50 dark:bg-slate-800 flex items-center justify-center text-rose-600 shrink-0 mt-0.5">
+                      <Droplets size={16} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{profile.bloodGroup || 'উল্লেখ নেই'}</p>
+                      <p className="text-[11px] text-slate-500">রক্তের গ্রুপ</p>
+                    </div>
                   </div>
+                </div>
+              </div>
+
+              {/* 4. Basic Contact */}
+              <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Info size={14} className="text-emerald-600" /> মৌলিক যোগাযোগ
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-1">
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ইমেইল</p>
+                    <p className="text-xs text-slate-800 dark:text-slate-200 font-medium">{profile.email}</p>
+                  </div>
+                  {profile.phone && (
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ফোন নম্বর</p>
+                      <p className="text-xs text-emerald-700 dark:text-emerald-400 font-bold">{profile.phone}</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1151,88 +1296,184 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="space-y-6"
+              className="space-y-5"
             >
+              {/* Header Summary Cards for Followers & Following */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-200/80 dark:border-emerald-800/60 p-3.5 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 block">আমাকে যারা ফলো করছেন</span>
+                    <span className="text-xl font-black text-slate-900 dark:text-white font-serif">{filteredFollowers.length}</span>
+                  </div>
+                  <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                    <Users size={18} />
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-slate-900 border border-blue-200/80 dark:border-blue-800/60 p-3.5 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <span className="text-[11px] font-bold text-blue-800 dark:text-blue-300 block">আমি যাদেরকে ফলো করছি</span>
+                    <span className="text-xl font-black text-slate-900 dark:text-white font-serif">{filteredFollowing.length}</span>
+                  </div>
+                  <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                    <UserPlus size={18} />
+                  </div>
+                </div>
+              </div>
+
               {/* Search Bar for Followers/Following */}
               <div className="relative mb-2 px-1">
-                <Users size={16} className="absolute left-4 top-3 text-slate-400" />
+                <Search size={16} className="absolute left-4 top-3 text-slate-400" />
                 <input
                   type="text"
                   placeholder="নাম অথবা পেশা দিয়ে খুঁজুন..."
                   value={memberSearchQuery}
                   onChange={(e) => setMemberSearchQuery(e.target.value)}
-                  className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs focus:ring-2 focus:ring-emerald-500 transition-all shadow-sm"
+                  className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs focus:ring-2 focus:ring-emerald-500 transition-all shadow-xs"
                 />
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-                {/* Followers Section */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center justify-between gap-2 px-1 border-b border-slate-100 dark:border-slate-800 pb-2">
+              {/* Dual Column Layout (Followers Left Column | Following Right Column) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+                {/* 1. Followers Section (আমাকে যারা ফলো করছেন) */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center justify-between gap-2 px-1 border-b border-slate-200 dark:border-slate-800 pb-2 font-serif">
                     <div className="flex items-center gap-2">
                       <Users size={16} className="text-emerald-600" />
-                      ফলোয়ার ({filteredFollowers.length})
+                      <span>ফলোয়ার (Followers)</span>
                     </div>
+                    <span className="bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                      {filteredFollowers.length}
+                    </span>
                   </h3>
+
                   <div className="space-y-2">
                     {filteredFollowers.length > 0 ? (
-                      filteredFollowers.map(f => (
-                        <div 
-                          key={f.uid} 
-                          onClick={() => onUserClick(f.uid, f.name, f.email || '', f.avatar)}
-                          className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-emerald-200 hover:shadow-sm transition cursor-pointer"
-                        >
-                          <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 ring-2 ring-emerald-50/50">
-                            {f.avatar && <img src={f.avatar} alt="" className="w-full h-full object-cover" />}
+                      filteredFollowers.map(f => {
+                        const isFollowingBack = followingUids.includes(f.uid);
+                        return (
+                          <div 
+                            key={f.uid} 
+                            className="flex items-center justify-between gap-3 p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-emerald-300 transition shadow-xs"
+                          >
+                            <div 
+                              onClick={() => onUserClick(f.uid, f.name, f.email || '', f.avatar)}
+                              className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+                            >
+                              <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 shrink-0 ring-2 ring-emerald-500/20">
+                                {f.avatar ? (
+                                  <img src={f.avatar} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full bg-emerald-100 dark:bg-slate-800 text-emerald-700 flex items-center justify-center font-bold text-sm">
+                                    {f.name.charAt(0)}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-extrabold text-slate-900 dark:text-white truncate">{f.name}</p>
+                                <p className="text-[10px] text-slate-500 truncate">{f.profession || f.district || 'নাগরিক'}</p>
+                              </div>
+                            </div>
+
+                            {currentUserUid && currentUserUid !== f.uid && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (isFollowingBack) {
+                                    onUnfollow(f.uid);
+                                  } else {
+                                    onFollow(f.uid);
+                                  }
+                                }}
+                                className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition shrink-0 cursor-pointer flex items-center gap-1 ${
+                                  isFollowingBack
+                                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                                    : 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-2xs'
+                                }`}
+                              >
+                                {isFollowingBack ? (
+                                  <>
+                                    <UserCheck size={12} />
+                                    <span>ফলোয়িং</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <UserPlus size={12} />
+                                    <span>ফলো ব্যাক</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{f.name}</p>
-                            <p className="text-[10px] text-slate-500 truncate">{f.profession || 'নাগরিক'}</p>
-                          </div>
-                          <button className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-slate-400">
-                            <MoreVertical size={14} />
-                          </button>
-                        </div>
-                      ))
+                        );
+                      })
                     ) : (
-                      <div className="p-8 text-center text-slate-400 text-xs italic bg-slate-50/50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
-                        এখনো কোনো ফলোয়ার নেই
+                      <div className="p-6 text-center text-slate-400 text-xs italic bg-slate-50/50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 space-y-1">
+                        <Users size={24} className="mx-auto text-slate-300 mb-1" />
+                        <p className="font-bold">এখনো কোনো ফলোয়ার নেই</p>
+                        <p className="text-[10px] text-slate-400">কেউ আপনাকে ফলো করলে এখানে দেখা যাবে।</p>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Following Section */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center justify-between gap-2 px-1 border-b border-slate-100 dark:border-slate-800 pb-2">
+                {/* 2. Following Section (আমি যাদেরকে ফলো করছি) */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center justify-between gap-2 px-1 border-b border-slate-200 dark:border-slate-800 pb-2 font-serif">
                     <div className="flex items-center gap-2">
-                      <UserPlus size={16} className="text-emerald-600" />
-                      যাদের ফলো করছেন ({filteredFollowing.length})
+                      <UserPlus size={16} className="text-blue-600" />
+                      <span>যাদের ফলো করছেন (Following)</span>
                     </div>
+                    <span className="bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                      {filteredFollowing.length}
+                    </span>
                   </h3>
+
                   <div className="space-y-2">
                     {filteredFollowing.length > 0 ? (
                       filteredFollowing.map(f => (
                         <div 
                           key={f.uid} 
-                          onClick={() => onUserClick(f.uid, f.name, f.email || '', f.avatar)}
-                          className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-emerald-200 hover:shadow-sm transition cursor-pointer"
+                          className="flex items-center justify-between gap-3 p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-blue-300 transition shadow-xs"
                         >
-                          <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 ring-2 ring-emerald-50/50">
-                            {f.avatar && <img src={f.avatar} alt="" className="w-full h-full object-cover" />}
+                          <div 
+                            onClick={() => onUserClick(f.uid, f.name, f.email || '', f.avatar)}
+                            className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+                          >
+                            <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 shrink-0 ring-2 ring-blue-500/20">
+                              {f.avatar ? (
+                                <img src={f.avatar} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full bg-blue-100 dark:bg-slate-800 text-blue-700 flex items-center justify-center font-bold text-sm">
+                                  {f.name.charAt(0)}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-extrabold text-slate-900 dark:text-white truncate">{f.name}</p>
+                              <p className="text-[10px] text-slate-500 truncate">{f.profession || f.district || 'নাগরিক'}</p>
+                            </div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{f.name}</p>
-                            <p className="text-[10px] text-slate-500 truncate">{f.profession || 'নাগরিক'}</p>
-                          </div>
-                          <button className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-slate-400">
-                            <MoreVertical size={14} />
-                          </button>
+
+                          {currentUserUid && currentUserUid !== f.uid && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onUnfollow(f.uid);
+                              }}
+                              className="px-3 py-1.5 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60 rounded-xl text-[11px] font-bold transition shrink-0 cursor-pointer flex items-center gap-1"
+                            >
+                              <UserMinus size={12} />
+                              <span>আনফলো</span>
+                            </button>
+                          )}
                         </div>
                       ))
                     ) : (
-                      <div className="p-8 text-center text-slate-400 text-xs italic bg-slate-50/50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
-                        কাউকে ফলো করা হচ্ছে না
+                      <div className="p-6 text-center text-slate-400 text-xs italic bg-slate-50/50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 space-y-1">
+                        <UserPlus size={24} className="mx-auto text-slate-300 mb-1" />
+                        <p className="font-bold">কাউকে ফলো করা হচ্ছে না</p>
+                        <p className="text-[10px] text-slate-400">কমিউনিটি পোস্ট থেকে নাগরিকদের ফলো করতে পারবেন।</p>
                       </div>
                     )}
                   </div>
