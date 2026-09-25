@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Globe, Download, Map, Sun, Moon, Bell, Search } from 'lucide-react';
+import { Menu, Globe, Download, Map, Sun, Moon, Bell, Search, PhoneCall } from 'lucide-react';
 import { SmartKhulnaLogo } from './SmartKhulnaLogo';
 import { LuxuryNoticeTicker } from './LuxuryNoticeTicker';
 
@@ -8,6 +8,7 @@ export interface SmartKhulnaHeaderProps {
   onNavigateHome: () => void;
   onNavigateProfile: () => void;
   onNavigateSearch?: () => void;
+  onOpenSOS?: () => void;
   lang: 'bn' | 'en';
   onToggleLang: () => void;
   isInstallable: boolean;
@@ -51,7 +52,8 @@ export const SmartKhulnaHeader: React.FC<SmartKhulnaHeaderProps> = ({
   totalUnreadNotifications,
   onToggleNotifications,
   t,
-  activeNotice
+  activeNotice,
+  onOpenSOS
 }) => {
   return (
     <header 
@@ -95,6 +97,20 @@ export const SmartKhulnaHeader: React.FC<SmartKhulnaHeaderProps> = ({
 
         {/* RIGHT SECTION: ACTION CONTROLS & UTILITIES */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0 pr-0.5 sm:pr-0">
+          {/* SOS Emergency Helpline Quick Button */}
+          {onOpenSOS && (
+            <button
+              id="header-sos-emergency-btn"
+              onClick={onOpenSOS}
+              className="h-8 sm:h-9 text-[11px] sm:text-xs bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-extrabold px-2.5 sm:px-3 rounded-full flex items-center gap-1 sm:gap-1.5 shadow-xs transition-all duration-150 cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-rose-500/50"
+              title="জরুরি হেল্পলাইন ও এসওএস / 24/7 Emergency SOS Directory"
+              aria-label="Emergency SOS"
+            >
+              <PhoneCall size={12} className="animate-pulse" />
+              <span>SOS</span>
+            </button>
+          )}
+
           {/* 0. Global Search Quick Button */}
           <button
             id="header-search-btn"

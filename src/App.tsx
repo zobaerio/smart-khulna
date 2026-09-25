@@ -123,6 +123,9 @@ import {
 } from './dbData';
 import { usePWA } from './hooks/usePWA';
 import { OfflineBanner } from './components/OfflineBanner';
+import { OfflineSOSDirectoryModal } from './components/features/OfflineSOSDirectoryModal';
+import { ServiceReviewModal } from './components/features/ServiceReviewModal';
+import { getLocalReviews, computeServiceRatingStats } from './services/reviewService';
 import { ServiceQR } from './components/ServiceQR';
 import { InstallPromptBanner } from './components/InstallPromptBanner';
 import { SplashScreen } from './components/SplashScreen';
@@ -380,6 +383,29 @@ export default function App() {
     targetId: '',
     targetTitle: ''
   });
+
+  // Offline Emergency SOS & Service Reviews States
+  const [showSOSModal, setShowSOSModal] = useState(false);
+  const [reviewingService, setReviewingService] = useState<Service | null>(null);
+  const [serviceRatingMap, setServiceRatingMap] = useState<{ [serviceId: string]: { average: number; total: number } }>(() => {
+    const map: { [serviceId: string]: { average: number; total: number } } = {};
+    const local = getLocalReviews();
+    local.forEach(r => {
+      if (!map[r.serviceId]) {
+        const matches = local.filter(x => x.serviceId === r.serviceId);
+        const stats = computeServiceRatingStats(matches);
+        map[r.serviceId] = { average: stats.average, total: stats.total };
+      }
+    });
+    return map;
+  });
+
+  const handleReviewSubmitted = (serviceId: string, newStats: { average: number; total: number }) => {
+    setServiceRatingMap(prev => ({
+      ...prev,
+      [serviceId]: newStats
+    }));
+  };
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -3128,6 +3154,7 @@ export default function App() {
         isOnline={isOnline}
         wasOffline={wasOffline}
         onDismissReconnected={resetWasOffline}
+        onOpenSOS={() => setShowSOSModal(true)}
       />
       <InstallPromptBanner />
 
@@ -3180,6 +3207,18 @@ export default function App() {
 
             {/* Navigation Links - Scrollable */}
             <div className="flex-1 overflow-y-auto p-4 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-800">
+              {/* 24/7 Offline Emergency SOS Button in Drawer */}
+              <button
+                onClick={() => { setShowSOSModal(true); setIsDrawerOpen(false); }}
+                className="w-full text-left px-3.5 py-2.5 mb-2 rounded-xl text-xs font-black bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white flex items-center justify-between shadow-xs cursor-pointer active:scale-95 transition"
+              >
+                <span className="flex items-center gap-2">
+                  <PhoneCall size={15} className="animate-pulse" /> 
+                  <span>জরুরি হেল্পলাইন (Offline SOS)</span>
+                </span>
+                <span className="text-[10px] bg-black/20 px-2 py-0.5 rounded-full font-bold">২৪/৭</span>
+              </button>
+
               {navItems.map(item => (
                 <button
                   key={item.id}
@@ -3535,6 +3574,7 @@ export default function App() {
             setViewingProfileUid(null);
           }}
           onNavigateSearch={() => navigateTo('search')}
+          onOpenSOS={() => setShowSOSModal(true)}
           lang={lang}
           onToggleLang={() => setLang(lang === 'bn' ? 'en' : 'bn')}
           isInstallable={isInstallable}
@@ -3556,12 +3596,12 @@ export default function App() {
             activeTab === 'messages' 
               ? 'h-full max-h-full flex-1 min-h-0 overflow-hidden' 
               : activeTab === 'profile'
-              ? 'h-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain custom-chat-scrollbar'
+              ? 'h-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain custom-chat-scrollbar pb-24 md:pb-12'
               : activeTab === 'services'
-              ? 'h-full overflow-hidden p-2 sm:p-4 pb-1'
+              ? 'h-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2 sm:p-4 pb-28 custom-main-scrollbar'
               : activeTab === 'community'
               ? 'h-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain no-scrollbar scrollbar-none p-0 w-full'
-              : 'px-0 sm:px-4 py-2 sm:py-4 overflow-y-auto overflow-x-hidden space-y-3.5 sm:space-y-5 custom-main-scrollbar'
+              : 'px-0 sm:px-4 py-2 sm:py-4 overflow-y-auto overflow-x-hidden space-y-3.5 sm:space-y-5 custom-main-scrollbar pb-28 md:pb-16'
           }`}>
 
             {/* TAB VIEW - HOME */}
@@ -3768,17 +3808,26 @@ export default function App() {
                         <p className="text-[10px] text-slate-500 leading-none mt-0.5">দ্রুত সহায়তা পেতে আইকনে ক্লিক করুন</p>
                       </div>
                     </div>
-                    {userProfile?.role === 'super_admin' && (
+                    <div className="flex items-center gap-1.5">
                       <button
-                        onClick={() => {
-                          setAdminView('emergencies');
-                          setActiveTab('profile');
-                        }}
-                        className="text-[10px] text-red-700 bg-red-50 font-bold px-2 py-0.5 rounded border border-rose-100 hover:bg-red-100"
+                        onClick={() => setShowSOSModal(true)}
+                        className="text-[11px] text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 font-bold px-2.5 py-1 rounded-xl border border-rose-200 dark:border-rose-800 flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs"
                       >
-                        সম্পাদনা
+                        <PhoneCall size={12} className="animate-pulse" />
+                        <span>সকল জরুরি নম্বর (SOS)</span>
                       </button>
-                    )}
+                      {userProfile?.role === 'super_admin' && (
+                        <button
+                          onClick={() => {
+                            setAdminView('emergencies');
+                            setActiveTab('profile');
+                          }}
+                          className="text-[10px] text-red-700 bg-red-50 font-bold px-2 py-0.5 rounded border border-rose-100 hover:bg-red-100"
+                        >
+                          সম্পাদনা
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* 4 Emergency Services Compact Shortcut Grid */}
@@ -4364,7 +4413,7 @@ export default function App() {
 
             {/* TAB VIEW - SERVICES BROWSER DIRECTORY */}
             {activeTab === 'services' && (
-              <div className="space-y-4 flex flex-col h-full overflow-hidden">
+              <div className="space-y-4 flex flex-col w-full pb-8">
                 {/* Services Sub-Tabs */}
                 <div className="flex items-center gap-2 bg-slate-100/50 p-1 rounded-xl w-fit border border-slate-200/50 shrink-0">
                   <button
@@ -4390,7 +4439,7 @@ export default function App() {
                 </div>
 
                 {servicesSubTab === 'blood' ? (
-                  <div className="flex-1 overflow-y-auto pr-1 pb-4">
+                  <div className="w-full pb-4">
                     <BloodDonationSection
                       districts={initialDistricts}
                       selectedDistrict={selectedDistrict}
@@ -4409,7 +4458,7 @@ export default function App() {
                     />
                   </div>
                 ) : (
-                  <div className="flex-1 overflow-y-auto pr-1 pb-4">
+                  <div className="w-full pb-4">
                     {filterCategory === 'all' ? (
                       <div className="space-y-4 animate-in fade-in duration-500">
                         <div className="flex items-center justify-between">
@@ -4525,9 +4574,19 @@ export default function App() {
                                         </span>
                                       )}
                                     </div>
-                                    <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold uppercase inline-block mb-1">
-                                      {cat?.name || 'সেবা'}
-                                    </span>
+                                    <div className="flex items-center justify-between gap-1 mb-1">
+                                      <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold uppercase inline-block">
+                                        {cat?.name || 'সেবা'}
+                                      </span>
+                                      {/* Star Rating Badge */}
+                                      <span className="flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded-full border border-amber-200/80 dark:border-amber-800 text-[10px]">
+                                        <Star size={9} className="fill-amber-400 text-amber-400" />
+                                        <span>{serviceRatingMap[service.id]?.average ? serviceRatingMap[service.id].average.toFixed(1) : '৫.০'}</span>
+                                        <span className="text-[8px] text-slate-400 font-normal">
+                                          ({serviceRatingMap[service.id]?.total || 0})
+                                        </span>
+                                      </span>
+                                    </div>
                                     <h3 className="text-xs font-extrabold text-slate-900 line-clamp-2 leading-tight">{service.name}</h3>
                                     <p className="text-[10px] text-slate-500 line-clamp-1 mt-1">{service.address}</p>
                                   </div>
@@ -5427,6 +5486,34 @@ export default function App() {
                 {selectedService.description}
               </p>
 
+              {/* Star Rating & Review Box */}
+              <div className="bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/90 dark:border-amber-850 rounded-2xl p-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-xl bg-amber-400 text-white flex items-center justify-center font-black text-sm shadow-xs">
+                    {serviceRatingMap[selectedService.id]?.average?.toFixed(1) || '৫.০'}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-0.5 text-amber-500">
+                      {[1, 2, 3, 4, 5].map(s => (
+                        <Star key={s} size={12} className="fill-amber-400 text-amber-400" />
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-slate-700 dark:text-slate-300 font-bold mt-0.5">
+                      {serviceRatingMap[selectedService.id]?.total ? `${serviceRatingMap[selectedService.id].total} টি নাগরিক রিভিউ` : 'নাগরিক রেটিং ও রিভিউ'}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setReviewingService(selectedService)}
+                  className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-xs active:scale-95 transition cursor-pointer flex items-center gap-1"
+                >
+                  <MessageSquare size={13} />
+                  <span>রিভিউ দিন / দেখুন</span>
+                </button>
+              </div>
+
               <div className="space-y-2 text-xs border-t border-b border-slate-100 py-3">
                 <div className="flex items-start gap-2">
                   <MapPin size={14} className="text-emerald-700 shrink-0 mt-0.5" />
@@ -5490,6 +5577,14 @@ export default function App() {
                     ওয়েবসাইট
                   </a>
                 )}
+                <button
+                  type="button"
+                  onClick={() => setReviewingService(selectedService)}
+                  className="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold py-2 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer col-span-2 shadow-2xs"
+                >
+                  <Star size={13} className="fill-amber-500 text-amber-500" />
+                  <span>নাগরিক রিভিউ ও রেটিং দেখুন ({serviceRatingMap[selectedService.id]?.total || 0} টি রিভিউ)</span>
+                </button>
               </div>
             </div>
           </div>
@@ -5627,6 +5722,27 @@ export default function App() {
       {activeFeatureHub === 'complaints' && <CitizenFeedbackHub onClose={() => setActiveFeatureHub(null)} />}
       {activeFeatureHub === 'jobs' && <LocalJobsHub onClose={() => setActiveFeatureHub(null)} />}
       {activeFeatureHub === 'tolet' && <ToLetHub onClose={() => setActiveFeatureHub(null)} />}
+
+      {/* 24/7 OFFLINE SOS EMERGENCY DIRECTORY MODAL */}
+      <OfflineSOSDirectoryModal
+        isOpen={showSOSModal}
+        onClose={() => setShowSOSModal(false)}
+        defaultDistrictId={selectedDistrict || undefined}
+        isOffline={!isOnline}
+      />
+
+      {/* SERVICE STAR RATINGS & CITIZEN REVIEWS MODAL */}
+      <ServiceReviewModal
+        isOpen={!!reviewingService}
+        onClose={() => setReviewingService(null)}
+        service={reviewingService}
+        currentUser={currentUser}
+        onReviewSubmitted={(newStats) => {
+          if (reviewingService) {
+            handleReviewSubmitted(reviewingService.id, newStats);
+          }
+        }}
+      />
 
     </div>
   );
