@@ -494,3 +494,40 @@ html, body, #root {
   }
 }
 
+/* User Profile Post Card Smooth Hover Lift Animation */
+.profile-post-card {
+  transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), 
+              box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1), 
+              border-color 0.25s ease !important;
+  will-change: transform, box-shadow;
+}
+
+.profile-post-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.08), 0 6px 12px -4px rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+}
+
+.dark .profile-post-card:hover,
+:where(.dark, .dark *) .profile-post-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 14px 28px -4px rgba(0, 0, 0, 0.45), 0 6px 16px -4px rgba(16, 185, 129, 0.12) !important;
+  border-color: rgba(52, 211, 153, 0.35) !important;
+}
+
+.profile-post-card:active {
+  transform: translateY(-1px) scale(0.998) !important;
+  transition-duration: 0.1s !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-post-card {
+    transition: none !important;
+  }
+  .profile-post-card:hover {
+    transform: none !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+  }
+}
+
+

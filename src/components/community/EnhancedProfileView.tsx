@@ -703,14 +703,6 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
               <span className="text-xs font-bold">কভার ফটো আপলোড ও সেভ হচ্ছে...</span>
             </div>
           )}
-
-          {isOwnProfile && !isUploadingCover && (
-            <label className="absolute bottom-3 right-3 px-3.5 py-2 bg-black/60 hover:bg-black/80 text-white rounded-xl transition-all flex items-center gap-2 text-xs font-bold backdrop-blur-sm cursor-pointer shadow-lg z-10">
-              <Camera size={16} />
-              <span>{lang === 'en' ? 'Change Cover' : 'কভার ফটো পরিবর্তন'}</span>
-              <input type="file" accept="image/*" onChange={handleCoverFileChange} className="hidden" />
-            </label>
-          )}
         </div>
 
         {/* Profile Info Overlay (Negative Margin to pull up) */}
@@ -960,6 +952,7 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                   <PostCard
                     key={post.id}
                     post={post}
+                    className="profile-post-card"
                     districts={districts}
                     currentUserId={currentUserUid}
                     comments={commentsMap[post.id] || []}

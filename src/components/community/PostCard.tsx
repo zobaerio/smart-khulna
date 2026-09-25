@@ -61,6 +61,7 @@ interface PostCardProps {
   onStartMessage: (authorId: string, authorName: string, authorEmail: string, authorAvatar?: string) => void;
   onSelectHashtag?: (tag: string) => void;
   onPostClick?: (post: CommunityPost) => void;
+  className?: string;
 }
 
 export const PostCard: React.FC<PostCardProps> = ({
@@ -84,7 +85,8 @@ export const PostCard: React.FC<PostCardProps> = ({
   onViewProfile,
   onStartMessage,
   onSelectHashtag,
-  onPostClick
+  onPostClick,
+  className = ''
 }) => {
   const [showComments, setShowComments] = useState(false);
   const [commentInput, setCommentInput] = useState('');
@@ -318,7 +320,7 @@ export const PostCard: React.FC<PostCardProps> = ({
   }
 
   return (
-    <article className="bg-white dark:bg-slate-950 sm:rounded-2xl border-y sm:border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-sm transition duration-200 overflow-hidden text-slate-900 dark:text-slate-100 w-full">
+    <article className={`bg-white dark:bg-slate-950 sm:rounded-2xl border-y sm:border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-sm transition duration-200 overflow-hidden text-slate-900 dark:text-slate-100 w-full ${className}`}>
       {/* CARD HEADER */}
       <div className="p-4 pb-3 flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">

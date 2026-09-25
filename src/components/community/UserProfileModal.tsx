@@ -310,7 +310,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   {userPosts.map(p => (
                     <div
                       key={p.id}
-                      className="p-3 bg-slate-50 rounded-xl border border-slate-200 hover:border-emerald-300 transition text-xs"
+                      className="profile-post-card p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-500/50 transition text-xs"
                     >
                       {p.title && <h4 className="font-bold text-slate-900 mb-1">{p.title}</h4>}
                       <p className="text-slate-600 line-clamp-2">{p.content}</p>
