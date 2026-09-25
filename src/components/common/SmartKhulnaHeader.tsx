@@ -71,11 +71,11 @@ export const SmartKhulnaHeader: React.FC<SmartKhulnaHeaderProps> = ({
       <div className="w-full max-w-7xl mx-auto px-2.5 sm:px-4 md:px-6 py-2 flex items-center justify-between gap-1.5 sm:gap-3 h-14 sm:h-16 overflow-visible">
         {/* LEFT SECTION: DRAWER TRIGGER & CLEAN K+LEAF LOGO */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-          {/* Mobile Navigation Drawer Button */}
+          {/* Mobile & Tablet Navigation Drawer Button */}
           <button
             id="header-drawer-toggle"
             onClick={onOpenDrawer}
-            className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-slate-800/80 active:scale-95 rounded-xl md:hidden transition-all duration-150 cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-emerald-500/40"
+            className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-slate-800/80 active:scale-95 rounded-xl lg:hidden transition-all duration-150 cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-emerald-500/40"
             aria-label="মেনু খুলুন / Open Navigation Menu"
           >
             <Menu size={20} strokeWidth={2.2} />

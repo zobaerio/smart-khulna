@@ -458,7 +458,13 @@ export default function App() {
   const [newServiceCategory, setNewServiceCategory] = useState(initialCategories[0].id);
   const [newServiceAddress, setNewServiceAddress] = useState('');
   const [newServiceDescription, setNewServiceDescription] = useState('');
-  const [newServiceDistrict, setNewServiceDistrict] = useState('khulna');
+  const [newServiceDistrict, setNewServiceDistrict] = useState(selectedDistrict || 'khulna');
+
+  useEffect(() => {
+    if (selectedDistrict) {
+      setNewServiceDistrict(selectedDistrict);
+    }
+  }, [selectedDistrict]);
   const [newServiceUpazila, setNewServiceUpazila] = useState('');
   const [newServiceWebsite, setNewServiceWebsite] = useState('');
   const [newServiceFacebook, setNewServiceFacebook] = useState('');
@@ -959,6 +965,51 @@ export default function App() {
       console.warn("Firestore posts subscription error:", error);
     });
     return () => unsubscribe();
+  }, []);
+
+  // Real-time Services Directory Subscription (Syncs services added by any citizen or admin)
+  useEffect(() => {
+    try {
+      const q = query(collection(db, 'services'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        if (!snapshot.empty) {
+          const remoteServices: Service[] = [];
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            remoteServices.push({ ...data, id: doc.id } as Service);
+          });
+
+          setServices((currentServices) => {
+            const remoteMap = new window.Map<string, Service>();
+            remoteServices.forEach(s => remoteMap.set(s.id, s));
+
+            // Start with all remote services (including newly contributed ones)
+            const combined: Service[] = [...remoteServices];
+
+            // Add default initial services if not already present
+            initialServices.forEach(initSvc => {
+              if (!remoteMap.has(initSvc.id)) {
+                combined.push(initSvc);
+              }
+            });
+
+            // Preserve any local creations not yet received from remote
+            currentServices.forEach(curr => {
+              if (!remoteMap.has(curr.id) && !initialServices.some(i => i.id === curr.id)) {
+                combined.unshift(curr);
+              }
+            });
+
+            return combined;
+          });
+        }
+      }, (error) => {
+        console.warn("Firestore services subscription error:", error);
+      });
+      return () => unsubscribe();
+    } catch (e) {
+      console.warn("Services subscription setup error:", e);
+    }
   }, []);
 
   // Sync and fetch all community user profiles in real-time
@@ -1660,7 +1711,7 @@ export default function App() {
       id: newId,
       name: newServiceName,
       slug: newServiceName.toLowerCase().replace(/[^a-zA-Z0-9]/g, '-'),
-      description: newServiceDescription || 'ব্যবহারকারী কর্তৃক জমা দেওয়া স্থানীয় সেবা প্রতিষ্ঠান।',
+      description: newServiceDescription || 'নাগরিক ব্যবহারকারী কর্তৃক সরাসরি যুক্ত করা স্থানীয় সেবা প্রতিষ্ঠান।',
       category_id: newServiceCategory,
       district_id: newServiceDistrict,
       upazila_id: newServiceUpazila || 'সদর',
@@ -1671,11 +1722,11 @@ export default function App() {
       latitude: 22.82,
       longitude: 89.54,
       opening_hours: 'সকাল ৯:০০ - রাত ৮:০০',
-      is_verified: false,
-      status: 'PENDING',
-      created_by: currentUser?.uid || 'guest',
-      owner_id: currentUser?.uid || 'guest',
-      submitted_by: currentUser?.email || currentUser?.displayName || 'অতিথি ব্যবহারকারী',
+      is_verified: true,
+      status: 'PUBLISHED',
+      created_by: currentUser?.uid || 'guest_' + Date.now(),
+      owner_id: currentUser?.uid || 'guest_' + Date.now(),
+      submitted_by: currentUser?.displayName || currentUser?.email || 'নাগরিক ব্যবহারকারী',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       photos: newServicePhoto ? [newServicePhoto] : [],
@@ -1684,10 +1735,12 @@ export default function App() {
       isForYou: newServiceIsForYou
     };
 
-    setServices(prev => [newService, ...prev]);
+    setServices(prev => [newService, ...prev.filter(s => s.id !== newId)]);
     setSubmissions(prev => [newService, ...prev]);
+    setSelectedDistrict(newServiceDistrict);
+    setFilterCategory(newServiceCategory);
     setFormSubmittedSuccess(true);
-    await logAction('নতুন তথ্য সাবমিশন', `ব্যবহারকারী "${newServiceName}" তথ্য যোগ করার অনুরোধ করেছেন`);
+    await logAction('নতুন সেবা সংযোজন', `নাগরিক ব্যবহারকারী "${newServiceName}" সেবাটি সরাসরি যুক্ত করেছেন`);
 
     try {
       await setDoc(doc(db, 'services', newId), newService);
@@ -1702,12 +1755,13 @@ export default function App() {
     setNewServiceDescription('');
     setNewServiceWebsite('');
     setNewServiceFacebook('');
+    setNewServicePhoto('');
 
-    // Auto clear success message
+    // Auto clear success message and navigate to services tab to immediately see the new service
     setTimeout(() => {
       setFormSubmittedSuccess(false);
-      setActiveTab('home');
-    }, 4000);
+      setActiveTab('services');
+    }, 2500);
   };
 
   // Gemini AI Grounding search execution
@@ -1757,7 +1811,7 @@ export default function App() {
   // Dynamic calculations for districts available service counts
   const getServiceCountForDistrict = (districtId: string) => {
     const list = Array.isArray(services) ? services : [];
-    return list.filter(s => s && s.district_id === districtId && s.status === 'PUBLISHED').length;
+    return list.filter(s => s && s.district_id === districtId && s.status !== 'REJECTED').length;
   };
 
   // Filter and search services lists
@@ -1765,8 +1819,8 @@ export default function App() {
     const list = Array.isArray(services) ? services : [];
     return list.filter(s => {
       if (!s || typeof s !== 'object') return false;
-      // Ensure only approved or published services are shown to normal users
-      if (s.status !== 'APPROVED' && s.status !== 'PUBLISHED') return false;
+      // Show all active services (published, approved, or citizen contributed)
+      if (s.status === 'REJECTED') return false;
 
       // Filter by District
       if (s.district_id !== selectedDistrict) return false;
@@ -3158,9 +3212,9 @@ export default function App() {
       />
       <InstallPromptBanner />
 
-      {/* MOBILE DRAWER (Slide-out Navigation Menu) */}
+      {/* MOBILE & TABLET DRAWER (Slide-out Navigation Menu) */}
       {isDrawerOpen && (
-        <div className="fixed inset-0 z-[60] flex md:hidden">
+        <div className="fixed inset-0 z-[60] flex lg:hidden">
           {/* Overlay Backdrop with fade-in */}
           <div
             className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300"
@@ -3339,10 +3393,10 @@ export default function App() {
 
 
       {/* Main Responsive Layout Wrapper - Full Screen */}
-      <div className="w-full flex-1 h-full max-h-full bg-white dark:bg-slate-900 flex flex-col md:flex-row relative overflow-hidden">
+      <div className="w-full flex-1 h-full max-h-full bg-white dark:bg-slate-900 flex flex-col lg:flex-row relative overflow-hidden">
         
-        {/* SIDE PANEL / DESKTOP PREVIEW FRAME (Visible only on medium/large screens) */}
-        <div className="hidden md:flex md:w-80 bg-slate-900 text-slate-100 p-6 flex-col justify-between shrink-0 border-r border-slate-800 overflow-y-auto max-h-screen sticky top-0 scrollbar-thin scrollbar-thumb-slate-800">
+        {/* SIDE PANEL / DESKTOP FRAME (Visible only on large desktop screens) */}
+        <div className="hidden lg:flex lg:w-72 xl:w-80 bg-slate-900 text-slate-100 p-6 flex-col justify-between shrink-0 border-r border-slate-800 overflow-y-auto max-h-screen sticky top-0 scrollbar-thin scrollbar-thumb-slate-800">
           <div>
             <div className="flex items-center gap-3 mb-6">
               {/* Modern K Monogram Leaf Logo */}
@@ -4460,72 +4514,180 @@ export default function App() {
                 ) : (
                   <div className="w-full pb-4">
                     {filterCategory === 'all' ? (
-                      <div className="space-y-4 animate-in fade-in duration-500">
+                      <div className="space-y-5 animate-in fade-in duration-500">
                         <div className="flex items-center justify-between">
                           <div>
-                            <h2 className="text-base font-extrabold text-slate-900 font-serif">ডিজিটাল সেবা নির্দেশিকা</h2>
-                            <p className="text-[11px] text-slate-500 font-bold">
-                              {initialDistricts.find(d => d.id === selectedDistrict)?.name} জেলা • ক্যাটাগরি নির্বাচন করুন
+                            <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-slate-100 font-serif">ডিজিটাল সেবা নির্দেশিকা</h2>
+                            <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-bold">
+                              {initialDistricts.find(d => d.id === selectedDistrict)?.name} জেলা • ক্যাটাগরি অনুযায়ী সেবা খুঁজুন
                             </p>
                           </div>
-                          <button
-                            onClick={() => setShowFiltersModal(true)}
-                            className="flex items-center gap-1 text-[11px] bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold py-1.5 px-3 rounded-lg shadow-sm"
-                          >
-                            <Filter size={14} />
-                            ফিল্টার
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => navigateTo('add')}
+                              className="flex items-center gap-1 text-[11px] bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 font-bold py-1.5 px-3 rounded-lg shadow-2xs transition"
+                            >
+                              <PlusCircle size={14} />
+                              <span className="hidden xs:inline">সেবা যোগ</span>
+                            </button>
+                            <button
+                              onClick={() => setShowFiltersModal(true)}
+                              className="flex items-center gap-1 text-[11px] bg-white dark:bg-slate-800 hover:bg-slate-50 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold py-1.5 px-3 rounded-lg shadow-2xs"
+                            >
+                              <Filter size={14} />
+                              ফিল্টার
+                            </button>
+                          </div>
                         </div>
 
-                        {/* 4-Column Compact Category Grid */}
-                        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-1.5 sm:gap-2">
+                        {/* Responsive Category Grid: 4 cols mobile, 6 cols tablet, 8 cols desktop */}
+                        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-1.5 sm:gap-2.5">
                           {initialCategories.map(cat => {
                             const style = getCategoryStyle(cat.id);
                             return (
                               <button
                                 key={cat.id}
                                 onClick={() => setFilterCategory(cat.id)}
-                                className="bg-white hover:bg-emerald-50/40 border border-slate-100 hover:border-emerald-200 p-1.5 py-3 rounded-xl flex flex-col items-center justify-center text-center transition cursor-pointer group shadow-2xs hover:shadow-sm"
+                                className="bg-white dark:bg-slate-850 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-600 p-2 sm:p-2.5 rounded-xl flex flex-col items-center justify-center text-center transition cursor-pointer group shadow-2xs hover:shadow-sm"
                               >
-                                <div className={`w-8 h-8 rounded-lg ${style.bg} ${style.text} flex items-center justify-center mb-1.5 group-hover:scale-110 transition duration-300 shrink-0`}>
+                                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl ${style.bg} ${style.text} flex items-center justify-center mb-1.5 group-hover:scale-110 transition duration-300 shrink-0`}>
                                   <IconComponent name={cat.iconName} size={22} className={style.text} />
                                 </div>
-                                <span className="text-[9px] sm:text-[10px] font-extrabold text-slate-700 leading-[1.1] line-clamp-2 w-full px-0.5">
+                                <span className="text-[9px] sm:text-[10px] font-extrabold text-slate-700 dark:text-slate-200 leading-[1.1] line-clamp-2 w-full px-0.5">
                                   {cat.name}
                                 </span>
                               </button>
                             );
                           })}
                         </div>
+
+                        {/* All Services of Current District (Visible to Everyone) */}
+                        <div className="pt-2 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 font-serif">
+                              <Building2 size={16} className="text-emerald-700 dark:text-emerald-400" />
+                              <span>{initialDistricts.find(d => d.id === selectedDistrict)?.name} জেলার সকল তালিকাভুক্ত সেবা ({filteredServices.length}টি)</span>
+                            </h3>
+                            <button
+                              onClick={() => navigateTo('add')}
+                              className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
+                            >
+                              <span>+ নতুন সেবা যোগ করুন</span>
+                            </button>
+                          </div>
+
+                          {filteredServices.length === 0 ? (
+                            <div className="bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center space-y-3 shadow-xs">
+                              <AlertTriangle className="text-amber-500 mx-auto" size={32} />
+                              <p className="text-sm font-bold text-slate-700 dark:text-slate-200">বর্তমানে কোনো সেবা পাওয়া যায়নি</p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">এই জেলায় যেকোনো নাগরিক সরাসরি নতুন সেবা বা প্রতিষ্ঠানের তথ্য যুক্ত করতে পারেন।</p>
+                              <button
+                                onClick={() => navigateTo('add')}
+                                className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold py-2 px-6 rounded-full transition shadow-sm cursor-pointer"
+                              >
+                                নতুন সেবা যুক্ত করুন
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                              {filteredServices.map(service => {
+                                const cat = initialCategories.find(c => c.id === service.category_id);
+                                const style = getCategoryStyle(service.category_id);
+                                return (
+                                  <div
+                                    key={service.id}
+                                    onClick={() => setSelectedService(service)}
+                                    className="bg-white dark:bg-slate-850 hover:bg-emerald-50/20 dark:hover:bg-slate-800/80 border border-slate-200/90 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-600 p-3.5 rounded-2xl flex flex-col justify-between shadow-2xs hover:shadow-md transition cursor-pointer group"
+                                  >
+                                    <div>
+                                      <div className="flex items-center justify-between mb-2.5">
+                                        <div className={`w-10 h-10 rounded-xl ${style.bg} ${style.text} flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition`}>
+                                          {service.photos && service.photos[0] ? (
+                                            <img src={service.photos[0]} alt={service.name} className="w-full h-full object-cover rounded-xl" />
+                                          ) : (
+                                            <IconComponent name={cat?.iconName || 'Grid'} className={style.text} />
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                          {service.is_verified && (
+                                            <span className="bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                                              <CheckCircle size={9} className="fill-blue-500 text-white" />
+                                              ভেরিফাইড
+                                            </span>
+                                          )}
+                                          <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full font-bold">
+                                            {cat?.name || 'সেবা'}
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-slate-100 line-clamp-1 leading-snug group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
+                                        {service.name}
+                                      </h3>
+                                      <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">{service.address}</p>
+
+                                      {service.phone && (
+                                        <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold mt-1 flex items-center gap-1">
+                                          <Phone size={10} />
+                                          <span>{service.phone}</span>
+                                        </p>
+                                      )}
+                                    </div>
+
+                                    <div className="flex items-center justify-between text-[10px] text-slate-400 mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800">
+                                      <span className="flex items-center gap-1 truncate max-w-[120px]">
+                                        <Clock size={11} className="text-emerald-700 shrink-0" />
+                                        <span className="truncate">{service.opening_hours || 'সকাল ৯টা - রাত ৮টা'}</span>
+                                      </span>
+                                      <span className="text-emerald-700 dark:text-emerald-400 font-extrabold flex items-center gap-0.5 group-hover:translate-x-0.5 transition">
+                                        বিস্তারিত
+                                        <ChevronRight size={12} />
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ) : (
                       <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                         {/* Detail Header with Back Button */}
-                        <div className="flex items-center justify-between sticky top-0 bg-slate-50/80 backdrop-blur-xs py-2 z-10 -mx-1 px-1">
+                        <div className="flex items-center justify-between sticky top-0 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-xs py-2 z-10 -mx-1 px-1">
                           <button 
                             onClick={() => setFilterCategory('all')}
-                            className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-white hover:bg-emerald-50 px-3 py-1.5 rounded-full transition border border-emerald-100 shadow-sm"
+                            className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-white dark:bg-slate-800 hover:bg-emerald-50 px-3 py-1.5 rounded-full transition border border-emerald-100 dark:border-slate-700 shadow-sm cursor-pointer"
                           >
-                            <ChevronLeft size={16} /> ফিরে যান
+                            <ChevronLeft size={16} /> সকল ক্যাটাগরি
                           </button>
-                          <button
-                            onClick={() => setShowFiltersModal(true)}
-                            className="p-1.5 bg-white hover:bg-slate-50 text-slate-600 rounded-lg transition border border-slate-200 shadow-xs"
-                          >
-                            <Filter size={16} />
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => navigateTo('add')}
+                              className="flex items-center gap-1 text-[11px] bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 font-bold py-1.5 px-3 rounded-lg shadow-2xs transition"
+                            >
+                              <PlusCircle size={14} />
+                              <span className="hidden xs:inline">সেবা যোগ</span>
+                            </button>
+                            <button
+                              onClick={() => setShowFiltersModal(true)}
+                              className="p-1.5 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-600 dark:text-slate-300 rounded-lg transition border border-slate-200 dark:border-slate-700 shadow-xs"
+                            >
+                              <Filter size={16} />
+                            </button>
+                          </div>
                         </div>
 
-                        <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+                        <div className="bg-white dark:bg-slate-850 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
                           <div className="flex items-center gap-3">
-                            <div className={`w-12 h-12 rounded-2xl ${getCategoryStyle(filterCategory).bg} ${getCategoryStyle(filterCategory).text} flex items-center justify-center shadow-xs`}>
+                            <div className={`w-12 h-12 rounded-2xl ${getCategoryStyle(filterCategory).bg} ${getCategoryStyle(filterCategory).text} flex items-center justify-center shadow-xs shrink-0`}>
                               <IconComponent name={initialCategories.find(c => c.id === filterCategory)?.iconName || 'Grid'} size={28} />
                             </div>
                             <div>
-                              <h2 className="text-base font-extrabold text-slate-900 leading-tight">
+                              <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100 leading-tight">
                                 {initialCategories.find(c => c.id === filterCategory)?.name}
                               </h2>
-                              <p className="text-[11px] text-slate-500 font-bold">
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-bold">
                                 {initialDistricts.find(d => d.id === selectedDistrict)?.name} জেলা • {filteredServices.length}টি সেবা পাওয়া গেছে
                               </p>
                             </div>
@@ -4534,21 +4696,29 @@ export default function App() {
 
                         {/* Services List Display */}
                         {filteredServices.length === 0 ? (
-                          <div className="bg-white border border-slate-100 rounded-2xl p-10 text-center space-y-3 shadow-sm">
-                            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2">
-                              <AlertTriangle className="text-slate-300" size={32} />
+                          <div className="bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center space-y-3 shadow-sm">
+                            <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-2">
+                              <AlertTriangle className="text-slate-400" size={32} />
                             </div>
-                            <p className="text-sm font-bold text-slate-600">বর্তমানে কোনো সেবা পাওয়া যায়নি</p>
-                            <p className="text-[11px] text-slate-400">এই ক্যাটাগরিতে বর্তমানে কোনো সেবা তালিকাভুক্ত করা নেই।</p>
-                            <button
-                              onClick={() => setFilterCategory('all')}
-                              className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold py-2 px-6 rounded-full transition mt-4 shadow-md cursor-pointer"
-                            >
-                              অন্য ক্যাটাগরি দেখুন
-                            </button>
+                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">বর্তমানে এই ক্যাটাগরিতে কোনো সেবা পাওয়া যায়নি</p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">আপনি প্রথম নাগরিক হিসেবে এই ক্যাটাগরিতে সেবা যোগ করতে পারেন।</p>
+                            <div className="flex flex-col sm:flex-row gap-2 justify-center pt-2">
+                              <button
+                                onClick={() => navigateTo('add')}
+                                className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold py-2 px-6 rounded-full transition shadow-md cursor-pointer"
+                              >
+                                নতুন সেবা যুক্ত করুন
+                              </button>
+                              <button
+                                onClick={() => setFilterCategory('all')}
+                                className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-xs font-bold py-2 px-6 rounded-full transition cursor-pointer"
+                              >
+                                সকল সেবা দেখুন
+                              </button>
+                            </div>
                           </div>
                         ) : (
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
                             {filteredServices.map(service => {
                               const cat = initialCategories.find(c => c.id === service.category_id);
                               const style = getCategoryStyle(service.category_id);
@@ -4556,7 +4726,7 @@ export default function App() {
                                 <div
                                   key={service.id}
                                   onClick={() => setSelectedService(service)}
-                                  className="bg-white hover:bg-emerald-50/20 border border-slate-100 hover:border-emerald-200 p-3 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-sm transition cursor-pointer group"
+                                  className="bg-white dark:bg-slate-850 hover:bg-emerald-50/20 dark:hover:bg-slate-800/80 border border-slate-200/90 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-600 p-3.5 rounded-2xl flex flex-col justify-between shadow-2xs hover:shadow-md transition cursor-pointer group"
                                 >
                                   <div>
                                     <div className="flex items-center justify-between mb-2">
@@ -4567,36 +4737,41 @@ export default function App() {
                                           <IconComponent name={cat?.iconName || 'Grid'} className={style.text} />
                                         )}
                                       </div>
-                                      {service.is_verified && (
-                                        <span className="bg-blue-50 text-blue-800 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                                          <CheckCircle size={9} className="fill-blue-500 text-white" />
-                                          ভেরিফাইড
+                                      <div className="flex items-center gap-1.5">
+                                        {service.is_verified && (
+                                          <span className="bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                                            <CheckCircle size={9} className="fill-blue-500 text-white" />
+                                            ভেরিফাইড
+                                          </span>
+                                        )}
+                                        {/* Star Rating Badge */}
+                                        <span className="flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded-full border border-amber-200/80 dark:border-amber-800 text-[10px]">
+                                          <Star size={9} className="fill-amber-400 text-amber-400" />
+                                          <span>{serviceRatingMap[service.id]?.average ? serviceRatingMap[service.id].average.toFixed(1) : '৫.০'}</span>
                                         </span>
-                                      )}
+                                      </div>
                                     </div>
                                     <div className="flex items-center justify-between gap-1 mb-1">
-                                      <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold uppercase inline-block">
+                                      <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-bold uppercase inline-block">
                                         {cat?.name || 'সেবা'}
                                       </span>
-                                      {/* Star Rating Badge */}
-                                      <span className="flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded-full border border-amber-200/80 dark:border-amber-800 text-[10px]">
-                                        <Star size={9} className="fill-amber-400 text-amber-400" />
-                                        <span>{serviceRatingMap[service.id]?.average ? serviceRatingMap[service.id].average.toFixed(1) : '৫.০'}</span>
-                                        <span className="text-[8px] text-slate-400 font-normal">
-                                          ({serviceRatingMap[service.id]?.total || 0})
-                                        </span>
-                                      </span>
                                     </div>
-                                    <h3 className="text-xs font-extrabold text-slate-900 line-clamp-2 leading-tight">{service.name}</h3>
-                                    <p className="text-[10px] text-slate-500 line-clamp-1 mt-1">{service.address}</p>
+                                    <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-slate-100 line-clamp-1 leading-tight">{service.name}</h3>
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-1">{service.address}</p>
+                                    {service.phone && (
+                                      <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold mt-1 flex items-center gap-1">
+                                        <Phone size={10} />
+                                        <span>{service.phone}</span>
+                                      </p>
+                                    )}
                                   </div>
                                   
-                                  <div className="flex items-center justify-between text-[10px] text-slate-400 mt-3 pt-2 border-t border-slate-50">
-                                    <span className="flex items-center gap-0.5 truncate max-w-[80px]">
+                                  <div className="flex items-center justify-between text-[10px] text-slate-400 mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800">
+                                    <span className="flex items-center gap-1 truncate max-w-[120px]">
                                       <Clock size={10} className="text-emerald-700 shrink-0" />
-                                      <span className="truncate">{service.opening_hours}</span>
+                                      <span className="truncate">{service.opening_hours || 'সকাল ৯টা - রাত ৮টা'}</span>
                                     </span>
-                                    <span className="text-emerald-700 font-extrabold flex items-center gap-0.5 group-hover:translate-x-0.5 transition">
+                                    <span className="text-emerald-700 dark:text-emerald-400 font-extrabold flex items-center gap-0.5 group-hover:translate-x-0.5 transition">
                                       বিস্তারিত
                                       <ChevronRight size={11} />
                                     </span>
@@ -4615,23 +4790,38 @@ export default function App() {
 
             {/* TAB VIEW - SUBMIT INFORMATION */}
             {activeTab === 'add' && (
-              <div className="space-y-4">
+              <div className="space-y-4 max-w-4xl mx-auto w-full">
                 <div>
-                  <h2 className="text-base font-extrabold text-slate-900 font-serif">নতুন সেবার তথ্য যুক্ত করুন</h2>
-                  <p className="text-xs text-slate-500">আপনার এলাকায় তালিকাভুক্ত নয় এমন কোনো নতুন প্রতিষ্ঠান বা সেবার তথ্য দিন। আমাদের অ্যাডমিন প্যানেল এটি পর্যালোচনা করে প্রকাশ করবে।</p>
+                  <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-slate-100 font-serif">নতুন সেবার তথ্য যুক্ত করুন</h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">আপনার এলাকার যেকোনো নির্ভরযোগ্য প্রতিষ্ঠান বা সেবার তথ্য দিন। তথ্য জমা দেওয়ার সাথে সাথেই এটি সবার জন্য উন্মুক্ত হয়ে যাবে।</p>
                 </div>
 
                 {formSubmittedSuccess ? (
-                  <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-2xl text-center space-y-3">
-                    <CheckCircle className="text-emerald-700 mx-auto" size={44} />
-                    <h3 className="text-sm font-bold text-emerald-950">সফলভাবে তথ্য জমা দেওয়া হয়েছে!</h3>
-                    <p className="text-xs text-slate-600">আপনার সাবমিট করা তথ্য অ্যাডমিন প্যানেলের পর্যালোচনার অপেক্ষায় রয়েছে। খুব শীঘ্রই এটি ওয়েবসাইটে প্রকাশিত হবে।</p>
-                    <button
-                      onClick={() => setFormSubmittedSuccess(false)}
-                      className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2 px-6 rounded-xl text-xs transition"
-                    >
-                      আরো তথ্য যোগ করুন
-                    </button>
+                  <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-6 sm:p-8 rounded-2xl text-center space-y-3.5 shadow-sm animate-in zoom-in-95 duration-200">
+                    <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/60 rounded-full flex items-center justify-center mx-auto text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle size={36} />
+                    </div>
+                    <h3 className="text-base sm:text-lg font-bold text-emerald-950 dark:text-emerald-200">সেবাটি সফলভাবে যুক্ত ও প্রকাশিত হয়েছে!</h3>
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-md mx-auto">
+                      আপনার যোগ করা সেবাটি সংশ্লিষ্ট জেলা ও ক্যাটাগরির সবার জন্য সরাসরি তালিকায় প্রকাশ করা হয়েছে।
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2.5 justify-center pt-2">
+                      <button
+                        onClick={() => {
+                          setFormSubmittedSuccess(false);
+                          setActiveTab('services');
+                        }}
+                        className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2.5 px-6 rounded-xl text-xs sm:text-sm transition shadow-sm cursor-pointer"
+                      >
+                        তালিকায় এখনই দেখুন
+                      </button>
+                      <button
+                        onClick={() => setFormSubmittedSuccess(false)}
+                        className="bg-white dark:bg-slate-800 hover:bg-slate-100 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold py-2.5 px-6 rounded-xl text-xs sm:text-sm transition cursor-pointer"
+                      >
+                        আরেকটি সেবা যোগ করুন
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <form onSubmit={handleSubmitService} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
@@ -5327,10 +5517,10 @@ export default function App() {
 
 
 
-          {/* PERSISTENT BOTTOM NAVIGATION (Unified Structure) */}
+          {/* PERSISTENT BOTTOM NAVIGATION (Unified Structure for Mobile and Tablet) */}
           <nav
             id="main-bottom-navigation"
-            className="sticky bottom-0 left-0 right-0 w-full bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800/90 pt-1.5 px-0.5 flex justify-around items-center shrink-0 z-40 shadow-lg md:hidden"
+            className="sticky bottom-0 left-0 right-0 w-full bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800/90 pt-1.5 px-0.5 flex justify-around items-center shrink-0 z-40 shadow-lg lg:hidden"
             style={{
               paddingBottom: 'max(0.65rem, calc(env(safe-area-inset-bottom, 0px) + 0.35rem))',
             }}
