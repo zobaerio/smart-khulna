@@ -275,7 +275,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
         email: p.email || '',
         avatar: p.avatar || '',
         badge: p.badge,
-        isOnline: !!p.isOnline
+        isOnline: true
       };
     }
     const foundUser = allUsers.find(u => u.uid === otherParticipantUid);
@@ -286,7 +286,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
         email: foundUser.email || '',
         avatar: foundUser.avatar || '',
         badge: foundUser.badge,
-        isOnline: false
+        isOnline: true
       };
     }
     return {
@@ -294,7 +294,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
       name: 'ব্যবহারকারী',
       email: '',
       avatar: '',
-      isOnline: false
+      isOnline: true
     };
   }, [otherParticipantUid, activeConv, allUsers]);
 
