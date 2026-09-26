@@ -100,11 +100,11 @@ export const LuxuryNoticeTicker: React.FC<LuxuryNoticeTickerProps> = ({
 
           {/* Compact Sundarbans Bengal Tiger facing Left towards the text */}
           <div className="relative flex items-center justify-center">
-            <SundarbansTigerMascot
-              size={26}
-              facingLeft={true}
-              showTooltip={true}
-              className="drop-shadow-xs"
+            <img
+              src="https://images.unsplash.com/photo-1549480017-d7d4d4c6834d?w=200&q=80"
+              alt="Royal Bengal Tiger Mascot"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border-2 border-amber-400/80 shadow-md ring-1 ring-emerald-900"
+              title="সুন্দরবনের রয়্যাল বেঙ্গল টাইগার (স্মার্ট খুলনা)"
             />
           </div>
         </div>
