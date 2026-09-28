@@ -99,9 +99,9 @@ export const LuxuryNoticeTicker: React.FC<LuxuryNoticeTickerProps> = ({
           </div>
 
           {/* Compact Sundarbans Bengal Tiger facing Left towards the text */}
-          <div className="relative flex items-center justify-center">
+          <div className="relative flex items-center justify-center shrink-0 pr-0.5">
             <SundarbansTigerMascot
-              size={46}
+              size={26}
               facingLeft={true}
               showTooltip={true}
               className="drop-shadow-sm"

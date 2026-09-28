@@ -11,12 +11,13 @@ interface SundarbansTigerMascotProps {
 /**
  * Majestic Royal Bengal Tiger Mascot (রয়্যাল বেঙ্গল বাঘ 🐅)
  * 
- * - Original realistic Bengal tiger cutout with transparent background (mix-blend-mode: multiply)
- * - Significantly increased size (70-85% of announcement bar height) so it's prominent, not a tiny icon
- * - Vertically centered on the far right with smooth breathing animation
+ * - True Transparent PNG Cutout (alpha channel, zero white box, zero background)
+ * - Occupies ~75-85% of the ticker banner height without cropping or distortion
+ * - Natural Bengal tiger orientation (head facing left towards announcements)
+ * - Lightweight CSS breathing animation for subtle lifelike motion
  */
 export const SundarbansTigerMascot: React.FC<SundarbansTigerMascotProps> = ({
-  size = 42,
+  size = 26,
   className = '',
   showTooltip = false,
   facingLeft = true,
@@ -33,47 +34,52 @@ export const SundarbansTigerMascot: React.FC<SundarbansTigerMascotProps> = ({
     setTimeout(() => setShowBadge(false), 3200);
   };
 
+  const numericSize = typeof size === 'number' ? size : 26;
+  const heightPx = numericSize;
+  const widthPx = Math.round(numericSize * 1.08);
+
   return (
     <div
       id={id}
       onClick={handleTigerInteraction}
       onMouseEnter={() => setShowBadge(true)}
       onMouseLeave={() => !isManuallyRoaring && setShowBadge(false)}
-      className={`relative inline-flex items-center justify-center shrink-0 cursor-pointer select-none group ${className}`}
-      style={{ width: size, height: size }}
+      className={`relative inline-flex items-center justify-center shrink-0 cursor-pointer select-none bg-transparent ${className}`}
+      style={{
+        width: typeof size === 'number' ? `${widthPx}px` : size,
+        height: typeof size === 'number' ? `${heightPx}px` : size
+      }}
       title="সুন্দরবনের রয়্যাল বেঙ্গল টাইগার (🐅)"
       role="button"
       tabIndex={0}
       aria-label="রয়্যাল বেঙ্গল বাঘ মাসকট"
     >
-      {/* Interactive Roar Aura */}
-      {isManuallyRoaring && (
-        <div className="absolute -inset-1 rounded-full border-2 border-amber-400 animate-ping pointer-events-none" />
-      )}
-
-      {/* Floating Civic Badge */}
+      {/* Floating Civic Badge on Interaction */}
       {showTooltip && showBadge && (
-        <div className="absolute -top-8 right-0 sm:right-1/2 sm:translate-x-1/2 z-50 bg-slate-950 text-amber-300 text-[9px] font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap shadow-xl border border-amber-400/50 backdrop-blur-md animate-fade-in flex items-center gap-1 pointer-events-none">
+        <div 
+          className="absolute -top-8 right-0 sm:right-1/2 sm:translate-x-1/2 z-50 bg-slate-950 text-amber-300 text-[9px] font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap shadow-xl border border-amber-400/50 backdrop-blur-md animate-fade-in flex items-center gap-1 pointer-events-none"
+        >
           <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
           <span className="font-serif">রয়্যাল বেঙ্গল টাইগার 🐅</span>
         </div>
       )}
 
-      {/* Tiger Mascot Image with Breathing Animation */}
+      {/* Tiger Mascot Image with True Transparency & Breathing Animation */}
       <div 
         className={`w-full h-full flex items-center justify-center transition-transform duration-300 ${
           isManuallyRoaring ? 'scale-110 animate-bounce' : 'animate-tiger-breathe'
         }`}
         style={{
-          transform: facingLeft ? 'scaleX(-1)' : undefined,
+          transform: facingLeft ? undefined : 'scaleX(-1)',
           transformOrigin: 'center center'
         }}
       >
         <img
           src="/tiger_mascot.png"
-          alt="Smart Khulna Tiger Mascot"
-          className="w-full h-full object-contain select-none pointer-events-none"
-          style={{ mixBlendMode: 'multiply' }}
+          alt="Smart Khulna Royal Bengal Tiger"
+          className="w-full h-full object-contain select-none pointer-events-none bg-transparent"
+          loading="eager"
+          decoding="async"
         />
       </div>
 
@@ -83,7 +89,7 @@ export const SundarbansTigerMascot: React.FC<SundarbansTigerMascotProps> = ({
             transform: scale(1) translateY(0);
           }
           50% {
-            transform: scale(1.05) translateY(-1px);
+            transform: scale(1.05) translateY(-0.5px);
           }
         }
         .animate-tiger-breathe {
