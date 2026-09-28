@@ -125,7 +125,7 @@ import { usePWA } from './hooks/usePWA';
 import { OfflineBanner } from './components/OfflineBanner';
 import { OfflineSOSDirectoryModal } from './components/features/OfflineSOSDirectoryModal';
 import { ServiceReviewModal } from './components/features/ServiceReviewModal';
-import { getLocalReviews, computeServiceRatingStats } from './services/reviewService';
+import { getLocalReviews, computeServiceRatingStats, fetchAllServiceReviews, subscribeAllServiceReviews } from './services/reviewService';
 import { ServiceQR } from './components/ServiceQR';
 import { InstallPromptBanner } from './components/InstallPromptBanner';
 import { SplashScreen } from './components/SplashScreen';
@@ -406,6 +406,27 @@ export default function App() {
       [serviceId]: newStats
     }));
   };
+
+  // Sync real citizen reviews with live real-time updates to accurately populate rating badges
+  useEffect(() => {
+    const unsub = subscribeAllServiceReviews((allRev) => {
+      if (allRev && allRev.length > 0) {
+        const map: { [serviceId: string]: { average: number; total: number } } = {};
+        allRev.forEach(r => {
+          if (!map[r.serviceId]) {
+            const matches = allRev.filter(x => x.serviceId === r.serviceId);
+            const stats = computeServiceRatingStats(matches);
+            map[r.serviceId] = { average: stats.average, total: stats.total };
+          }
+        });
+        setServiceRatingMap(prev => ({ ...prev, ...map }));
+      }
+    });
+
+    return () => {
+      unsub();
+    };
+  }, []);
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -4743,10 +4764,18 @@ export default function App() {
                                           </span>
                                         )}
                                         {/* Star Rating Badge */}
-                                        <span className="flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded-full border border-amber-200/80 dark:border-amber-800 text-[10px]">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setReviewingService(service);
+                                          }}
+                                          title="নাগরিক রিভিউ ও রেটিং দিন / দেখুন"
+                                          className="flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900/60 px-1.5 py-0.5 rounded-full border border-amber-200/80 dark:border-amber-800 text-[10px] transition cursor-pointer active:scale-95"
+                                        >
                                           <Star size={9} className="fill-amber-400 text-amber-400" />
                                           <span>{serviceRatingMap[service.id]?.average ? serviceRatingMap[service.id].average.toFixed(1) : '৫.০'}</span>
-                                        </span>
+                                        </button>
                                       </div>
                                     </div>
                                     <div className="flex items-center justify-between gap-1 mb-1">
@@ -5924,7 +5953,16 @@ export default function App() {
         isOpen={!!reviewingService}
         onClose={() => setReviewingService(null)}
         service={reviewingService}
-        currentUser={currentUser}
+        currentUser={
+          userProfile
+            ? {
+                uid: currentUser?.uid || userProfile.uid,
+                displayName: userProfile.name || currentUser?.displayName || '',
+                email: userProfile.email || currentUser?.email || '',
+                photoURL: userProfile.avatar || currentUser?.photoURL || ''
+              }
+            : currentUser
+        }
         onReviewSubmitted={(newStats) => {
           if (reviewingService) {
             handleReviewSubmitted(reviewingService.id, newStats);

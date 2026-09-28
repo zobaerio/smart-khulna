@@ -41,8 +41,16 @@ import {
   X,
   Image as ImageIcon,
   Upload,
-  Camera
+  Camera,
+  Star,
+  ThumbsUp,
+  MessageSquare,
+  TrendingUp,
+  BarChart3,
+  PieChart,
+  ShieldCheck
 } from 'lucide-react';
+import { ServiceReview, fetchAllServiceReviews, subscribeAllServiceReviews, deleteServiceReview, computeServiceRatingStats } from '../services/reviewService';
 import { compressImage } from '../lib/imageCompressor';
 import { getSafeAvatarUrl } from '../lib/avatarHelper';
 import { collection, getDocs, doc, updateDoc, deleteDoc, query, orderBy, limit } from 'firebase/firestore';
@@ -165,7 +173,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
     if (onRemovePost) return onRemovePost(postId, 'অ্যাডমিন মডারেশন দ্বারা মুছে ফেলা');
   };
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'policy' | 'sub_admins' | 'users' | 'posts' | 'banners' | 'services' | 'submissions' | 'reports' | 'ai_tools' | 'downloads' | 'logs' | 'notices' | 'notifications'
+    'dashboard' | 'policy' | 'sub_admins' | 'users' | 'posts' | 'banners' | 'services' | 'reviews' | 'submissions' | 'reports' | 'ai_tools' | 'downloads' | 'logs' | 'notices' | 'notifications'
   >('dashboard');
 
   const isSuperAdmin = currentUserRole === 'super_admin';
@@ -277,6 +285,135 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
       if (e.target) e.target.value = '';
     }
   };
+
+  // State for Service Reviews Management & Analytics
+  const [allReviews, setAllReviews] = useState<ServiceReview[]>([]);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+  const [reviewViewMode, setReviewViewMode] = useState<'summary' | 'list'>('summary');
+  const [selectedSummaryCategory, setSelectedSummaryCategory] = useState<string>('all');
+  const [reviewSearchQuery, setReviewSearchQuery] = useState('');
+  const [reviewCategoryFilter, setReviewCategoryFilter] = useState('all');
+  const [reviewRatingFilter, setReviewRatingFilter] = useState('all');
+  const [reviewDistrictFilter, setReviewDistrictFilter] = useState('all');
+  const [reviewActionToast, setReviewActionToast] = useState<string | null>(null);
+
+  const loadAllReviews = async () => {
+    setIsLoadingReviews(true);
+    try {
+      const revs = await fetchAllServiceReviews();
+      setAllReviews(revs);
+    } catch (err) {
+      console.warn('Failed to load reviews in AdminPanel:', err);
+    } finally {
+      setIsLoadingReviews(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAllReviews();
+    const unsub = subscribeAllServiceReviews((revs) => {
+      setAllReviews(revs);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleDeleteReview = async (reviewId: string) => {
+    if (!window.confirm('আপনি কি নিশ্চিত যে এই রিভিউটি মুছে ফেলতে চান? এটি স্থায়ীভাবে ডিলিট হয়ে যাবে।')) return;
+    try {
+      await deleteServiceReview(reviewId);
+      setAllReviews(prev => prev.filter(r => r.id !== reviewId));
+      setReviewActionToast('রিভিউ সফলভাবে মুছে ফেলা হয়েছে!');
+      setTimeout(() => setReviewActionToast(null), 3000);
+    } catch (e) {
+      alert('রিভিউ মুছতে সমস্যা হয়েছে।');
+    }
+  };
+
+  // Category-wise Rating Distribution Analytics
+  const categoryAnalytics = React.useMemo(() => {
+    return categories.map(cat => {
+      const catServices = services.filter(s => s.category_id === cat.id);
+      const catServiceIds = new Set(catServices.map(s => s.id));
+      const catReviews = allReviews.filter(r => catServiceIds.has(r.serviceId));
+      const stats = computeServiceRatingStats(catReviews);
+
+      return {
+        category: cat,
+        servicesCount: catServices.length,
+        reviewsCount: catReviews.length,
+        average: catReviews.length > 0 ? stats.average : 0,
+        distribution: stats.distribution
+      };
+    }).sort((a, b) => b.reviewsCount - a.reviewsCount);
+  }, [categories, services, allReviews]);
+
+  // Overall Star Distribution Analytics
+  const overallRatingStats = React.useMemo(() => {
+    return computeServiceRatingStats(allReviews);
+  }, [allReviews]);
+
+  // Top Rated & Lowest Rated Services Analytics
+  const serviceRatingsSummary = React.useMemo(() => {
+    const list = services.map(s => {
+      const sReviews = allReviews.filter(r => r.serviceId === s.id);
+      const stats = computeServiceRatingStats(sReviews);
+      return {
+        service: s,
+        reviewsCount: sReviews.length,
+        average: sReviews.length > 0 ? stats.average : 0,
+        distribution: stats.distribution
+      };
+    }).filter(x => x.reviewsCount > 0);
+
+    const sortedByRating = [...list].sort((a, b) => b.average - a.average || b.reviewsCount - a.reviewsCount);
+    const topRated = sortedByRating.slice(0, 4);
+    const lowestRated = [...list].sort((a, b) => a.average - b.average).slice(0, 4);
+
+    return { topRated, lowestRated, totalRatedServices: list.length };
+  }, [services, allReviews]);
+
+  // Filtered Reviews for Moderation Feed
+  const filteredReviews = React.useMemo(() => {
+    return allReviews.filter(r => {
+      const targetService = services.find(s => s.id === r.serviceId);
+
+      // Category filter
+      if (reviewCategoryFilter !== 'all') {
+        if (!targetService || targetService.category_id !== reviewCategoryFilter) {
+          return false;
+        }
+      }
+
+      // District filter
+      if (reviewDistrictFilter !== 'all') {
+        if (!targetService || targetService.district_id !== reviewDistrictFilter) {
+          return false;
+        }
+      }
+
+      // Star filter
+      if (reviewRatingFilter !== 'all') {
+        const star = Math.round(r.rating);
+        if (star !== Number(reviewRatingFilter)) {
+          return false;
+        }
+      }
+
+      // Search query
+      if (reviewSearchQuery.trim()) {
+        const q = reviewSearchQuery.toLowerCase();
+        const matchesName = (r.userName || '').toLowerCase().includes(q);
+        const matchesComment = (r.comment || '').toLowerCase().includes(q);
+        const matchesService = (targetService?.name || '').toLowerCase().includes(q);
+        const matchesTags = (r.tags || []).some(t => t.toLowerCase().includes(q));
+        if (!matchesName && !matchesComment && !matchesService && !matchesTags) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [allReviews, services, reviewCategoryFilter, reviewDistrictFilter, reviewRatingFilter, reviewSearchQuery]);
 
   // State for Post Management
   const [postSearchQuery, setPostSearchQuery] = useState('');
@@ -681,6 +818,18 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
         </button>
 
         <button
+          onClick={() => setActiveTab('reviews')}
+          className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+            activeTab === 'reviews'
+              ? 'bg-amber-600 text-white shadow-xs font-bold'
+              : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 font-medium'
+          }`}
+        >
+          <Star size={14} className={activeTab === 'reviews' ? 'fill-white text-white' : 'fill-amber-500 text-amber-500'} />
+          <span>সার্ভিস রিভিউ ও রেটিং ({allReviews.length})</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('submissions')}
           className={`px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
             activeTab === 'submissions'
@@ -753,7 +902,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
       {activeTab === 'dashboard' && (
         <div className="space-y-5">
           {/* Key Metrics Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
               <span className="text-xs font-medium text-slate-500 block">মোট নিবন্ধিত ইউজার</span>
               <span className="text-2xl font-black text-slate-900 mt-1 block font-serif">
@@ -778,6 +927,30 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                 {services.length}
               </span>
               <span className="text-[10px] text-blue-600 font-bold mt-1 block">জরুরি ও নাগরিক সেবা</span>
+            </div>
+
+            <div 
+              onClick={() => {
+                setActiveTab('reviews');
+                setReviewViewMode('summary');
+              }}
+              className="bg-amber-50/80 border border-amber-200 rounded-2xl p-4 cursor-pointer hover:bg-amber-100/60 transition group"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-amber-900 block">সার্ভিস রিভিউ ও রেটিং</span>
+                <Star size={13} className="fill-amber-500 text-amber-500" />
+              </div>
+              <div className="flex items-baseline gap-1.5 mt-1">
+                <span className="text-2xl font-black text-amber-950 font-serif">
+                  {allReviews.length}
+                </span>
+                <span className="text-xs font-bold text-amber-800">
+                  ({overallRatingStats.total > 0 ? `${overallRatingStats.average}★` : '৫.০★'})
+                </span>
+              </div>
+              <span className="text-[10px] text-amber-700 font-bold mt-1 block group-hover:underline">
+                চার্ট ও বিশ্লেষণ দেখুন →
+              </span>
             </div>
 
             <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4">
@@ -1558,6 +1731,34 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
       {/* 5. DISTRICT & SERVICES CMS */}
       {activeTab === 'services' && (
         <div className="space-y-4">
+          {/* Quick link banner to Reviews & Ratings Analytics */}
+          <div className="bg-gradient-to-r from-amber-50 via-amber-100/50 to-emerald-50 border border-amber-200/90 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Star size={18} className="fill-white" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <span>নাগরিক রিভিউ ও রেটিং ড্যাশবোর্ড</span>
+                  <span className="bg-amber-200/80 text-amber-950 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                    {allReviews.length} টি নাগরিক রিভিউ
+                  </span>
+                </h4>
+                <p className="text-[11px] text-slate-600 mt-0.5">
+                  ক্যাটাগরি-ভিত্তিক রেটিং বিশ্লেষণ, স্টার ডিস্ট্রিবিউশন চার্ট ও নাগরিক মতামত পরিচালনা করুন
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab('reviews')}
+              className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer shrink-0"
+            >
+              <BarChart3 size={13} />
+              <span>রিভিউ অ্যানালিটিক্স চার্ট দেখুন</span>
+            </button>
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-2 justify-between">
             <div className="relative flex-1">
               <Search size={15} className="absolute left-3 top-2.5 text-slate-400" />
@@ -2020,7 +2221,780 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
         </div>
       )}
 
-      {/* 6. SERVICE SUBMISSIONS / APPROVAL WORKFLOW */}
+      {/* 5.5 SERVICE REVIEWS & RATINGS ANALYTICS SUMMARY DASHBOARD */}
+      {activeTab === 'reviews' && (
+        <div className="space-y-6 animate-fade-in">
+          {/* Action Toast Notification */}
+          {reviewActionToast && (
+            <div className="p-3 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-bold flex items-center justify-between shadow-xs">
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 size={15} className="text-emerald-700" />
+                {reviewActionToast}
+              </span>
+              <button onClick={() => setReviewActionToast(null)} className="text-emerald-800 hover:text-emerald-950">
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
+          {/* Header & Refresh Section */}
+          <div className="bg-gradient-to-r from-amber-900 via-emerald-950 to-slate-950 text-white p-5 rounded-3xl shadow-sm border border-amber-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="p-1.5 bg-amber-500/20 text-amber-300 rounded-lg border border-amber-400/30">
+                  <Star size={16} className="fill-amber-400" />
+                </span>
+                <h3 className="text-base font-bold font-serif">সার্ভিস রিভিউ ও সিটিজেন রেটিং অ্যানালিটিক্স</h3>
+              </div>
+              <p className="text-xs text-amber-100/80">
+                খুলনা বিভাগের সকল সরকারি, জরুরি ও নাগরিক সেবার রেটিং বিশ্লেষণ, ক্যাটাগরি বণ্টন ও সিটিজেন ফিডব্যাক
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={loadAllReviews}
+                disabled={isLoadingReviews}
+                className="px-3.5 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer backdrop-blur-xs disabled:opacity-50"
+              >
+                <RefreshCw size={13} className={isLoadingReviews ? 'animate-spin' : ''} />
+                <span>{isLoadingReviews ? 'লোড হচ্ছে...' : 'রিভিউ রিফ্রেশ'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Sub-View Navigation Switcher */}
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-2.5 rounded-2xl border border-slate-200 shadow-2xs">
+            <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setReviewViewMode('summary')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  reviewViewMode === 'summary'
+                    ? 'bg-white text-emerald-900 shadow-xs border border-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <BarChart3 size={15} className="text-emerald-700" />
+                <span>📊 সামারি ভিউ ও চার্ট অ্যানালিটিক্স (Summary View)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setReviewViewMode('list')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  reviewViewMode === 'list'
+                    ? 'bg-white text-emerald-900 shadow-xs border border-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <MessageSquare size={15} className="text-amber-500" />
+                <span>📋 নাগরিক রিভিউ তালিকা ও মডারেশন ({allReviews.length})</span>
+              </button>
+            </div>
+
+            <span className="text-[11px] text-slate-500 font-medium px-2">
+              {reviewViewMode === 'summary' 
+                ? 'খাতভিত্তিক নাগরিক সন্তুষ্টি ও স্টার বণ্টন চার্ট' 
+                : `মোট ${filteredReviews.length} টি রিভিউ ফিল্টার করা হয়েছে`}
+            </span>
+          </div>
+
+          {/* VIEW MODE 1: SUMMARY VIEW & CHARTS */}
+          {reviewViewMode === 'summary' && (
+            <div className="space-y-6">
+              {/* Key Metrics KPI Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+                  <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+                    <span>মোট নাগরিক রিভিউ</span>
+                    <MessageSquare size={14} className="text-amber-500" />
+                  </div>
+                  <span className="text-2xl font-black text-slate-900 mt-1 block font-serif">
+                    {allReviews.length}
+                  </span>
+                  <span className="text-[10px] text-emerald-700 font-bold mt-1 inline-flex items-center gap-1">
+                    <ShieldCheck size={12} /> {allReviews.filter(r => r.verifiedCitizen).length} টি ভেরিফাইড নাগরিক
+                  </span>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+                  <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+                    <span>সামগ্রিক গড় রেটিং</span>
+                    <Star size={14} className="fill-amber-400 text-amber-500" />
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-2xl font-black text-amber-700 font-serif">
+                      {overallRatingStats.total > 0 ? overallRatingStats.average.toFixed(1) : '৫.০'}
+                    </span>
+                    <span className="text-xs text-slate-400 font-bold">/ ৫.০</span>
+                  </div>
+                  <div className="flex items-center gap-0.5 mt-1 text-amber-400">
+                    {[1, 2, 3, 4, 5].map(s => (
+                      <Star
+                        key={s}
+                        size={11}
+                        className={s <= Math.round(overallRatingStats.average || 5) ? 'fill-amber-400' : 'text-slate-200'}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+                  <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+                    <span>রেটিংপ্রাপ্ত মোট সার্ভিস</span>
+                    <Building2 size={14} className="text-blue-500" />
+                  </div>
+                  <span className="text-2xl font-black text-blue-800 mt-1 block font-serif">
+                    {serviceRatingsSummary.totalRatedServices}
+                  </span>
+                  <span className="text-[10px] text-slate-500 mt-1 block">
+                    মোট {services.length} টির মধ্যে
+                  </span>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+                  <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+                    <span>ইতিবাচক রেটিং হার</span>
+                    <TrendingUp size={14} className="text-emerald-600" />
+                  </div>
+                  <span className="text-2xl font-black text-emerald-700 mt-1 block font-serif">
+                    {overallRatingStats.total > 0 
+                      ? Math.round(((overallRatingStats.distribution[5] + overallRatingStats.distribution[4]) / overallRatingStats.total) * 100) 
+                      : 100}%
+                  </span>
+                  <span className="text-[10px] text-emerald-700 font-bold mt-1 block">
+                    ৪★ ও ৫★ স্টার রেটিং
+                  </span>
+                </div>
+              </div>
+
+              {/* Section 1: Category Average Rating Comparison Bar Chart */}
+              <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <BarChart3 size={16} className="text-emerald-700" />
+                      <span>ক্যাটাগরি-ভিত্তিক গড় রেটিং তুলনা চার্ট (Category Rating Comparison)</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      প্রতিটি সেবামূলক খাতের গড় স্কোর ও নাগরিক সন্তুষ্টির আপেক্ষিক তুলনা (স্কেল: ১.০ - ৫.০★)
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-200 self-start sm:self-auto">
+                    {categories.length} টি ক্যাটাগরি তালিকাভুক্ত
+                  </span>
+                </div>
+
+                {/* Horizontal Comparison Bar Chart for each Category */}
+                <div className="space-y-3 pt-1">
+                  {categoryAnalytics.map(item => {
+                    const avg = item.reviewsCount > 0 ? item.average : 5.0;
+                    const pct = Math.min(100, Math.max(10, (avg / 5.0) * 100));
+                    const isTopScore = avg >= 4.5;
+                    const isModerate = avg >= 3.5 && avg < 4.5;
+
+                    return (
+                      <div 
+                        key={item.category.id} 
+                        className="p-3 rounded-2xl bg-slate-50/70 hover:bg-slate-50 border border-slate-200/80 transition"
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="w-6 h-6 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-xs shrink-0 shadow-3xs">
+                              {(item.category as any).icon || '🏛️'}
+                            </span>
+                            <span className="text-xs font-bold text-slate-900 truncate">
+                              {item.category.name}
+                            </span>
+                            <span className="text-[10px] text-slate-500 hidden sm:inline">
+                              ({item.servicesCount} টি সেবা | {item.reviewsCount} টি রিভিউ)
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[11px] font-bold text-slate-600 font-mono">
+                              {item.reviewsCount > 0 ? `${item.average.toFixed(1)} / ৫.০` : 'নতুন (৫.০)'}
+                            </span>
+                            <div className="flex items-center gap-0.5 text-amber-500 bg-white px-2 py-0.5 rounded-lg border border-slate-200 shadow-3xs text-[11px] font-black">
+                              <Star size={11} className="fill-amber-400 text-amber-500" />
+                              <span>{item.reviewsCount > 0 ? item.average.toFixed(1) : '৫.০'}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedSummaryCategory(item.category.id);
+                                setReviewCategoryFilter(item.category.id);
+                              }}
+                              className="text-[10px] font-bold text-emerald-800 hover:text-emerald-950 hover:underline px-2 py-1 rounded bg-white border border-slate-200 shadow-3xs cursor-pointer"
+                            >
+                              ডিপ-ডাইভ →
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Progress Bar Gauge */}
+                        <div className="h-3 w-full bg-slate-200 rounded-full overflow-hidden p-0.5 shadow-inner">
+                          <div
+                            style={{ width: `${pct}%` }}
+                            className={`h-full rounded-full transition-all duration-700 ${
+                              isTopScore 
+                                ? 'bg-gradient-to-r from-emerald-600 to-teal-500' 
+                                : isModerate 
+                                ? 'bg-gradient-to-r from-amber-500 to-emerald-500' 
+                                : 'bg-gradient-to-r from-rose-500 to-orange-500'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Section 2: Category-wise Rating Distribution Stacked Grid */}
+              <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <PieChart size={16} className="text-amber-500" />
+                      <span>ক্যাটাগরি-ভিত্তিক ৫-স্টার রেটিং বণ্টন চিত্র (5★ to 1★ Rating Distribution)</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      প্রতিটি খাতের ৫★ থেকে ১★ রেটিংয়ের নিখুঁত বণ্টন ও শতাংশ
+                    </p>
+                  </div>
+                  {reviewCategoryFilter !== 'all' && (
+                    <button
+                      type="button"
+                      onClick={() => setReviewCategoryFilter('all')}
+                      className="text-xs text-rose-600 font-bold hover:underline self-start sm:self-auto cursor-pointer"
+                    >
+                      ক্যাটাগরি ফিল্টার ক্লিয়ার করুন ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Category Chart Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  {categoryAnalytics.map(item => {
+                    const totalCatRev = item.reviewsCount;
+                    const dist = item.distribution;
+                    const p5 = totalCatRev > 0 ? (dist[5] / totalCatRev) * 100 : 0;
+                    const p4 = totalCatRev > 0 ? (dist[4] / totalCatRev) * 100 : 0;
+                    const p3 = totalCatRev > 0 ? (dist[3] / totalCatRev) * 100 : 0;
+                    const p2 = totalCatRev > 0 ? (dist[2] / totalCatRev) * 100 : 0;
+                    const p1 = totalCatRev > 0 ? (dist[1] / totalCatRev) * 100 : 0;
+                    const isSelected = selectedSummaryCategory === item.category.id;
+
+                    return (
+                      <div
+                        key={item.category.id}
+                        className={`p-4 rounded-2xl border transition ${
+                          isSelected
+                            ? 'bg-amber-50/70 border-amber-300 ring-2 ring-amber-400/30'
+                            : 'bg-slate-50/70 hover:bg-slate-50 border-slate-200'
+                        }`}
+                      >
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-sm shrink-0 shadow-3xs">
+                              {(item.category as any).icon || '🏛️'}
+                            </span>
+                            <div className="min-w-0">
+                              <span className="font-bold text-xs text-slate-900 block truncate">
+                                {item.category.name}
+                              </span>
+                              <span className="text-[10px] text-slate-500 block">
+                                {item.servicesCount} টি সেবা | {item.reviewsCount} টি রিভিউ
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Score Badge */}
+                          <div className="text-right shrink-0">
+                            <div className="flex items-center gap-1 bg-white px-2 py-0.5 rounded-lg border border-slate-200 shadow-3xs">
+                              <Star size={11} className="fill-amber-400 text-amber-500" />
+                              <span className="text-xs font-black text-slate-800">
+                                {item.reviewsCount > 0 ? item.average.toFixed(1) : '৫.০'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Segmented Multi-Color Stacked Rating Bar */}
+                        <div className="space-y-1 pt-1">
+                          <div className="h-3 w-full bg-slate-200 rounded-full overflow-hidden flex shadow-inner">
+                            {totalCatRev === 0 ? (
+                              <div className="h-full w-full bg-emerald-500/20 text-emerald-800 text-[8px] flex items-center justify-center font-bold">
+                                ডিফল্ট শীর্ষ মান (১০০% সন্তোষজনক)
+                              </div>
+                            ) : (
+                              <>
+                                {p5 > 0 && (
+                                  <div
+                                    style={{ width: `${p5}%` }}
+                                    className="h-full bg-emerald-600 transition-all duration-500"
+                                    title={`৫ স্টার: ${dist[5]} টি (${Math.round(p5)}%)`}
+                                  />
+                                )}
+                                {p4 > 0 && (
+                                  <div
+                                    style={{ width: `${p4}%` }}
+                                    className="h-full bg-emerald-400 transition-all duration-500"
+                                    title={`৪ স্টার: ${dist[4]} টি (${Math.round(p4)}%)`}
+                                  />
+                                )}
+                                {p3 > 0 && (
+                                  <div
+                                    style={{ width: `${p3}%` }}
+                                    className="h-full bg-amber-400 transition-all duration-500"
+                                    title={`৩ স্টার: ${dist[3]} টি (${Math.round(p3)}%)`}
+                                  />
+                                )}
+                                {p2 > 0 && (
+                                  <div
+                                    style={{ width: `${p2}%` }}
+                                    className="h-full bg-orange-400 transition-all duration-500"
+                                    title={`২ স্টার: ${dist[2]} টি (${Math.round(p2)}%)`}
+                                  />
+                                )}
+                                {p1 > 0 && (
+                                  <div
+                                    style={{ width: `${p1}%` }}
+                                    className="h-full bg-rose-500 transition-all duration-500"
+                                    title={`১ স্টার: ${dist[1]} টি (${Math.round(p1)}%)`}
+                                  />
+                                )}
+                              </>
+                            )}
+                          </div>
+
+                          {/* Legend / Star Counter Pills */}
+                          <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 flex-wrap gap-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="flex items-center gap-0.5 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block" />
+                                <span>৫★ ({dist[5]})</span>
+                              </span>
+                              <span className="flex items-center gap-0.5 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                                <span>৪★ ({dist[4]})</span>
+                              </span>
+                              <span className="flex items-center gap-0.5 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+                                <span>৩★ ({dist[3]})</span>
+                              </span>
+                              <span className="flex items-center gap-0.5 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-orange-400 inline-block" />
+                                <span>২★ ({dist[2]})</span>
+                              </span>
+                              <span className="flex items-center gap-0.5 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
+                                <span>১★ ({dist[1]})</span>
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReviewCategoryFilter(item.category.id);
+                                setReviewViewMode('list');
+                              }}
+                              className="font-bold text-emerald-800 hover:underline cursor-pointer text-[10px] ml-auto"
+                            >
+                              রিভিউগুলো দেখুন ({item.reviewsCount}) →
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Section 3: Interactive Category Deep Dive Section */}
+              {(() => {
+                const activeCatData = categoryAnalytics.find(c => c.category.id === selectedSummaryCategory) || categoryAnalytics[0];
+                if (!activeCatData) return null;
+                const catServices = services.filter(s => s.category_id === activeCatData.category.id);
+                const catServicesRated = catServices.map(s => {
+                  const sRevs = allReviews.filter(r => r.serviceId === s.id);
+                  return { service: s, ...computeServiceRatingStats(sRevs) };
+                }).sort((a, b) => b.average - a.average || b.total - a.total);
+
+                return (
+                  <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          নির্বাচিত ক্যাটাগরি বিশ্লেষণ
+                        </span>
+                        <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2 mt-1">
+                          <span>{(activeCatData.category as any).icon || '🏛️'}</span>
+                          <span>{activeCatData.category.name} - বিস্তারিত সেবামূলক রেটিং চিত্র</span>
+                        </h4>
+                      </div>
+
+                      {/* Category Switcher Dropdown */}
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={selectedSummaryCategory}
+                          onChange={e => setSelectedSummaryCategory(e.target.value)}
+                          className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 cursor-pointer"
+                        >
+                          {categories.map(c => (
+                            <option key={c.id} value={c.id}>
+                              {(c as any).icon ? `${(c as any).icon} ` : ''}{c.name}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReviewCategoryFilter(activeCatData.category.id);
+                            setReviewViewMode('list');
+                          }}
+                          className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                        >
+                          <MessageSquare size={13} />
+                          <span>রিভিউ ফিড</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Category Services Rating Table */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {catServicesRated.slice(0, 6).map(item => (
+                        <div key={item.service.id} className="bg-slate-50/70 p-3 rounded-2xl border border-slate-200/80 flex items-center justify-between">
+                          <div className="min-w-0 pr-2">
+                            <span className="text-xs font-bold text-slate-900 block truncate">
+                              {item.service.name}
+                            </span>
+                            <span className="text-[10px] text-slate-500 block">
+                              {item.total > 0 ? `${item.total} টি নাগরিক রিভিউ` : 'এখনো রিভিউ জমা হয়নি'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-xl border border-slate-200 shrink-0 shadow-3xs">
+                            <Star size={11} className="fill-amber-400 text-amber-500" />
+                            <span className="text-xs font-black text-slate-800 font-mono">
+                              {item.total > 0 ? item.average.toFixed(1) : '৫.০'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Section 4: Overall Star Breakdown & Top Rated Highlights */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Overall Star Breakdown Bar Chart */}
+                <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-3.5 lg:col-span-1">
+                  <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                    <PieChart size={14} className="text-amber-500" />
+                    <span>সামগ্রিক স্টার রেটিং বণ্টন</span>
+                  </h4>
+
+                  <div className="space-y-2.5">
+                    {[5, 4, 3, 2, 1].map(starNum => {
+                      const count = overallRatingStats.distribution[starNum as 1 | 2 | 3 | 4 | 5] || 0;
+                      const pct = overallRatingStats.total > 0 ? Math.round((count / overallRatingStats.total) * 100) : 0;
+                      const colors = {
+                        5: 'bg-emerald-600',
+                        4: 'bg-emerald-400',
+                        3: 'bg-amber-400',
+                        2: 'bg-orange-400',
+                        1: 'bg-rose-500'
+                      };
+
+                      return (
+                        <div key={starNum} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs font-medium text-slate-700">
+                            <span className="flex items-center gap-1 font-bold">
+                              <span>{starNum}</span>
+                              <Star size={11} className="fill-amber-400 text-amber-500" />
+                            </span>
+                            <span className="text-[11px] text-slate-500 font-mono">
+                              {count} টি ({pct}%)
+                            </span>
+                          </div>
+                          <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full ${colors[starNum as keyof typeof colors]} transition-all duration-500 rounded-full`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Top Rated & Needs Improvement Services */}
+                <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-3.5 lg:col-span-2">
+                  <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                    <Award size={14} className="text-amber-600" />
+                    <span>শীর্ষ রেটেড সার্ভিস ও দৃষ্টি আকর্ষণকারী প্রতিষ্ঠান</span>
+                  </h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Top Rated */}
+                    <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-3.5 space-y-2">
+                      <span className="text-xs font-bold text-emerald-950 flex items-center gap-1">
+                        🏆 সর্বোচ্চ রেটেড সেবা
+                      </span>
+                      {serviceRatingsSummary.topRated.length === 0 ? (
+                        <p className="text-xs text-slate-400 py-3 text-center">এখনো কোনো রেটিং নেই</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {serviceRatingsSummary.topRated.map(item => (
+                            <div key={item.service.id} className="bg-white p-2.5 rounded-xl border border-emerald-100 flex items-center justify-between shadow-3xs">
+                              <div className="min-w-0 pr-2">
+                                <span className="text-xs font-bold text-slate-900 block truncate">
+                                  {item.service.name}
+                                </span>
+                                <span className="text-[10px] text-slate-500 block">
+                                  {item.reviewsCount} টি রিভিউ
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200 shrink-0">
+                                <Star size={11} className="fill-amber-400 text-amber-500" />
+                                <span className="text-xs font-black text-emerald-900 font-mono">
+                                  {item.average.toFixed(1)}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Attention Needed / Low Rating */}
+                    <div className="bg-amber-50/60 border border-amber-200 rounded-2xl p-3.5 space-y-2">
+                      <span className="text-xs font-bold text-amber-950 flex items-center gap-1">
+                        ⚠️ সেবার মানোন্নয়ন প্রয়োজন
+                      </span>
+                      {serviceRatingsSummary.lowestRated.filter(x => x.average < 4.0).length === 0 ? (
+                        <div className="bg-white p-4 rounded-xl border border-amber-100 text-center py-6">
+                          <CheckCircle2 size={24} className="text-emerald-600 mx-auto mb-1" />
+                          <p className="text-xs font-bold text-slate-800">সব সেবার গড় রেটিং সন্তোষজনক!</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5">কোনো সেবায় নিম্ন রেটিং পাওয়া যায়নি।</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {serviceRatingsSummary.lowestRated.filter(x => x.average < 4.0).map(item => (
+                            <div key={item.service.id} className="bg-white p-2.5 rounded-xl border border-amber-100 flex items-center justify-between shadow-3xs">
+                              <div className="min-w-0 pr-2">
+                                <span className="text-xs font-bold text-slate-900 block truncate">
+                                  {item.service.name}
+                                </span>
+                                <span className="text-[10px] text-rose-600 font-bold block">
+                                  {item.reviewsCount} টি রিভিউতে নিম্ন স্কোর
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200 shrink-0">
+                                <Star size={11} className="fill-rose-400 text-rose-500" />
+                                <span className="text-xs font-black text-rose-900 font-mono">
+                                  {item.average.toFixed(1)}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VIEW MODE 2: REVIEWS LIST & MODERATION FEED */}
+          {reviewViewMode === 'list' && (
+            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <MessageSquare size={16} className="text-amber-500" />
+                    <span>নাগরিক রিভিউ ও মতামত মডারেশন ফিড ({filteredReviews.length})</span>
+                  </h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    আসল নাগরিকদের দেওয়া রিভিউ পর্যালোচনা করুন এবং অযাচিত বা স্প্যাম রিভিউ মুছে ফেলুন
+                  </p>
+                </div>
+              </div>
+
+              {/* Filter Controls Bar */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                <div className="relative sm:col-span-1">
+                  <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={reviewSearchQuery}
+                    onChange={e => setReviewSearchQuery(e.target.value)}
+                    placeholder="নাগরিক নাম, সেবা বা মন্তব্য..."
+                    className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  />
+                </div>
+
+                <select
+                  value={reviewCategoryFilter}
+                  onChange={e => setReviewCategoryFilter(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-700 cursor-pointer"
+                >
+                  <option value="all">সকল ক্যাটাগরি</option>
+                  {categories.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {(c as any).icon ? `${(c as any).icon} ` : ''}{c.name}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={reviewDistrictFilter}
+                  onChange={e => setReviewDistrictFilter(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-700 cursor-pointer"
+                >
+                  <option value="all">সকল জেলা</option>
+                  {districts.map(d => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={reviewRatingFilter}
+                  onChange={e => setReviewRatingFilter(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-700 cursor-pointer"
+                >
+                  <option value="all">সকল স্টার রেটিং</option>
+                  <option value="5">৫ স্টার (চমৎকার)</option>
+                  <option value="4">৪ স্টার (ভালো)</option>
+                  <option value="3">৩ স্টার (মোটামুটি)</option>
+                  <option value="2">২ স্টার (সন্তোষজনক নয়)</option>
+                  <option value="1">১ স্টার (খারাপ)</option>
+                </select>
+              </div>
+
+              {/* Reviews Cards List */}
+              {filteredReviews.length === 0 ? (
+                <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-100 text-slate-400 text-xs">
+                  কোনো রিভিউ পাওয়া যায়নি। ফিল্টার পরিবর্তন করে পুনরায় চেষ্টা করুন।
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredReviews.map(rev => {
+                    const targetService = services.find(s => s.id === rev.serviceId);
+                    const targetCat = categories.find(c => c.id === targetService?.category_id);
+                    const targetDist = districts.find(d => d.id === targetService?.district_id);
+
+                    return (
+                      <div
+                        key={rev.id}
+                        className="bg-slate-50/70 hover:bg-slate-50 border border-slate-200 rounded-2xl p-4 transition space-y-2.5"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                          {/* Reviewer & Service Info */}
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden border border-emerald-200">
+                              {rev.userAvatar ? (
+                                <img src={rev.userAvatar} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                (rev.userName || 'ন')[0]
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-xs text-slate-900">
+                                  {rev.userName || 'সম্মানিত নাগরিক'}
+                                </span>
+                                {rev.verifiedCitizen && (
+                                  <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded-md inline-flex items-center gap-0.5">
+                                    <ShieldCheck size={10} /> ভেরিফাইড নাগরিক
+                                  </span>
+                                )}
+                                <span className="text-[10px] text-slate-400">
+                                  • {new Date(rev.createdAt).toLocaleDateString('bn-BD', { year: 'numeric', month: 'short', day: 'numeric' })}
+                                </span>
+                              </div>
+
+                              {/* Service and District tags */}
+                              <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-slate-600 flex-wrap">
+                                <span className="font-bold text-emerald-900">
+                                  🏛️ {targetService?.name || 'সেবা ID: ' + rev.serviceId}
+                                </span>
+                                {targetCat && (
+                                  <span className="bg-white px-2 py-0.5 rounded-md border border-slate-200 text-[10px]">
+                                    {(targetCat as any)?.icon ? `${(targetCat as any).icon} ` : ''}{targetCat.name}
+                                  </span>
+                                )}
+                                {targetDist && (
+                                  <span className="bg-white px-2 py-0.5 rounded-md border border-slate-200 text-[10px]">
+                                    📍 {targetDist.name}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Stars & Moderation Delete Button */}
+                          <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-1 sm:pt-0">
+                            <div className="flex items-center gap-0.5 text-amber-400 bg-white px-2 py-1 rounded-xl border border-slate-200 shadow-3xs">
+                              {[1, 2, 3, 4, 5].map(s => (
+                                <Star
+                                  key={s}
+                                  size={12}
+                                  className={s <= rev.rating ? 'fill-amber-400' : 'text-slate-200'}
+                                />
+                              ))}
+                              <span className="text-xs font-black text-slate-800 ml-1 font-mono">
+                                {rev.rating}.0
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteReview(rev.id)}
+                              title="রিভিউ ডিলিট করুন"
+                              className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition border border-rose-200 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                            >
+                              <Trash2 size={13} />
+                              <span className="text-[11px]">মুছুন</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Comment text */}
+                        <p className="text-xs text-slate-800 bg-white p-3 rounded-xl border border-slate-200/80 leading-relaxed">
+                          "{rev.comment}"
+                        </p>
+
+                        {/* Tags */}
+                        {rev.tags && rev.tags.length > 0 && (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {rev.tags.map(t => (
+                              <span
+                                key={t}
+                                className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-medium"
+                              >
+                                #{t}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       {activeTab === 'submissions' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">

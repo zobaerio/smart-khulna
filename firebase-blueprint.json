@@ -220,9 +220,34 @@
         "lastDonation": { "type": "string" }
       },
       "required": ["id", "userId", "name", "bloodGroup", "district", "phone"]
+    },
+    "ServiceReview": {
+      "title": "ServiceReview",
+      "description": "Citizen rating and feedback for public or emergency services",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "serviceId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userAvatar": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "verifiedCitizen": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "serviceId", "userId", "userName", "rating", "comment", "createdAt"]
     }
   },
   "firestore": {
+    "/service_reviews/{reviewId}": {
+      "schema": "ServiceReview",
+      "description": "Citizen ratings and reviews with public read, open create, and author or admin moderation"
+    },
     "/blood_donors/{donorId}": {
       "schema": "BloodDonor",
       "description": "Voluntary blood donors list accessible publicly for emergency blood search"

@@ -16,6 +16,7 @@ import { Service } from '../../dbData';
 import {
   ServiceReview,
   fetchServiceReviews,
+  subscribeServiceReviews,
   submitServiceReview,
   computeServiceRatingStats
 } from '../../services/reviewService';
@@ -65,18 +66,36 @@ export const ServiceReviewModal: React.FC<ServiceReviewModalProps> = ({
   const [successToast, setSuccessToast] = useState(false);
 
   useEffect(() => {
-    if (currentUser?.displayName && !reviewerName) {
+    if (currentUser?.displayName) {
       setReviewerName(currentUser.displayName);
+    } else {
+      try {
+        const cached = localStorage.getItem('smart_khulna_reviewer_name');
+        if (cached && !reviewerName) {
+          setReviewerName(cached);
+        }
+      } catch (e) {}
     }
   }, [currentUser]);
 
   useEffect(() => {
     if (!service || !isOpen) return;
     setIsLoading(true);
+    // Initial fetch
     fetchServiceReviews(service.id)
       .then(res => setReviews(res))
       .catch(() => {})
       .finally(() => setIsLoading(false));
+
+    // Real-time live sync for instant review appearance
+    const unsubscribe = subscribeServiceReviews(service.id, (liveReviews) => {
+      setReviews(liveReviews);
+      setIsLoading(false);
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [service, isOpen]);
 
   if (!isOpen || !service) return null;
@@ -91,21 +110,38 @@ export const ServiceReviewModal: React.FC<ServiceReviewModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!comment.trim()) return;
 
     setIsSubmitting(true);
     try {
+      const finalName = reviewerName.trim() || currentUser?.displayName || 'সম্মানিত নাগরিক';
+      if (finalName && finalName !== 'সম্মানিত নাগরিক') {
+        try {
+          localStorage.setItem('smart_khulna_reviewer_name', finalName);
+        } catch (e) {}
+      }
+
+      // If user did not type a custom comment, generate standard friendly evaluation note
+      const fallbackComment = rating >= 5 
+        ? 'সেবার মান অসাধারণ ও অত্যন্ত প্রশংসনীয়।' 
+        : rating === 4 
+        ? 'সেবার মান খুব ভালো ও সন্তোষজনক।' 
+        : rating === 3 
+        ? 'সেবার মান সাধারণ ও গ্রহণযোগ্য।' 
+        : 'সেবার মান আরও উন্নত ও যত্নশীল করা প্রয়োজন।';
+
+      const finalComment = comment.trim() || fallbackComment;
+
       const created = await submitServiceReview(service.id, {
         userId: currentUser?.uid || 'guest_' + Date.now(),
-        userName: reviewerName.trim() || 'নাগরিক',
+        userName: finalName,
         userAvatar: currentUser?.photoURL || undefined,
         rating,
-        comment: comment.trim(),
+        comment: finalComment,
         tags: selectedTags,
         verifiedCitizen: !!currentUser?.uid
       });
 
-      const updated = [created, ...reviews];
+      const updated = [created, ...reviews.filter(r => r.id !== created.id)];
       setReviews(updated);
       setComment('');
       setSelectedTags([]);
@@ -293,16 +329,22 @@ export const ServiceReviewModal: React.FC<ServiceReviewModalProps> = ({
 
               {/* NAME INPUT */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  আপনার নাম:
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    আপনার নাম / পরিচয়:
+                  </label>
+                  {currentUser?.uid && (
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                      <ShieldCheck size={11} /> লগইনকৃত আইডি
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={reviewerName}
                   onChange={e => setReviewerName(e.target.value)}
-                  placeholder="আপনার নাম লিখুন..."
-                  className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white"
-                  required
+                  placeholder="যেমন: জোবায়ের হাসান বা আপনার নাম..."
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                 />
               </div>
 
@@ -335,26 +377,25 @@ export const ServiceReviewModal: React.FC<ServiceReviewModalProps> = ({
               {/* COMMENT TEXTAREA */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  আপনার মতামত ও অভিজ্ঞতা বিস্তারিত লিখুন:
+                  আপনার মতামত ও অভিজ্ঞতা (ঐচ্ছিক):
                 </label>
                 <textarea
                   value={comment}
                   onChange={e => setComment(e.target.value)}
-                  rows={3}
-                  placeholder="যেমন: ডাক্তার বা কর্মীর ব্যবহার কেমন ছিল? সময়মতো সেবা পেয়েছেন কি না? খরচ কেমন..."
-                  className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white resize-none"
-                  required
+                  rows={2}
+                  placeholder="যেমন: ডাক্তার বা কর্মীর ব্যবহার কেমন ছিল? সেবার মান ও খরচ কেমন ছিল... (ফাঁকা রাখলে স্বয়ংক্রিয় নোট যুক্ত হবে)"
+                  className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white resize-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                 />
               </div>
 
               {/* SUBMIT BUTTON */}
               <button
                 type="submit"
-                disabled={isSubmitting || !comment.trim()}
+                disabled={isSubmitting}
                 className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer shadow-sm"
               >
                 <Send size={13} />
-                <span>{isSubmitting ? 'রিভিউ জমা হচ্ছে...' : 'রিভিউ পোস্ট করুন'}</span>
+                <span>{isSubmitting ? 'রিভিউ ও রেটিং সংরক্ষিত হচ্ছে...' : `এই সেবায় ${rating}★ রেটিং দিন`}</span>
               </button>
             </form>
           )}
