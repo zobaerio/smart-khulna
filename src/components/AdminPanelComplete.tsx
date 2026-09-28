@@ -39,8 +39,11 @@ import {
   ClipboardList,
   Bell,
   X,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Upload,
+  Camera
 } from 'lucide-react';
+import { compressImage } from '../lib/imageCompressor';
 import { getSafeAvatarUrl } from '../lib/avatarHelper';
 import { collection, getDocs, doc, updateDoc, deleteDoc, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -219,9 +222,61 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
   const [newServiceCategory, setNewServiceCategory] = useState('hospitals');
   const [newServiceDesc, setNewServiceDesc] = useState('');
   const [newServicePhoto, setNewServicePhoto] = useState('');
+  const [isCompressingServicePhoto, setIsCompressingServicePhoto] = useState(false);
+  const [uploadingPhotoForServiceId, setUploadingPhotoForServiceId] = useState<string | null>(null);
   const [newServiceIsFeatured, setNewServiceIsFeatured] = useState(false);
   const [newServiceIsForYou, setNewServiceIsForYou] = useState(false);
   const [newServiceVerified, setNewServiceVerified] = useState(true);
+
+  const handleServicePhotoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('অনুগ্রহ করে একটি ছবি ফাইল নির্বাচন করুন (JPG, PNG, WebP)');
+      return;
+    }
+
+    try {
+      setIsCompressingServicePhoto(true);
+      const compressed = await compressImage(file, 800, 600, 0.85);
+      setNewServicePhoto(compressed);
+    } catch (err) {
+      console.error('Photo compression error:', err);
+      alert('ছবি প্রসেসিং করতে সমস্যা হয়েছে। অন্য ছবি দিয়ে চেষ্টা করুন।');
+    } finally {
+      setIsCompressingServicePhoto(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleQuickPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, service: Service) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('অনুগ্রহ করে একটি ছবি ফাইল নির্বাচন করুন (JPG, PNG, WebP)');
+      return;
+    }
+
+    try {
+      setUploadingPhotoForServiceId(service.id);
+      const compressed = await compressImage(file, 800, 600, 0.85);
+      const updated: Service = {
+        ...service,
+        photos: [compressed],
+        image: compressed,
+        updated_at: new Date().toISOString()
+      };
+      await onUpdateService(updated);
+    } catch (err) {
+      console.error('Quick photo upload error:', err);
+      alert('ছবি আপলোড করতে ব্যর্থ হয়েছে।');
+    } finally {
+      setUploadingPhotoForServiceId(null);
+      if (e.target) e.target.value = '';
+    }
+  };
 
   // State for Post Management
   const [postSearchQuery, setPostSearchQuery] = useState('');
@@ -1556,11 +1611,50 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                 <div key={svc.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs space-y-2.5">
                   <div className="flex gap-3 items-start">
                     {photoUrl ? (
-                      <img src={photoUrl} alt={svc.name} className="w-14 h-14 rounded-xl object-cover shrink-0 border border-slate-200" />
-                    ) : (
-                      <div className="w-14 h-14 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-lg shrink-0">
-                        🏛️
+                      <div className="relative group shrink-0">
+                        <img src={photoUrl} alt={svc.name} className="w-14 h-14 rounded-xl object-cover border border-slate-200" />
+                        <label 
+                          title="ছবি পরিবর্তন করুন"
+                          className="absolute inset-0 bg-black/60 text-white rounded-xl flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer text-[9px] font-bold"
+                        >
+                          {uploadingPhotoForServiceId === svc.id ? (
+                            <RefreshCw size={14} className="animate-spin text-amber-300" />
+                          ) : (
+                            <>
+                              <Camera size={14} />
+                              <span className="mt-0.5">ছবি বদল</span>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            disabled={uploadingPhotoForServiceId === svc.id}
+                            className="hidden"
+                            onChange={(e) => handleQuickPhotoUpload(e, svc)}
+                          />
+                        </label>
                       </div>
+                    ) : (
+                      <label 
+                        title="নতুন ছবি আপলোড করুন"
+                        className="w-14 h-14 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-800 flex flex-col items-center justify-center font-bold text-xs shrink-0 cursor-pointer transition border border-dashed border-emerald-300 group"
+                      >
+                        {uploadingPhotoForServiceId === svc.id ? (
+                          <RefreshCw size={16} className="animate-spin text-emerald-800" />
+                        ) : (
+                          <>
+                            <Camera size={16} className="group-hover:scale-110 transition" />
+                            <span className="text-[8px] mt-0.5 font-bold text-emerald-900">+ ছবি দিন</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={uploadingPhotoForServiceId === svc.id}
+                          className="hidden"
+                          onChange={(e) => handleQuickPhotoUpload(e, svc)}
+                        />
+                      </label>
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
@@ -1605,7 +1699,21 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
 
                   <div className="flex items-center justify-between pt-2 border-t border-slate-200">
                     <span className="text-[10px] text-slate-400">স্ট্যাটাস: {svc.status}</span>
-                    <div className="flex gap-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <label 
+                        className="text-emerald-700 font-bold hover:underline cursor-pointer flex items-center gap-1 text-[11px]"
+                        title="ডিভাইস থেকে সরাসরি ছবি পরিবর্তন বা আপলোড করুন"
+                      >
+                        <Camera size={12} />
+                        <span>{svc.photos?.[0] || svc.image ? 'ছবি বদল' : 'ছবি আপলোড'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={uploadingPhotoForServiceId === svc.id}
+                          className="hidden"
+                          onChange={(e) => handleQuickPhotoUpload(e, svc)}
+                        />
+                      </label>
                       <button
                         onClick={() => {
                           setEditingService(svc);
@@ -1726,68 +1834,132 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                     />
                   </div>
 
-                  {/* Photo addition feature */}
-                  <div className="space-y-1.5 p-3 bg-emerald-50/60 border border-emerald-100 rounded-2xl">
-                    <label className="block font-bold text-emerald-950 flex items-center justify-between">
-                      <span>📸 সেবার ফটো / ছবি (Photo Option)</span>
-                      <span className="text-[10px] text-emerald-700 font-normal">URL অথবা ডেমো বাছুন</span>
-                    </label>
-                    <input
-                      type="url"
-                      value={newServicePhoto}
-                      onChange={e => setNewServicePhoto(e.target.value)}
-                      placeholder="https://images.unsplash.com/... (ছবি লিংক দিন)"
-                      className="w-full bg-white border border-emerald-200 p-2.5 rounded-xl text-xs font-mono"
-                    />
+                  {/* Photo addition & direct upload feature */}
+                  <div className="space-y-2.5 p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-emerald-950 flex items-center gap-1.5 text-xs">
+                        <Camera size={14} className="text-emerald-700" />
+                        <span>📸 সেবার ফটো / ছবি (Service Photo)</span>
+                      </label>
+                      <span className="text-[10px] text-emerald-700 font-medium">মোবাইল বা পিসি থেকে আপলোড</span>
+                    </div>
+
+                    {/* Live Photo Preview & Actions */}
+                    {newServicePhoto ? (
+                      <div className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-emerald-200 shadow-xs">
+                        <img
+                          src={newServicePhoto}
+                          alt="Preview"
+                          className="w-16 h-16 rounded-xl object-cover border-2 border-emerald-500 shrink-0 shadow-xs"
+                        />
+                        <div className="flex-1 min-w-0 space-y-1.5">
+                          <p className="text-[11px] font-bold text-slate-800 truncate">ছবি সফলভাবে সংযুক্ত হয়েছে</p>
+                          <div className="flex flex-wrap gap-2">
+                            <label className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-[10px] font-bold cursor-pointer transition flex items-center gap-1 shrink-0">
+                              <Upload size={11} />
+                              <span>{isCompressingServicePhoto ? 'প্রসেসিং...' : 'অন্য ছবি দিন'}</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                disabled={isCompressingServicePhoto}
+                                className="hidden"
+                                onChange={handleServicePhotoFileUpload}
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => setNewServicePhoto('')}
+                              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-[10px] font-bold transition flex items-center gap-1"
+                            >
+                              <Trash2 size={11} /> ছবি মুছুন
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Direct File Upload Dropzone / Button */
+                      <label className="border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-white hover:bg-emerald-50/60 p-4 rounded-xl flex flex-col items-center justify-center cursor-pointer transition text-center group">
+                        <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center mb-1.5 group-hover:scale-105 transition">
+                          {isCompressingServicePhoto ? (
+                            <RefreshCw size={18} className="animate-spin text-emerald-700" />
+                          ) : (
+                            <Upload size={18} className="text-emerald-700" />
+                          )}
+                        </div>
+                        <span className="text-xs font-bold text-emerald-950">
+                          {isCompressingServicePhoto ? 'ছবি প্রসেস হচ্ছে...' : 'ডিভাইস / গ্যালারি থেকে ছবি আপলোড করুন'}
+                        </span>
+                        <span className="text-[10px] text-slate-500 mt-0.5">JPG, PNG, WebP (স্বয়ংক্রিয়ভাবে অপ্টিমাইজ হবে)</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={isCompressingServicePhoto}
+                          className="hidden"
+                          onChange={handleServicePhotoFileUpload}
+                        />
+                      </label>
+                    )}
+
+                    {/* Optional URL input */}
+                    <div className="pt-1 space-y-1">
+                      <span className="text-[10px] font-bold text-slate-600 block">অথবা ছবির অনলাইন লিংক (URL) দিন:</span>
+                      <input
+                        type="url"
+                        value={newServicePhoto}
+                        onChange={e => setNewServicePhoto(e.target.value)}
+                        placeholder="https://images.unsplash.com/... (ছবি লিংক পেস্ট করুন)"
+                        className="w-full bg-white border border-emerald-200 p-2 rounded-xl text-xs font-mono"
+                      />
+                    </div>
 
                     {/* Photo Presets for Easy Selection */}
                     <div className="space-y-1 pt-1">
-                      <span className="text-[10px] font-bold text-slate-600 block">কুইক ফটো ডেমো প্রিসেট:</span>
+                      <span className="text-[10px] font-bold text-slate-600 block">কুইক ফটো প্রিসেট:</span>
                       <div className="flex flex-wrap gap-1.5">
                         <button
                           type="button"
                           onClick={() => setNewServicePhoto('https://images.unsplash.com/photo-1586773860418-d37222d8fce3?w=800&q=80')}
-                          className="px-2 py-1 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[10px] font-bold text-emerald-800"
+                          className="px-2 py-1 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[10px] font-bold text-emerald-800 transition"
                         >
                           🏥 হাসপাতাল
                         </button>
                         <button
                           type="button"
                           onClick={() => setNewServicePhoto('https://images.unsplash.com/photo-1587745416684-47953f16f02f?w=800&q=80')}
-                          className="px-2 py-1 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[10px] font-bold text-emerald-800"
+                          className="px-2 py-1 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[10px] font-bold text-emerald-800 transition"
                         >
                           🚒 ফায়ার/জরুরি
                         </button>
                         <button
                           type="button"
                           onClick={() => setNewServicePhoto('https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?w=800&q=80')}
-                          className="px-2 py-1 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[10px] font-bold text-emerald-800"
+                          className="px-2 py-1 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[10px] font-bold text-emerald-800 transition"
                         >
                           🏫 স্কুল/কলেজ
                         </button>
                         <button
                           type="button"
                           onClick={() => setNewServicePhoto('https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=800&q=80')}
-                          className="px-2 py-1 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[10px] font-bold text-emerald-800"
+                          className="px-2 py-1 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[10px] font-bold text-emerald-800 transition"
                         >
                           🏦 ব্যাংক/অর্থ
                         </button>
                         <button
                           type="button"
                           onClick={() => setNewServicePhoto('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80')}
-                          className="px-2 py-1 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[10px] font-bold text-emerald-800"
+                          className="px-2 py-1 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[10px] font-bold text-emerald-800 transition"
                         >
                           🍽️ রেস্তোরাঁ
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewServicePhoto('https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&q=80')}
+                          className="px-2 py-1 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[10px] font-bold text-emerald-800 transition"
+                        >
+                          💊 ফার্মেসি
+                        </button>
                       </div>
                     </div>
-
-                    {newServicePhoto && (
-                      <div className="pt-2 flex items-center gap-2">
-                        <img src={newServicePhoto} alt="Preview" className="w-12 h-12 rounded-xl object-cover border border-emerald-300" />
-                        <span className="text-[10px] text-emerald-700 font-bold">ছবি সফলভাবে সংযুক্ত হয়েছে!</span>
-                      </div>
-                    )}
                   </div>
 
                   {/* Section Designation Checkboxes (Featured & For You) */}
