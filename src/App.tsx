@@ -171,6 +171,7 @@ import { BloodBankHub } from './components/features/BloodBankHub';
 import { TourismHub } from './components/features/TourismHub';
 import { DoctorFinderHub } from './components/features/DoctorFinderHub';
 import { WeatherTideHub } from './components/features/WeatherTideHub';
+import { LiveWeatherCard } from './components/features/LiveWeatherCard';
 import { CitizenFeedbackHub } from './components/features/CitizenFeedbackHub';
 import { LocalJobsHub } from './components/features/LocalJobsHub';
 import { ToLetHub } from './components/features/ToLetHub';
@@ -180,7 +181,6 @@ import { getSafeAvatarUrl } from './lib/avatarHelper';
 import { SmartKhulnaHeader } from './components/common/SmartKhulnaHeader';
 import { SmartKhulnaLogo } from './components/common/SmartKhulnaLogo';
 import { DiscoverySearch } from './components/DiscoverySearch';
-import { AdvocacySection } from './components/AdvocacySection';
 
 // Category Color Scheme Mapping for Compact Visual Cards with 3D Gradients & Glossy Glow
 const getCategoryStyle = (catId: string) => {
@@ -3771,9 +3771,11 @@ export default function App() {
                   onOpenDownload={() => setActiveTab('download')}
                 />
 
-                {/* Weather Feature (Removed) */}
-
-                <AdvocacySection />
+                {/* 2.5 LIVE DISTRICT WEATHER CARD */}
+                <LiveWeatherCard
+                  selectedDistrictId={selectedDistrict}
+                  onOpenFullForecast={() => setActiveFeatureHub('weather')}
+                />
 
                 {/* 3. CORE GLOBAL SEARCH ( Bangla & English ) */}
                 <div className="space-y-2">
@@ -5939,7 +5941,7 @@ export default function App() {
       {activeFeatureHub === 'blood-bank' && <BloodBankHub onClose={() => setActiveFeatureHub(null)} />}
       {activeFeatureHub === 'tourism' && <TourismHub onClose={() => setActiveFeatureHub(null)} />}
       {activeFeatureHub === 'doctors' && <DoctorFinderHub onClose={() => setActiveFeatureHub(null)} />}
-      {activeFeatureHub === 'weather' && <WeatherTideHub onClose={() => setActiveFeatureHub(null)} />}
+      {activeFeatureHub === 'weather' && <WeatherTideHub onClose={() => setActiveFeatureHub(null)} initialDistrict={selectedDistrict} />}
       {activeFeatureHub === 'complaints' && <CitizenFeedbackHub onClose={() => setActiveFeatureHub(null)} />}
       {activeFeatureHub === 'jobs' && <LocalJobsHub onClose={() => setActiveFeatureHub(null)} />}
       {activeFeatureHub === 'tolet' && <ToLetHub onClose={() => setActiveFeatureHub(null)} />}
