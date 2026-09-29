@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MessageSquare, AlertCircle, CheckCircle, Clock, Send, Search, Image as ImageIcon, MapPin, X, FileText, Shield } from 'lucide-react';
+import { db, auth } from '../../firebase';
+import { collection, addDoc, query, where, onSnapshot, orderBy, serverTimestamp } from 'firebase/firestore';
 
 interface Grievance {
   id: string;
@@ -12,45 +14,12 @@ interface Grievance {
   status: 'pending' | 'in_progress' | 'resolved';
   submittedAt: string;
   phone: string;
+  user_id: string;
 }
-
-const INITIAL_GRIEVANCES: Grievance[] = [
-  {
-    id: 'grv-1',
-    trackingId: 'SK-2026-8941',
-    title: 'খালিশপুর ৭ নম্বর ঘাট রোডে ভাঙা রাস্তা সংস্কার প্রয়োজন',
-    category: 'সড়ক ও যোগাযোগ',
-    district: 'খুলনা',
-    location: 'খালিশপুর ৭নং ঘাট রোড, খুলনা',
-    description: 'রাস্তাটি দীর্ঘদিন ধরে খানাখন্দে ভরা। বৃষ্টির দিনে জলাবদ্ধতা তৈরি হয়ে যানবাহন চলাচলে বিঘ্ন ঘটছে।',
-    status: 'in_progress',
-    submittedAt: '২০২৬-০২-১৮',
-    phone: '01712-******'
-  },
-  {
-    id: 'grv-2',
-    trackingId: 'SK-2026-6120',
-    title: 'সোনাডাঙ্গা আবাসিক এলাকায় ড্রেনেজ উপচে পড়া ও ময়লা',
-    category: 'বর্জ্য ও ড্রেনেজ',
-    district: 'খুলনা',
-    location: 'সোনাডাঙ্গা ফেজ-২, রোড ৩',
-    description: 'ড্রেন আটকে পানি উপচে রাস্তায় ছড়িয়ে পড়ছে এবং দুর্গন্ধ ছড়াচ্ছে। দ্রুত পরিষ্কারের অনুরোধ।',
-    status: 'resolved',
-    submittedAt: '২০২৬-০১-০৫',
-    phone: '01911-******'
-  }
-];
 
 export const CitizenFeedbackHub: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<'submit' | 'track'>('submit');
-  const [grievances, setGrievances] = useState<Grievance[]>(() => {
-    try {
-      const saved = localStorage.getItem('smart_khulna_grievances');
-      return saved ? JSON.parse(saved) : INITIAL_GRIEVANCES;
-    } catch {
-      return INITIAL_GRIEVANCES;
-    }
-  });
+  const [grievances, setGrievances] = useState<Grievance[]>([]);
 
   const [form, setForm] = useState({
     title: '',
@@ -65,30 +34,43 @@ export const CitizenFeedbackHub: React.FC<{ onClose: () => void }> = ({ onClose 
   const [submittedTrackingId, setSubmittedTrackingId] = useState<string | null>(null);
 
   useEffect(() => {
-    localStorage.setItem('smart_khulna_grievances', JSON.stringify(grievances));
-  }, [grievances]);
+    if (!auth.currentUser) return;
+    const q = query(collection(db, 'complaints'), where('user_id', '==', auth.currentUser.uid), orderBy('created_at', 'desc'));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Grievance));
+      setGrievances(data);
+    });
 
-  const handleSubmit = (e: React.FormEvent) => {
+    return unsubscribe;
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title || !form.location || !form.phone) return;
+    if (!auth.currentUser || !form.title || !form.location || !form.phone) return;
 
-    const generatedCode = `SK-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-    const newGrievance: Grievance = {
-      id: `grv-${Date.now()}`,
-      trackingId: generatedCode,
-      title: form.title,
-      category: form.category,
+    const trackingId = `SK-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newComplaint = {
+      complaint_number: trackingId,
+      user_id: auth.currentUser.uid,
+      category_id: form.category,
       district: form.district,
-      location: form.location,
+      title: form.title,
       description: form.description,
       status: 'pending',
-      submittedAt: new Date().toLocaleDateString('bn-BD'),
+      created_at: serverTimestamp(),
+      location: form.location,
       phone: form.phone
     };
 
-    setGrievances([newGrievance, ...grievances]);
-    setSubmittedTrackingId(generatedCode);
-    setForm({ title: '', category: 'সড়ক ও যোগাযোগ', district: 'খুলনা', location: '', description: '', phone: '' });
+    try {
+      await addDoc(collection(db, 'complaints'), newComplaint);
+      setSubmittedTrackingId(trackingId);
+      setForm({ title: '', category: 'সড়ক ও যোগাযোগ', district: 'খুলনা', location: '', description: '', phone: '' });
+    } catch (e) {
+      console.error('Error submitting complaint:', e);
+      alert('অভিযোগ জমা দিতে ব্যর্থ হয়েছে।');
+    }
   };
 
   const searchedGrievance = grievances.find(g =>

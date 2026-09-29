@@ -209,6 +209,19 @@ service cloud.firestore {
       allow update, delete: if isSuperAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
     }
 
+    // 17. Citizen Complaints System
+    match /complaints/{complaintId} {
+      allow read, write: if isAuthenticated();
+      
+      match /media/{mediaId} {
+        allow read, write: if isAuthenticated();
+      }
+      
+      match /status_history/{historyId} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
