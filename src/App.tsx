@@ -3785,7 +3785,7 @@ export default function App() {
                 />
 
                 {/* Weather Feature */}
-                <div className="px-4 py-2">
+                <div className="px-4 py-2 w-full p-4 box-border">
                   <WeatherCard onViewFull={() => setActiveFeatureHub('weather')} onWeatherUpdate={handleWeatherUpdate} />
                 </div>
 
