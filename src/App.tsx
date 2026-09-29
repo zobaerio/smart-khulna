@@ -170,6 +170,8 @@ import { BloodBankHub } from './components/features/BloodBankHub';
 import { TourismHub } from './components/features/TourismHub';
 import { DoctorFinderHub } from './components/features/DoctorFinderHub';
 import { WeatherTideHub } from './components/features/WeatherTideHub';
+import { WeatherHub } from './components/features/WeatherHub';
+import { WeatherCard } from './components/features/WeatherCard';
 import { CitizenFeedbackHub } from './components/features/CitizenFeedbackHub';
 import { LocalJobsHub } from './components/features/LocalJobsHub';
 import { ToLetHub } from './components/features/ToLetHub';
@@ -3770,6 +3772,11 @@ export default function App() {
                   }}
                   onOpenDownload={() => setActiveTab('download')}
                 />
+
+                {/* Weather Feature */}
+                <div className="px-4 py-2">
+                  <WeatherCard onViewFull={() => setActiveFeatureHub('weather')} />
+                </div>
 
                 {/* 3. CORE GLOBAL SEARCH ( Bangla & English ) */}
                 <div className="space-y-2">

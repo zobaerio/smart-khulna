@@ -20,6 +20,25 @@ async function startServer() {
   // Multimodal AI Assistant APIs
   app.use('/api/ai', aiRouter);
 
+  // API Endpoint: Weather Proxy
+  app.get('/api/weather', async (req, res) => {
+    const { lat, lon, city } = req.query;
+    const apiKey = process.env.WEATHER_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: 'Weather API Key not configured' });
+    }
+    const url = lat && lon
+      ? `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`
+      : `https://api.openweathermap.org/data/2.5/weather?q=${city},BD&appid=${apiKey}&units=metric`;
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch weather data' });
+    }
+  });
+
   // Lazily retrieve the Gemini SDK client
   let ai: any = null;
   function getAI() {

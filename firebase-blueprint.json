@@ -241,12 +241,76 @@
         "createdAt": { "type": "string" }
       },
       "required": ["id", "serviceId", "userId", "userName", "rating", "comment", "createdAt"]
+    },
+    "Complaint": {
+      "title": "Complaint",
+      "description": "Citizen complaint report",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "complaint_number": { "type": "string" },
+        "user_id": { "type": "string" },
+        "category_id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "district": { "type": "string" },
+        "upazila": { "type": "string" },
+        "area": { "type": "string" },
+        "status": { "type": "string" },
+        "assigned_admin_id": { "type": "string" },
+        "admin_response": { "type": "string" },
+        "created_at": { "type": "string" },
+        "updated_at": { "type": "string" },
+        "resolved_at": { "type": "string" }
+      },
+      "required": ["id", "complaint_number", "user_id", "category_id", "title", "description", "status", "created_at"]
+    },
+    "ComplaintMedia": {
+      "title": "ComplaintMedia",
+      "description": "Media files for complaints",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "complaint_id": { "type": "string" },
+        "media_url": { "type": "string" },
+        "media_type": { "type": "string" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "complaint_id", "media_url", "media_type", "created_at"]
+    },
+    "ComplaintStatusHistory": {
+      "title": "ComplaintStatusHistory",
+      "description": "History of complaint status changes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "complaint_id": { "type": "string" },
+        "status": { "type": "string" },
+        "note": { "type": "string" },
+        "changed_by": { "type": "string" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "complaint_id", "status", "changed_by", "created_at"]
     }
   },
   "firestore": {
     "/service_reviews/{reviewId}": {
       "schema": "ServiceReview",
       "description": "Citizen ratings and reviews with public read, open create, and author or admin moderation"
+    },
+    "/complaints/{complaintId}": {
+      "schema": "Complaint",
+      "description": "Citizen complaints"
+    },
+    "/complaints/{complaintId}/media/{mediaId}": {
+      "schema": "ComplaintMedia",
+      "description": "Media for complaints"
+    },
+    "/complaints/{complaintId}/status_history/{historyId}": {
+      "schema": "ComplaintStatusHistory",
+      "description": "Status history for complaints"
     },
     "/blood_donors/{donorId}": {
       "schema": "BloodDonor",
