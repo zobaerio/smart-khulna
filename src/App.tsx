@@ -171,8 +171,6 @@ import { BloodBankHub } from './components/features/BloodBankHub';
 import { TourismHub } from './components/features/TourismHub';
 import { DoctorFinderHub } from './components/features/DoctorFinderHub';
 import { WeatherTideHub } from './components/features/WeatherTideHub';
-import { WeatherHub } from './components/features/WeatherHub';
-import { WeatherCard } from './components/features/WeatherCard';
 import { CitizenFeedbackHub } from './components/features/CitizenFeedbackHub';
 import { LocalJobsHub } from './components/features/LocalJobsHub';
 import { ToLetHub } from './components/features/ToLetHub';
@@ -284,15 +282,6 @@ export default function App() {
     };
     return (dictionary[lang] && dictionary[lang][key]) ? dictionary[lang][key] : key;
   };
-
-  const handleWeatherUpdate = (data: any) => {
-    // Check for severe weather (simulated check for demonstration)
-    if (data.weather[0].main === 'Thunderstorm' || data.weather[0].main === 'Rain') {
-      setWarningMessage(`সতর্কবার্তা: ${data.weather[0].description} প্রত্যাশিত।`);
-    }
-  };
-
-  // Navigation & View State
   const [activeTab, setActiveTab] = useState<'home' | 'services' | 'community' | 'messages' | 'profile' | 'add' | 'saved' | 'download' | 'search'>('home');
   const [servicesSubTab, setServicesSubTab] = useState<'directory' | 'blood'>('directory');
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
@@ -331,7 +320,6 @@ export default function App() {
 
   // Authentication & Users
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [warningMessage, setWarningMessage] = useState<string | null>(null);
 
   // Unified Navigation Configuration
   const navItems = useMemo(() => [
@@ -3166,8 +3154,6 @@ export default function App() {
         />
       )}
 
-      {warningMessage && <ToastNotification message={warningMessage} onClose={() => setWarningMessage(null)} />}
-
       {/* Account Reactivation Modal overlay */}
       {showReactivateModal && (
         <div className="fixed inset-0 z-[100] bg-slate-900/85 backdrop-blur-md flex items-center justify-center p-4">
@@ -3784,10 +3770,7 @@ export default function App() {
                   onOpenDownload={() => setActiveTab('download')}
                 />
 
-                {/* Weather Feature */}
-                <div className="px-4 py-2 w-full p-4 box-border">
-                  <WeatherCard onViewFull={() => setActiveFeatureHub('weather')} onWeatherUpdate={handleWeatherUpdate} />
-                </div>
+                {/* Weather Feature (Removed) */}
 
                 {/* 3. CORE GLOBAL SEARCH ( Bangla & English ) */}
                 <div className="space-y-2">
