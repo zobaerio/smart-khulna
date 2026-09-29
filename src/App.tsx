@@ -123,6 +123,7 @@ import {
 } from './dbData';
 import { usePWA } from './hooks/usePWA';
 import { OfflineBanner } from './components/OfflineBanner';
+import { ToastNotification } from './components/ui/ToastNotification';
 import { OfflineSOSDirectoryModal } from './components/features/OfflineSOSDirectoryModal';
 import { ServiceReviewModal } from './components/features/ServiceReviewModal';
 import { getLocalReviews, computeServiceRatingStats, fetchAllServiceReviews, subscribeAllServiceReviews } from './services/reviewService';
@@ -284,6 +285,13 @@ export default function App() {
     return (dictionary[lang] && dictionary[lang][key]) ? dictionary[lang][key] : key;
   };
 
+  const handleWeatherUpdate = (data: any) => {
+    // Check for severe weather (simulated check for demonstration)
+    if (data.weather[0].main === 'Thunderstorm' || data.weather[0].main === 'Rain') {
+      setWarningMessage(`সতর্কবার্তা: ${data.weather[0].description} প্রত্যাশিত।`);
+    }
+  };
+
   // Navigation & View State
   const [activeTab, setActiveTab] = useState<'home' | 'services' | 'community' | 'messages' | 'profile' | 'add' | 'saved' | 'download' | 'search'>('home');
   const [servicesSubTab, setServicesSubTab] = useState<'directory' | 'blood'>('directory');
@@ -323,6 +331,7 @@ export default function App() {
 
   // Authentication & Users
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [warningMessage, setWarningMessage] = useState<string | null>(null);
 
   // Unified Navigation Configuration
   const navItems = useMemo(() => [
@@ -3157,6 +3166,8 @@ export default function App() {
         />
       )}
 
+      {warningMessage && <ToastNotification message={warningMessage} onClose={() => setWarningMessage(null)} />}
+
       {/* Account Reactivation Modal overlay */}
       {showReactivateModal && (
         <div className="fixed inset-0 z-[100] bg-slate-900/85 backdrop-blur-md flex items-center justify-center p-4">
@@ -3775,7 +3786,7 @@ export default function App() {
 
                 {/* Weather Feature */}
                 <div className="px-4 py-2">
-                  <WeatherCard onViewFull={() => setActiveFeatureHub('weather')} />
+                  <WeatherCard onViewFull={() => setActiveFeatureHub('weather')} onWeatherUpdate={handleWeatherUpdate} />
                 </div>
 
                 {/* 3. CORE GLOBAL SEARCH ( Bangla & English ) */}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sun, Cloud, Droplets, Wind, MapPin, RefreshCw, AlertTriangle } from 'lucide-react';
 
-export const WeatherCard = ({ compact = true, onViewFull }: { compact?: boolean; onViewFull?: () => void }) => {
+export const WeatherCard = ({ compact = true, onViewFull, onWeatherUpdate }: { compact?: boolean; onViewFull?: () => void; onWeatherUpdate?: (data: any) => void }) => {
   const [weather, setWeather] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -13,6 +13,7 @@ export const WeatherCard = ({ compact = true, onViewFull }: { compact?: boolean;
       const data = await response.json();
       if (data.cod === 200) {
         setWeather(data);
+        if (onWeatherUpdate) onWeatherUpdate(data);
       } else {
         setError(data.message || 'Failed to load weather');
       }
