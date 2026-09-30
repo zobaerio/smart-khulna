@@ -210,7 +210,7 @@ export const PostCard: React.FC<PostCardProps> = ({
               e.stopPropagation();
               onSelectHashtag?.(part);
             }}
-            className="text-emerald-700 dark:text-emerald-400 font-bold hover:underline cursor-pointer inline-flex items-center gap-0.5"
+            className="text-emerald-700 dark:text-emerald-400 font-bold hover:underline cursor-pointer inline-flex items-center gap-0.5 bg-emerald-50/70 dark:bg-emerald-950/40 px-1 py-0.5 rounded transition hover:bg-emerald-100"
             title={`${part} হ্যাশট্যাগের পোস্ট দেখুন`}
           >
             {part}
@@ -224,9 +224,9 @@ export const PostCard: React.FC<PostCardProps> = ({
             key={index}
             onClick={(e) => {
               e.stopPropagation();
-              onViewProfile('', username, '');
+              onViewProfile(username, username, '');
             }}
-            className="text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer inline-flex items-center gap-0.5"
+            className="text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer inline-flex items-center gap-0.5 bg-blue-50/70 dark:bg-blue-950/40 px-1 py-0.5 rounded transition hover:bg-blue-100"
             title={`${part} এর প্রোফাইল দেখুন`}
           >
             {part}

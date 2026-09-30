@@ -2389,7 +2389,21 @@ export default function App() {
     }
   };
 
-  const handleViewProfile = (uid: string) => {
+  const handleViewProfile = (uidOrName: string) => {
+    if (!uidOrName) return;
+    let uid = uidOrName;
+    const cleanQuery = uidOrName.replace(/^@+/, '').trim().toLowerCase();
+    const matchedUser = allCommunityUsers.find(u => 
+      u.uid === uidOrName ||
+      u.name.toLowerCase() === cleanQuery ||
+      u.name.replace(/\s+/g, '_').toLowerCase() === cleanQuery ||
+      u.name.replace(/\s+/g, '').toLowerCase() === cleanQuery ||
+      u.email?.toLowerCase() === cleanQuery
+    );
+    if (matchedUser) {
+      uid = matchedUser.uid;
+    }
+
     setViewingProfileUid(uid);
     setActiveTab('profile');
 
@@ -2675,6 +2689,7 @@ export default function App() {
         locationName: postData.locationName,
         images: postData.images || [],
         hashtags: postData.hashtags || [],
+        mentions: postData.mentions || [],
         likesCount: 0,
         likedBy: [],
         commentsCount: 0,
@@ -6035,6 +6050,8 @@ export default function App() {
         currentUserId={currentUser?.uid || ''}
         initialPostToEdit={editingPost}
         onSubmitPost={handleSavePost}
+        communityPosts={communityPosts}
+        allUsers={allCommunityUsers}
       />
 
       {/* MODAL: PUBLIC USER PROFILE */}
