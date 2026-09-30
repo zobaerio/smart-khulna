@@ -113,6 +113,7 @@ export interface UserProfile {
   joinedDate?: string;
   updatedAt?: string;
   selectedDistrict?: string;
+  referralCode?: string;
   savedServices?: string[];
   isLocked?: boolean;
   showActiveStatus?: boolean;

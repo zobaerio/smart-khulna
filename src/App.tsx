@@ -101,8 +101,10 @@ import {
   orderBy,
   serverTimestamp,
   increment,
-  onSnapshot
+  onSnapshot,
+  limit
 } from 'firebase/firestore';
+import { getShortReferralCode, buildReferralLink } from './utils/referral';
 import {
   initialDistricts,
   initialCategories,
@@ -581,18 +583,75 @@ export default function App() {
     saveLocalData('release_config', releaseConfig);
   }, [releaseConfig]);
 
-  // Track referral parameters from URL
+  // Track referral parameters from URL (Pathname /invite/{code} or Query ?ref={code})
   useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const ref = params.get('ref');
-      if (ref) {
-        localStorage.setItem('smart_khulna_referral_uid', ref.trim());
-        console.log('[Referral] Tracked referrer UID from URL:', ref);
+    const handleReferralDetection = async () => {
+      try {
+        let code = '';
+        const pathname = window.location.pathname;
+        if (pathname.startsWith('/invite/')) {
+          code = pathname.replace('/invite/', '').split('/')[0]?.split('?')[0]?.trim();
+        }
+        if (!code) {
+          const params = new URLSearchParams(window.location.search);
+          code = params.get('ref')?.trim() || params.get('invite')?.trim() || '';
+        }
+
+        if (code) {
+          console.log('[Referral] Detected referral code from URL:', code);
+          localStorage.setItem('smart_khulna_referral_code', code);
+
+          // If code is full UID (>20 chars), store directly as referrerUid
+          if (code.length > 20) {
+            localStorage.setItem('smart_khulna_referral_uid', code);
+          } else {
+            // Resolve short code (e.g. 'iowct') to referrer UID
+            const cleanCode = code.toLowerCase();
+            try {
+              // 1. Direct check in 'referral_codes' collection
+              const codeDocRef = doc(db, 'referral_codes', cleanCode);
+              const codeSnap = await getDoc(codeDocRef);
+              if (codeSnap.exists() && codeSnap.data()?.uid) {
+                const targetUid = codeSnap.data().uid;
+                localStorage.setItem('smart_khulna_referral_uid', targetUid);
+                console.log('[Referral] Resolved short code to referrer UID via referral_codes:', targetUid);
+              } else {
+                // 2. Query profiles collection where referralCode == cleanCode
+                const q = query(collection(db, 'profiles'), where('referralCode', '==', cleanCode));
+                const qSnap = await getDocs(q);
+                if (!qSnap.empty) {
+                  const targetUid = qSnap.docs[0].id;
+                  localStorage.setItem('smart_khulna_referral_uid', targetUid);
+                  console.log('[Referral] Resolved short code to referrer UID via profiles query:', targetUid);
+                } else {
+                  // 3. Fallback: match UID prefix
+                  const allSnap = await getDocs(query(collection(db, 'profiles'), limit(100)));
+                  const matched = allSnap.docs.find(d => d.id.toLowerCase().startsWith(cleanCode));
+                  if (matched) {
+                    localStorage.setItem('smart_khulna_referral_uid', matched.id);
+                    console.log('[Referral] Resolved short code to referrer UID via prefix match:', matched.id);
+                  } else {
+                    localStorage.setItem('smart_khulna_referral_uid', code);
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn('[Referral] Error resolving referral short code:', err);
+              localStorage.setItem('smart_khulna_referral_uid', code);
+            }
+          }
+
+          // If path was /invite/{code}, clean URL cleanly without page refresh
+          if (pathname.startsWith('/invite/')) {
+            window.history.replaceState({}, '', '/');
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to parse referral URL param:', e);
       }
-    } catch (e) {
-      console.warn('Failed to parse referral URL param:', e);
-    }
+    };
+
+    handleReferralDetection();
   }, []);
 
   // Real-time Firebase Notification System Initialization & Listeners
@@ -816,13 +875,26 @@ export default function App() {
               verified_at: data.verified_at || localCached?.verified_at,
               verified_by: data.verified_by || localCached?.verified_by,
               verification_reason: data.verification_reason || localCached?.verification_reason,
-              verification_reviewed_at: data.verification_reviewed_at || localCached?.verification_reviewed_at
+              verification_reviewed_at: data.verification_reviewed_at || localCached?.verification_reviewed_at,
+              referralCode: data.referralCode || localCached?.referralCode || getShortReferralCode(firebaseUser.uid)
             };
             
             // Sync with local cache and Firestore
             localStorage.setItem(`smart_khulna_profile_${firebaseUser.uid}`, JSON.stringify(updatedProfile));
             await setDoc(userDocRef, updatedProfile, { merge: true });
             setUserProfile(updatedProfile);
+
+            // Register short referral code lookup doc
+            const userShortCode = updatedProfile.referralCode || getShortReferralCode(firebaseUser.uid);
+            try {
+              await setDoc(doc(db, 'referral_codes', userShortCode), {
+                uid: firebaseUser.uid,
+                code: userShortCode,
+                name: updatedProfile.name || displayName || ''
+              }, { merge: true });
+            } catch (errCode) {
+              console.warn("Could not register referral_codes doc:", errCode);
+            }
             
             if (data.isDeleted) {
               setShowReactivateModal(true);
@@ -881,6 +953,7 @@ export default function App() {
           } else {
             // Document does not exist, create it
             const refUid = localStorage.getItem('smart_khulna_referral_uid');
+            const shortCode = getShortReferralCode(firebaseUser.uid);
             const newProfile: UserProfile = {
               uid: firebaseUser.uid,
               name: localCached?.name || displayName,
@@ -901,11 +974,23 @@ export default function App() {
               website: localCached?.website || '',
               role: isSuperAdminEmail ? 'super_admin' : (localCached?.role || 'user'),
               savedServices: [],
-              verification_status: 'unverified'
+              verification_status: 'unverified',
+              referralCode: shortCode
             };
             localStorage.setItem(`smart_khulna_profile_${firebaseUser.uid}`, JSON.stringify(newProfile));
             await setDoc(userDocRef, newProfile, { merge: true });
             setUserProfile(newProfile);
+
+            // Register short referral code lookup doc
+            try {
+              await setDoc(doc(db, 'referral_codes', shortCode), {
+                uid: firebaseUser.uid,
+                code: shortCode,
+                name: newProfile.name || displayName || ''
+              }, { merge: true });
+            } catch (errCode) {
+              console.warn("Could not register referral_codes doc:", errCode);
+            }
 
             // Register referral in Firestore
             if (refUid && refUid !== firebaseUser.uid) {
@@ -917,6 +1002,7 @@ export default function App() {
                   status: 'registered'
                 });
                 localStorage.removeItem('smart_khulna_referral_uid'); // Clean up after registration
+                localStorage.removeItem('smart_khulna_referral_code');
               } catch (e) {
                 console.warn("Could not save referral document:", e);
               }

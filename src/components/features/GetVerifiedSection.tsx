@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { 
   Award, CheckCircle, Clock, Copy, ExternalLink, HelpCircle, 
   ArrowRight, ShieldCheck, UserCheck, Users, Calendar, 
-  BookOpen, HeartPulse, Sparkles, Loader2, RefreshCw 
+  BookOpen, HeartPulse, Sparkles, Loader2, RefreshCw, Share2
 } from 'lucide-react';
 import { db } from '../../firebase';
 import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { UserProfile } from '../../dbData';
 import { SmartKhulnaVerifiedBadge } from '../common/SmartKhulnaVerifiedBadge';
+import { ReferralShareModal } from '../common/ReferralShareModal';
+import { buildReferralLink, getShortReferralCode } from '../../utils/referral';
 
 interface GetVerifiedSectionProps {
   currentUserProfile: UserProfile;
@@ -21,6 +23,7 @@ export const GetVerifiedSection: React.FC<GetVerifiedSectionProps> = ({
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Dynamic progress metrics
   const [profilePercent, setProfilePercent] = useState(0);
@@ -31,8 +34,8 @@ export const GetVerifiedSection: React.FC<GetVerifiedSectionProps> = ({
   const [emergencyPostsCount, setEmergencyPostsCount] = useState(0);
   const [behaviorValid, setBehaviorValid] = useState(true);
 
-  // Invite Link
-  const referralLink = `${window.location.origin}?ref=${currentUserProfile.uid}`;
+  // Short Invite Link
+  const referralLink = buildReferralLink(currentUserProfile);
 
   const calculateProgressMetrics = async () => {
     setLoading(true);
@@ -349,25 +352,41 @@ export const GetVerifiedSection: React.FC<GetVerifiedSectionProps> = ({
 
           {/* Invitation Link Box */}
           <div className="bg-[#006A4E]/5 dark:bg-emerald-950/10 p-4 rounded-2xl border border-emerald-500/10 space-y-2.5">
-            <h4 className="text-xs font-bold text-[#006A4E] dark:text-emerald-400 font-serif flex items-center gap-1.5">
-              <Users size={14} />
-              <span>আপনার রেফারেলে সদস্য আমন্ত্রণ লিংক</span>
-            </h4>
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-[#006A4E] dark:text-emerald-400 font-serif flex items-center gap-1.5">
+                <Users size={14} />
+                <span>আপনার রেফারেলে সদস্য আমন্ত্রণ লিংক</span>
+              </h4>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                কোড: {getShortReferralCode(currentUserProfile)}
+              </span>
+            </div>
             <p className="text-[10px] text-slate-500">নতুন সদস্যদের এই লিংক দিয়ে যুক্ত হতে বলুন। তাঁরা রেজিস্টার করলেই আপনার স্কোর বাড়বে।</p>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <input 
                 type="text" 
                 readOnly 
                 value={referralLink}
-                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-[10px] flex-1 font-mono outline-none"
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-[10px] flex-1 font-mono outline-none select-all truncate"
               />
-              <button
-                onClick={copyReferralLink}
-                className="p-2.5 bg-emerald-800 text-white rounded-xl hover:bg-emerald-900 transition active:scale-95 cursor-pointer shrink-0 text-xs flex items-center gap-1"
-              >
-                {copied ? <CheckCircle size={14} /> : <Copy size={14} />}
-                <span>{copied ? 'কপিড' : 'কপি করুন'}</span>
-              </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  onClick={copyReferralLink}
+                  className="p-2.5 bg-emerald-800 text-white rounded-xl hover:bg-emerald-900 transition active:scale-95 cursor-pointer text-xs flex items-center gap-1 font-bold"
+                  title="লিংক কপি করুন"
+                >
+                  {copied ? <CheckCircle size={14} /> : <Copy size={14} />}
+                  <span>{copied ? 'কপিড' : 'কপি করুন'}</span>
+                </button>
+                <button
+                  onClick={() => setShowShareModal(true)}
+                  className="p-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition active:scale-95 cursor-pointer text-xs flex items-center gap-1 font-bold shadow-sm"
+                  title="ফেসবুক, হোয়াটসঅ্যাপে শেয়ার করুন"
+                >
+                  <Share2 size={14} />
+                  <span>শেয়ার</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -411,6 +430,14 @@ export const GetVerifiedSection: React.FC<GetVerifiedSectionProps> = ({
         <HelpCircle size={14} className="shrink-0 mt-0.5 text-slate-400" />
         <span>ভেরিফাইড ব্যাজটি প্ল্যাটফর্মের সক্রিয় অবদানকারীদের একটি অনন্য স্বীকৃতি। এটি কোনো সরকারি যাচাইকরণ চিহ্ন নয় এবং এটি কঠোরভাবে অ্যাডমিন রিভিউ দ্বারা অনুমোদিত হয়।</span>
       </div>
+
+      {/* Referral Link & Bengali Description Share Modal */}
+      <ReferralShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        user={currentUserProfile}
+        inviterName={currentUserProfile.name}
+      />
 
     </div>
   );

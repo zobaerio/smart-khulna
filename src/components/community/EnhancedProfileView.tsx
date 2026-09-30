@@ -48,11 +48,14 @@ import {
   CreditCard,
   Check,
   Trash2,
+  Copy,
   DownloadCloud,
   GraduationCap,
   Building,
   Home as HomeIcon
 } from 'lucide-react';
+import { ReferralShareModal } from '../common/ReferralShareModal';
+import { buildReferralLink, getShortReferralCode } from '../../utils/referral';
 import { motion, AnimatePresence } from 'motion/react';
 import { PublicUserProfile, CommunityPost, VerifiedBadgeType } from '../../types/community';
 import { Service, District, Category } from '../../dbData';
@@ -239,6 +242,7 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
   };
 
   const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const [showReferralShareModal, setShowReferralShareModal] = useState(false);
 
   // Fetch visitors for own profile (real-time from profileVisits sub-collection)
   useEffect(() => {
@@ -2262,25 +2266,44 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                       </div>
                     </div>
 
-                    {/* Referral Link copy card */}
+                    {/* Referral Link copy & share card */}
                     <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 rounded-2xl text-left space-y-2">
-                      <h4 className="text-xs font-bold text-emerald-800 dark:text-emerald-300">আপনার আমন্ত্রণ লিংক (Referral Link):</h4>
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                          আপনার সংক্ষিপ্ত আমন্ত্রণ লিংক (Referral Link):
+                        </h4>
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                          কোড: {getShortReferralCode(profile)}
+                        </span>
+                      </div>
                       <p className="text-[10px] text-slate-500 leading-relaxed font-serif">
                         আমন্ত্রণ লিংকের মাধ্যমে নিবন্ধিত ব্যবহারকারীগণ সফলভাবে যুক্ত হলেই কেবল আমন্ত্রণের সংখ্যা যুক্ত হবে।
                       </p>
-                      <div className="flex gap-2 bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-200 dark:border-slate-800 items-center justify-between">
-                        <code className="text-[10px] truncate select-all text-slate-700 dark:text-slate-300 font-mono">
-                          {window.location.origin}/invite/{profile.uid}
+                      <div className="flex flex-col sm:flex-row gap-2 bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-200 dark:border-slate-800 items-stretch sm:items-center justify-between">
+                        <code className="text-[11px] truncate select-all text-slate-700 dark:text-slate-300 font-mono flex-1 px-1">
+                          {buildReferralLink(profile)}
                         </code>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(`${window.location.origin}/invite/${profile.uid}`);
-                            alert('আমন্ত্রণ লিংক সফলভাবে কপি হয়েছে!');
-                          }}
-                          className="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-[10px] font-bold shrink-0 transition"
-                        >
-                          লিংক কপি
-                        </button>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(buildReferralLink(profile));
+                              alert('আমন্ত্রণ লিংক সফলভাবে কপি হয়েছে!');
+                            }}
+                            className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
+                            title="লিংক কপি করুন"
+                          >
+                            <Copy size={12} />
+                            <span>লিংক কপি</span>
+                          </button>
+                          <button
+                            onClick={() => setShowReferralShareModal(true)}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer shadow-sm"
+                            title="ফেসবুক, হোয়াটসঅ্যাপে শেয়ার করুন"
+                          >
+                            <Share2 size={12} />
+                            <span>শেয়ার</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -2830,6 +2853,14 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
           authorName={profile.name}
         />
       )}
+
+      {/* Referral Link & Bengali Description Share Modal */}
+      <ReferralShareModal
+        isOpen={showReferralShareModal}
+        onClose={() => setShowReferralShareModal(false)}
+        user={profile}
+        inviterName={profile.name}
+      />
     </div>
   );
 };
