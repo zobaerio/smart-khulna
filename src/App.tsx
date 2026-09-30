@@ -79,7 +79,8 @@ import {
   Sun,
   Moon,
   Menu,
-  Star
+  Star,
+  Award
 } from 'lucide-react';
 import { EnhancedProfileView } from './components/community/EnhancedProfileView';
 import { PostCard } from './components/community/PostCard';
@@ -123,7 +124,6 @@ import {
 } from './dbData';
 import { usePWA } from './hooks/usePWA';
 import { OfflineBanner } from './components/OfflineBanner';
-import { ToastNotification } from './components/ui/ToastNotification';
 import { OfflineSOSDirectoryModal } from './components/features/OfflineSOSDirectoryModal';
 import { ServiceReviewModal } from './components/features/ServiceReviewModal';
 import { getLocalReviews, computeServiceRatingStats, fetchAllServiceReviews, subscribeAllServiceReviews } from './services/reviewService';
@@ -175,6 +175,7 @@ import { LiveWeatherCard } from './components/features/LiveWeatherCard';
 import { CitizenFeedbackHub } from './components/features/CitizenFeedbackHub';
 import { LocalJobsHub } from './components/features/LocalJobsHub';
 import { ToLetHub } from './components/features/ToLetHub';
+import { PMPresentationHub } from './components/features/PMPresentationHub';
 import { EditProfileModal } from './components/community/EditProfileModal';
 import { ProfileSettingsModal } from './components/community/ProfileSettingsModal';
 import { getSafeAvatarUrl } from './lib/avatarHelper';
@@ -292,7 +293,7 @@ export default function App() {
   });
   const [viewingDistrictId, setViewingDistrictId] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
-  const [activeFeatureHub, setActiveFeatureHub] = useState<'blood-bank' | 'tourism' | 'doctors' | 'weather' | 'complaints' | 'jobs' | 'tolet' | null>(null);
+  const [activeFeatureHub, setActiveFeatureHub] = useState<'blood-bank' | 'tourism' | 'doctors' | 'weather' | 'complaints' | 'jobs' | 'tolet' | 'presentation' | null>(null);
   const [adminView, setAdminView] = useState<string | null>(null);
   const [releaseConfig, setReleaseConfig] = useState<AppReleaseConfig>(() => getLocalData('release_config', defaultReleaseConfig));
   const districtScrollRef = useRef<HTMLDivElement>(null);
@@ -942,16 +943,25 @@ export default function App() {
 
   // Real-time Notices Subscription
   useEffect(() => {
-    const q = query(collection(db, 'notices'), where('isActive', '==', true), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'notices'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const noticeList: any[] = [];
       snapshot.forEach((doc) => {
         noticeList.push({ id: doc.id, ...doc.data() });
       });
       setNotices(noticeList);
-      if (noticeList.length > 0) {
+      
+      const nowStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD local format
+      const validNotices = noticeList.filter(n => {
+        if (!n.isActive) return false;
+        if (n.startDate && nowStr < n.startDate) return false;
+        if (n.endDate && nowStr > n.endDate) return false;
+        return true;
+      });
+
+      if (validNotices.length > 0) {
         // Find highest priority notice first, then newest
-        const sorted = [...noticeList].sort((a, b) => {
+        const sorted = [...validNotices].sort((a, b) => {
           const priorityMap: { [key: string]: number } = { 'High': 3, 'Medium': 2, 'Low': 1 };
           const pA = priorityMap[a.priority] || 0;
           const pB = priorityMap[b.priority] || 0;
@@ -3361,6 +3371,12 @@ export default function App() {
                 >
                   <Home size={15} className="text-blue-400" /> বাড়ি ভাড়া ও মেস (To-Let)
                 </button>
+                <button
+                  onClick={() => { setActiveFeatureHub('presentation'); setIsDrawerOpen(false); }}
+                  className="w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold text-amber-200 bg-amber-950/20 hover:bg-amber-950/40 border border-amber-500/20 flex items-center gap-2.5 cursor-pointer"
+                >
+                  <Award size={15} className="text-amber-400" /> পিএম প্রেজেন্টেশন ও Satkhira উন্নয়ন
+                </button>
               </div>
 
               {/* District Active Panel */}
@@ -3568,6 +3584,12 @@ export default function App() {
                   className="w-full text-left px-3 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
                 >
                   <Home size={14} className="text-blue-400" /> বাড়ি ভাড়া ও মেস
+                </button>
+                <button
+                  onClick={() => setActiveFeatureHub('presentation')}
+                  className="w-full text-left px-3 py-1.5 rounded-xl text-xs font-bold text-amber-200 bg-amber-950/20 hover:bg-amber-950/40 border border-amber-500/20 flex items-center gap-2 cursor-pointer"
+                >
+                  <Award size={14} className="text-amber-400" /> পিএম প্রেজেন্টেশন গাইড
                 </button>
               </div>
             </div>
@@ -3965,7 +3987,7 @@ export default function App() {
                       <span>নাগরিক স্মার্ট ডিরেক্টরি ও সেবা</span>
                     </h2>
                     <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold px-2 py-0.5 rounded-full">
-                      ৭টি স্পেশাল হাব
+                      ৮টি স্পেশাল হাব
                     </span>
                   </div>
 
@@ -4058,6 +4080,19 @@ export default function App() {
                       </div>
                       <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-700 leading-tight">
                         টু-লেট ও মেস
+                      </span>
+                    </button>
+
+                    {/* 8. পিএম গাইড ও সাতক্ষীরা উন্নয়ন */}
+                    <button
+                      onClick={() => setActiveFeatureHub('presentation')}
+                      className="bg-gradient-to-tr from-amber-50 to-orange-50/50 dark:from-slate-800 dark:to-orange-950/10 hover:from-amber-100 hover:to-orange-100 dark:hover:bg-orange-950/20 border border-amber-200/60 dark:border-slate-700 hover:border-amber-300 p-2 sm:p-2.5 rounded-2xl flex flex-col items-center justify-center text-center shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group aspect-square min-h-[82px]"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-700 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform shadow-xs">
+                        <Award size={20} className="text-amber-800 dark:text-amber-300" />
+                      </div>
+                      <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 group-hover:text-amber-800 leading-tight">
+                        পিএম গাইড
                       </span>
                     </button>
                   </div>
@@ -5945,6 +5980,7 @@ export default function App() {
       {activeFeatureHub === 'complaints' && <CitizenFeedbackHub onClose={() => setActiveFeatureHub(null)} />}
       {activeFeatureHub === 'jobs' && <LocalJobsHub onClose={() => setActiveFeatureHub(null)} />}
       {activeFeatureHub === 'tolet' && <ToLetHub onClose={() => setActiveFeatureHub(null)} />}
+      {activeFeatureHub === 'presentation' && <PMPresentationHub onClose={() => setActiveFeatureHub(null)} />}
 
       {/* 24/7 OFFLINE SOS EMERGENCY DIRECTORY MODAL */}
       <OfflineSOSDirectoryModal

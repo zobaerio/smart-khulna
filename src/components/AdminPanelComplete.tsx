@@ -185,6 +185,8 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
   const [newNoticeDesc, setNewNoticeDesc] = useState('');
   const [newNoticePriority, setNewNoticePriority] = useState<'High' | 'Medium' | 'Low'>('Low');
   const [newNoticeActive, setNewNoticeActive] = useState(true);
+  const [newNoticeStartDate, setNewNoticeStartDate] = useState('');
+  const [newNoticeEndDate, setNewNoticeEndDate] = useState('');
 
   // State for Users List
   const [usersList, setUsersList] = useState<UserProfile[]>([]);
@@ -3358,6 +3360,8 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                 setNewNoticeDesc('');
                 setNewNoticePriority('Low');
                 setNewNoticeActive(true);
+                setNewNoticeStartDate('');
+                setNewNoticeEndDate('');
                 setIsAddingNoticeModal(true);
               }}
               className="px-3 py-1.5 bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 hover:bg-emerald-900 transition cursor-pointer"
@@ -3373,7 +3377,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
               </div>
             ) : (
               notices.map((notice) => (
-                <div key={notice.id} className={`p-4 rounded-2xl border transition-all ${notice.isActive ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
+                <div key={notice.id} className={`p-4 rounded-2xl border transition-all ${notice.isActive ? 'bg-white border-slate-200 shadow-xs' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
                   <div className="flex justify-between items-start gap-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
@@ -3385,6 +3389,11 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                           {notice.priority} Priority
                         </span>
                         {!notice.isActive && <span className="px-2 py-0.5 bg-slate-200 text-slate-600 rounded-full text-[9px] font-black uppercase">Inactive</span>}
+                        {(notice.startDate || notice.endDate) && (
+                          <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-[9px] font-bold">
+                            {notice.startDate ? new Date(notice.startDate).toLocaleDateString('bn-BD') : 'শুরু'} - {notice.endDate ? new Date(notice.endDate).toLocaleDateString('bn-BD') : 'শেষ'}
+                          </span>
+                        )}
                       </div>
                       <h4 className="text-sm font-bold text-slate-900 line-clamp-1">{notice.title}</h4>
                       <p className="text-xs text-slate-500 mt-1 line-clamp-2">{notice.description}</p>
@@ -3397,6 +3406,8 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                           setNewNoticeDesc(notice.description);
                           setNewNoticePriority(notice.priority);
                           setNewNoticeActive(notice.isActive);
+                          setNewNoticeStartDate(notice.startDate || '');
+                          setNewNoticeEndDate(notice.endDate || '');
                           setIsAddingNoticeModal(true);
                         }}
                         className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition"
@@ -3485,6 +3496,27 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                       <label htmlFor="notice-active" className="text-xs font-bold text-slate-700">সক্রিয় রাখুন</label>
                     </div>
                   </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">শুরুর তারিখ (Start Date)</label>
+                      <input 
+                        type="date"
+                        value={newNoticeStartDate}
+                        onChange={e => setNewNoticeStartDate(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 p-2 rounded-xl text-xs outline-none focus:ring-1 focus:ring-emerald-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">শেষের তারিখ (End Date)</label>
+                      <input 
+                        type="date"
+                        value={newNoticeEndDate}
+                        onChange={e => setNewNoticeEndDate(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 p-2 rounded-xl text-xs outline-none focus:ring-1 focus:ring-emerald-700"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex gap-3 pt-4 border-t border-slate-100">
@@ -3504,7 +3536,9 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                         title: newNoticeTitle.trim(),
                         description: newNoticeDesc.trim(),
                         priority: newNoticePriority,
-                        isActive: newNoticeActive
+                        isActive: newNoticeActive,
+                        startDate: newNoticeStartDate || null,
+                        endDate: newNoticeEndDate || null
                       };
 
                       if (editingNotice) {

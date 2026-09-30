@@ -293,9 +293,29 @@
         "created_at": { "type": "string" }
       },
       "required": ["id", "complaint_id", "status", "changed_by", "created_at"]
+    },
+    "Notice": {
+      "title": "Notice",
+      "description": "Administrative notice displayed on the top of the app",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "priority": { "type": "string", "enum": ["High", "Medium", "Low"] },
+        "isActive": { "type": "boolean" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "isActive"]
     }
   },
   "firestore": {
+    "/notices/{noticeId}": {
+      "schema": "Notice",
+      "description": "Official public notices created and managed by administrators"
+    },
     "/service_reviews/{reviewId}": {
       "schema": "ServiceReview",
       "description": "Citizen ratings and reviews with public read, open create, and author or admin moderation"
