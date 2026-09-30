@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Heart,
   MessageCircle,
@@ -28,7 +28,8 @@ import {
   ChevronRight,
   X,
   User,
-  ExternalLink
+  ExternalLink,
+  Smile
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CommunityPost, PostComment, VerifiedBadgeType } from '../../types/community';
@@ -37,6 +38,7 @@ import { PostImageGrid } from './PostImageGrid';
 import { getSafeAvatarUrl } from '../../lib/avatarHelper';
 import { downloadImageSafely } from '../../lib/downloadHelper';
 import { SmartKhulnaVerifiedBadge } from '../common/SmartKhulnaVerifiedBadge';
+import { EmojiPickerPopover } from './EmojiPickerPopover';
 
 interface PostCardProps {
   post: CommunityPost;
@@ -100,6 +102,10 @@ export const PostCard: React.FC<PostCardProps> = ({
   const [isPostHidden, setIsPostHidden] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showCommentEmojiPicker, setShowCommentEmojiPicker] = useState(false);
+  const [showReplyEmojiPicker, setShowReplyEmojiPicker] = useState(false);
+  const commentInputRef = useRef<HTMLInputElement>(null);
+  const replyInputRef = useRef<HTMLInputElement>(null);
 
   const triggerToast = (msg: string) => {
     setToastMsg(msg);
@@ -249,6 +255,7 @@ export const PostCard: React.FC<PostCardProps> = ({
     if (!commentInput.trim()) return;
     onAddComment(post.id, commentInput.trim());
     setCommentInput('');
+    setShowCommentEmojiPicker(false);
   };
 
   const handleReplySubmit = (commentId: string, e: React.FormEvent) => {
@@ -257,6 +264,7 @@ export const PostCard: React.FC<PostCardProps> = ({
     onAddReply(post.id, commentId, replyInput.trim());
     setReplyInput('');
     setReplyingToCommentId(null);
+    setShowReplyEmojiPicker(false);
   };
 
   const renderBadge = (badge?: VerifiedBadgeType, verificationStatus?: string) => {
@@ -914,21 +922,64 @@ export const PostCard: React.FC<PostCardProps> = ({
       {showComments && (
         <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/35 p-4 space-y-3">
           {/* Add Comment Input */}
-          <form onSubmit={handleCommentSubmit} className="flex gap-2">
-            <input
-              type="text"
-              value={commentInput}
-              onChange={e => setCommentInput(e.target.value)}
-              placeholder="একটি মন্তব্য লিখুন..."
-              className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-900 dark:text-slate-100"
-            />
+          <form onSubmit={handleCommentSubmit} className="relative flex items-center gap-2">
+            <div className="relative flex-1">
+              <input
+                ref={commentInputRef}
+                type="text"
+                value={commentInput}
+                onChange={e => setCommentInput(e.target.value)}
+                placeholder="একটি মন্তব্য লিখুন..."
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-3.5 pr-8 py-2 text-xs focus:ring-2 focus:ring-emerald-600 focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-900 dark:text-slate-100"
+              />
+              <button
+                type="button"
+                onClick={() => setShowCommentEmojiPicker(prev => !prev)}
+                className={`absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-md transition cursor-pointer ${
+                  showCommentEmojiPicker
+                    ? 'text-amber-500 bg-amber-50 dark:bg-amber-950/60'
+                    : 'text-slate-400 hover:text-amber-500 dark:hover:text-amber-400'
+                }`}
+                title="ইমোজি যুক্ত করুন"
+              >
+                <Smile size={16} />
+              </button>
+            </div>
             <button
               type="submit"
               disabled={!commentInput.trim()}
-              className="bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+              className="bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0"
+              title="মন্তব্য পোস্ট করুন"
             >
               <Send size={13} />
             </button>
+
+            {/* Comment Emoji Picker Popover */}
+            {showCommentEmojiPicker && (
+              <div className="absolute right-0 bottom-full mb-1 z-50">
+                <EmojiPickerPopover
+                  isOpen={showCommentEmojiPicker}
+                  onClose={() => setShowCommentEmojiPicker(false)}
+                  align="right"
+                  onSelectEmoji={(emoji) => {
+                    const input = commentInputRef.current;
+                    if (!input) {
+                      setCommentInput(prev => prev + emoji);
+                      return;
+                    }
+                    const start = input.selectionStart ?? commentInput.length;
+                    const end = input.selectionEnd ?? commentInput.length;
+                    const newText = commentInput.slice(0, start) + emoji + commentInput.slice(end);
+                    setCommentInput(newText);
+                    setTimeout(() => {
+                      input.focus();
+                      const newPos = start + emoji.length;
+                      input.setSelectionRange(newPos, newPos);
+                    }, 10);
+                  }}
+                />
+              </div>
+            )}
           </form>
 
           {/* Comments List */}
@@ -1050,22 +1101,63 @@ export const PostCard: React.FC<PostCardProps> = ({
 
                   {/* Inline Reply Form */}
                   {replyingToCommentId === c.id && (
-                    <form onSubmit={e => handleReplySubmit(c.id, e)} className="pl-6 flex gap-2 pt-1">
-                      <input
-                        type="text"
-                        value={replyInput}
-                        onChange={e => setReplyInput(e.target.value)}
-                        placeholder={`${c.authorName}-কে উত্তর দিন...`}
-                        className="flex-1 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-emerald-600 focus:outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                        autoFocus
-                      />
+                    <form onSubmit={e => handleReplySubmit(c.id, e)} className="pl-6 relative flex items-center gap-2 pt-1">
+                      <div className="relative flex-1">
+                        <input
+                          ref={replyInputRef}
+                          type="text"
+                          value={replyInput}
+                          onChange={e => setReplyInput(e.target.value)}
+                          placeholder={`${c.authorName}-কে উত্তর দিন...`}
+                          className="w-full bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 rounded-lg pl-3 pr-8 py-1.5 text-xs focus:ring-1 focus:ring-emerald-600 focus:outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowReplyEmojiPicker(prev => !prev)}
+                          className={`absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded transition cursor-pointer ${
+                            showReplyEmojiPicker
+                              ? 'text-amber-500 bg-amber-50 dark:bg-amber-950/60'
+                              : 'text-slate-400 hover:text-amber-500'
+                          }`}
+                          title="ইমোজি যুক্ত করুন"
+                        >
+                          <Smile size={14} />
+                        </button>
+                      </div>
                       <button
                         type="submit"
                         disabled={!replyInput.trim()}
-                        className="bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40"
+                        className="bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40 shrink-0 cursor-pointer"
                       >
                         পাঠান
                       </button>
+
+                      {showReplyEmojiPicker && (
+                        <div className="absolute right-0 bottom-full mb-1 z-50">
+                          <EmojiPickerPopover
+                            isOpen={showReplyEmojiPicker}
+                            onClose={() => setShowReplyEmojiPicker(false)}
+                            align="right"
+                            onSelectEmoji={(emoji) => {
+                              const input = replyInputRef.current;
+                              if (!input) {
+                                setReplyInput(prev => prev + emoji);
+                                return;
+                              }
+                              const start = input.selectionStart ?? replyInput.length;
+                              const end = input.selectionEnd ?? replyInput.length;
+                              const newText = replyInput.slice(0, start) + emoji + replyInput.slice(end);
+                              setReplyInput(newText);
+                              setTimeout(() => {
+                                input.focus();
+                                const newPos = start + emoji.length;
+                                input.setSelectionRange(newPos, newPos);
+                              }, 10);
+                            }}
+                          />
+                        </div>
+                      )}
                     </form>
                   )}
                 </div>

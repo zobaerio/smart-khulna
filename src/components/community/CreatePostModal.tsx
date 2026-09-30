@@ -18,7 +18,8 @@ import {
   AtSign,
   Flame,
   Check,
-  Sparkles
+  Sparkles,
+  Smile
 } from 'lucide-react';
 import { CommunityPost, PostImage, PostType, PublicUserProfile } from '../../types/community';
 import { District, Category } from '../../dbData';
@@ -33,6 +34,7 @@ import {
   toBengaliNumber
 } from '../../utils/hashtagUtils';
 import { HashtagMentionSuggestionBox } from './HashtagMentionSuggestionBox';
+import { EmojiPickerPopover } from './EmojiPickerPopover';
 
 interface CreatePostModalProps {
   isOpen: boolean;
@@ -73,6 +75,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
   const [showImageInput, setShowImageInput] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // References to input elements for cursor restoration
   const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -141,6 +144,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
       setErrorMessage('');
     }
     setSuggestionState(prev => ({ ...prev, isOpen: false }));
+    setShowEmojiPicker(false);
   }, [initialPostToEdit, selectedDistrict, isOpen]);
 
   if (!isOpen) return null;
@@ -512,7 +516,24 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
               </label>
 
               {/* Quick shortcut helper pills */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEmojiPicker(prev => !prev);
+                    setSuggestionState(prev => ({ ...prev, isOpen: false }));
+                  }}
+                  className={`text-[11px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1 transition cursor-pointer shadow-2xs ${
+                    showEmojiPicker
+                      ? 'bg-amber-600 text-white border border-amber-600'
+                      : 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900 border border-amber-200 dark:border-amber-800'
+                  }`}
+                  title="ইমোজি যোগ করুন"
+                >
+                  <Smile size={11} className={showEmojiPicker ? 'text-white' : 'text-amber-600'} />
+                  <span>ইমোজি</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => {
@@ -564,6 +585,34 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
                   <AtSign size={11} className="text-blue-600" />
                   <span>@ মেনশন</span>
                 </button>
+
+                {/* EMOJI PICKER POPOVER */}
+                {showEmojiPicker && (
+                  <div className="absolute right-0 top-7 z-50">
+                    <EmojiPickerPopover
+                      isOpen={showEmojiPicker}
+                      onClose={() => setShowEmojiPicker(false)}
+                      align="right"
+                      onSelectEmoji={(emoji) => {
+                        if (!contentTextareaRef.current) {
+                          setContent(prev => prev + emoji);
+                          return;
+                        }
+                        const textarea = contentTextareaRef.current;
+                        const pos = textarea.selectionStart ?? content.length;
+                        const before = content.slice(0, pos);
+                        const after = content.slice(pos);
+                        const newText = before + emoji + after;
+                        setContent(newText);
+                        setTimeout(() => {
+                          textarea.focus();
+                          const newPos = pos + emoji.length;
+                          textarea.setSelectionRange(newPos, newPos);
+                        }, 10);
+                      }}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
