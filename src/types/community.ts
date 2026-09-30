@@ -18,6 +18,7 @@ export interface CommentReply {
   authorEmail: string;
   authorAvatar?: string;
   authorBadge?: VerifiedBadgeType;
+  authorVerificationStatus?: string;
   content: string;
   createdAt: string;
   likesCount: number;
@@ -32,6 +33,7 @@ export interface PostComment {
   authorEmail: string;
   authorAvatar?: string;
   authorBadge?: VerifiedBadgeType;
+  authorVerificationStatus?: string;
   content: string;
   createdAt: string;
   likesCount: number;
@@ -47,6 +49,7 @@ export interface CommunityPost {
   authorAvatar?: string;
   authorDistrict?: string;
   authorBadge?: VerifiedBadgeType;
+  authorVerificationStatus?: string;
   title?: string;
   content: string;
   type: PostType;
@@ -237,6 +240,11 @@ export interface PublicUserProfile {
   };
   joinedDate: string;
   badge?: VerifiedBadgeType;
+  verification_status?: 'unverified' | 'eligible' | 'pending' | 'verified' | 'rejected' | 'suspended' | string;
+  verified_at?: string;
+  verified_by?: string;
+  verification_reason?: string;
+  verification_reviewed_at?: string;
   isBanned?: boolean;
   postsCount: number;
   followersCount: number;

@@ -610,6 +610,99 @@ export class NotificationService {
     }
   }
 
+  // Send a real-time notification to a specific user's inbox
+  public async notifyUser({
+    targetUid,
+    title,
+    body,
+    category,
+    priority,
+    deepLink
+  }: {
+    targetUid: string;
+    title: string;
+    body: string;
+    category: NotificationCategory;
+    priority: NotificationPriority;
+    deepLink?: string;
+  }) {
+    const id = 'notif_user_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+    const item: UserNotificationItem = {
+      id,
+      notificationId: id,
+      title,
+      body,
+      category,
+      priority,
+      deepLink: deepLink || '/',
+      createdAt: new Date().toISOString(),
+      createdAtMillis: Date.now(),
+      isRead: false,
+      receivedAt: new Date().toISOString()
+    };
+
+    try {
+      await setDoc(doc(db, 'user_notifications', targetUid, 'items', id), item);
+      console.log(`[NotificationService] Dispatched real-time notification to user ${targetUid}`);
+    } catch (err) {
+      console.warn('[NotificationService] Error sending real-time notification to user:', err);
+    }
+  }
+
+  // Broadcast a real-time notification to all registered user profiles
+  public async broadcastRealtimeNotification({
+    title,
+    body,
+    category,
+    priority,
+    deepLink
+  }: {
+    title: string;
+    body: string;
+    category: NotificationCategory;
+    priority: NotificationPriority;
+    deepLink?: string;
+  }) {
+    const id = 'notif_global_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+    const item: UserNotificationItem = {
+      id,
+      notificationId: id,
+      title,
+      body,
+      category,
+      priority,
+      deepLink: deepLink || '/',
+      createdAt: new Date().toISOString(),
+      createdAtMillis: Date.now(),
+      isRead: false,
+      receivedAt: new Date().toISOString()
+    };
+
+    try {
+      // 1. Save to the main global notifications collection
+      await setDoc(doc(db, 'notifications', id), item);
+
+      // 2. Fetch all user profile IDs from "profiles" collection and write for each user
+      const profilesSnap = await getDocs(collection(db, 'profiles'));
+      if (!profilesSnap.empty) {
+        const batchPromises = profilesSnap.docs.map(profileDoc => {
+          const userInboxRef = doc(db, 'user_notifications', profileDoc.id, 'items', id);
+          return setDoc(userInboxRef, item);
+        });
+        await Promise.all(batchPromises);
+        console.log(`[NotificationService] Global notification broadcasted in real-time to ${profilesSnap.size} users.`);
+      } else {
+        // Fallback for current user
+        const user = auth.currentUser;
+        if (user) {
+          await setDoc(doc(db, 'user_notifications', user.uid, 'items', id), item);
+        }
+      }
+    } catch (err) {
+      console.warn('[NotificationService] Global notification broadcast fallback:', err);
+    }
+  }
+
   // Helper method: Real-time listener for incoming foreground notification
   public onNotificationReceived(callback: (item: UserNotificationItem) => void): () => void {
     return this.addForegroundListener(callback);

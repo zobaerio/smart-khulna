@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Service } from '../../dbData';
+import { notificationService } from '../../services/notificationService';
 import {
   ServiceReview,
   fetchServiceReviews,
@@ -140,6 +141,33 @@ export const ServiceReviewModal: React.FC<ServiceReviewModalProps> = ({
         tags: selectedTags,
         verifiedCitizen: !!currentUser?.uid
       });
+
+      // Send real-time notification to the service owner and broadcast feedback
+      const reviewer = currentUser?.displayName || finalName || 'একজন সম্মানিত নাগরিক';
+      const reviewNotifTitle = `নতুন রিভিউ ও ফিডব্যাক`;
+      const reviewNotifBody = `${reviewer} "${service.name}" সেবার জন্য একটি ${rating}-স্টার রিভিউ দিয়েছেন।`;
+
+      // 1. Notify service owner if it is a user-owned service
+      const ownerUid = service.owner_id || service.created_by;
+      if (ownerUid && ownerUid !== currentUser?.uid && !ownerUid.startsWith('guest_')) {
+        notificationService.notifyUser({
+          targetUid: ownerUid,
+          title: reviewNotifTitle,
+          body: reviewNotifBody,
+          category: 'service',
+          priority: 'medium',
+          deepLink: `/services`
+        }).catch(err => console.warn("Error notifying owner about review:", err));
+      }
+
+      // 2. Broadcast to all users/admins about the new community feedback
+      notificationService.broadcastRealtimeNotification({
+        title: `নতুন ফিডব্যাক: ${service.name}`,
+        body: `"${finalComment.substring(0, 50)}${finalComment.length > 50 ? '...' : ''}" - ${reviewer}`,
+        category: 'notice',
+        priority: 'low',
+        deepLink: `/services`
+      }).catch(err => console.warn("Error broadcasting review notification:", err));
 
       const updated = [created, ...reviews.filter(r => r.id !== created.id)];
       setReviews(updated);

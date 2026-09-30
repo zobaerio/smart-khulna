@@ -36,6 +36,7 @@ import { District } from '../../dbData';
 import { PostImageGrid } from './PostImageGrid';
 import { getSafeAvatarUrl } from '../../lib/avatarHelper';
 import { downloadImageSafely } from '../../lib/downloadHelper';
+import { SmartKhulnaVerifiedBadge } from '../common/SmartKhulnaVerifiedBadge';
 
 interface PostCardProps {
   post: CommunityPost;
@@ -258,7 +259,10 @@ export const PostCard: React.FC<PostCardProps> = ({
     setReplyingToCommentId(null);
   };
 
-  const renderBadge = (badge?: VerifiedBadgeType) => {
+  const renderBadge = (badge?: VerifiedBadgeType, verificationStatus?: string) => {
+    if (verificationStatus === 'verified' || badge === 'verified_citizen') {
+      return <SmartKhulnaVerifiedBadge size={14} className="ml-0.5 shrink-0" />;
+    }
     if (!badge || badge === 'none') return null;
     switch (badge) {
       case 'admin':
@@ -277,12 +281,6 @@ export const PostCard: React.FC<PostCardProps> = ({
         return (
           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-rose-100 text-rose-800 text-[10px] font-bold rounded-full border border-rose-300">
             জরুরি সেবা
-          </span>
-        );
-      case 'verified_citizen':
-        return (
-          <span className="inline-flex items-center gap-0.5 text-emerald-600 text-[11px] font-bold" title="যাচাইকৃত নাগরিক">
-            <CheckCircle2 size={13} className="fill-emerald-100 text-emerald-600" />
           </span>
         );
       default:
@@ -350,7 +348,7 @@ export const PostCard: React.FC<PostCardProps> = ({
               >
                 {post.authorName}
               </button>
-              {renderBadge(post.authorBadge)}
+              {renderBadge(post.authorBadge, post.authorVerificationStatus)}
 
               {/* FOLLOW BUTTON RIGHT NEXT TO AUTHOR NAME */}
               {currentUserId && post.authorId && currentUserId !== post.authorId && onToggleFollow && (
@@ -969,7 +967,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                         >
                           {c.authorName}
                         </button>
-                        {renderBadge(c.authorBadge)}
+                        {renderBadge(c.authorBadge, c.authorVerificationStatus)}
                         <span className="text-[10px] text-slate-400 dark:text-slate-500">• {formatTimestamp(c.createdAt)}</span>
                       </div>
                       <div className="flex items-center gap-1">
@@ -1040,7 +1038,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                               >
                                 {rep.authorName}
                               </button>
-                              {renderBadge(rep.authorBadge)}
+                              {renderBadge(rep.authorBadge, rep.authorVerificationStatus)}
                               <span className="text-[10px] text-slate-400 dark:text-slate-500">• {formatTimestamp(rep.createdAt)}</span>
                             </div>
                           </div>

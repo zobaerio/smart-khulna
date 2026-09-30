@@ -124,6 +124,12 @@ export interface UserProfile {
     permissions?: SubAdminPermissions;
   };
   subAdminPermissions?: SubAdminPermissions;
+  verification_status?: 'unverified' | 'eligible' | 'pending' | 'verified' | 'rejected' | 'suspended';
+  badge?: 'none' | 'govt_official' | 'emergency_service' | 'hospital' | 'admin' | 'verified_citizen' | 'moderator' | string;
+  verified_at?: string;
+  verified_by?: string;
+  verification_reason?: string;
+  verification_reviewed_at?: string;
 }
 
 export interface Banner {

@@ -581,6 +581,20 @@ export default function App() {
     saveLocalData('release_config', releaseConfig);
   }, [releaseConfig]);
 
+  // Track referral parameters from URL
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get('ref');
+      if (ref) {
+        localStorage.setItem('smart_khulna_referral_uid', ref.trim());
+        console.log('[Referral] Tracked referrer UID from URL:', ref);
+      }
+    } catch (e) {
+      console.warn('Failed to parse referral URL param:', e);
+    }
+  }, []);
+
   // Real-time Firebase Notification System Initialization & Listeners
   useEffect(() => {
     const uid = currentUser?.uid || 'guest';
@@ -797,7 +811,12 @@ export default function App() {
               savedServices: data.savedServices || localCached?.savedServices || [],
               isLocked: typeof data.isLocked === 'boolean' ? data.isLocked : !!localCached?.isLocked,
               showActiveStatus: typeof data.showActiveStatus === 'boolean' ? data.showActiveStatus : (localCached?.showActiveStatus !== false),
-              isDeleted: !!data.isDeleted
+              isDeleted: !!data.isDeleted,
+              verification_status: data.verification_status || localCached?.verification_status || 'unverified',
+              verified_at: data.verified_at || localCached?.verified_at,
+              verified_by: data.verified_by || localCached?.verified_by,
+              verification_reason: data.verification_reason || localCached?.verification_reason,
+              verification_reviewed_at: data.verification_reviewed_at || localCached?.verification_reviewed_at
             };
             
             // Sync with local cache and Firestore
@@ -861,6 +880,7 @@ export default function App() {
             });
           } else {
             // Document does not exist, create it
+            const refUid = localStorage.getItem('smart_khulna_referral_uid');
             const newProfile: UserProfile = {
               uid: firebaseUser.uid,
               name: localCached?.name || displayName,
@@ -880,11 +900,27 @@ export default function App() {
               linkedin: localCached?.linkedin || '',
               website: localCached?.website || '',
               role: isSuperAdminEmail ? 'super_admin' : (localCached?.role || 'user'),
-              savedServices: []
+              savedServices: [],
+              verification_status: 'unverified'
             };
             localStorage.setItem(`smart_khulna_profile_${firebaseUser.uid}`, JSON.stringify(newProfile));
             await setDoc(userDocRef, newProfile, { merge: true });
             setUserProfile(newProfile);
+
+            // Register referral in Firestore
+            if (refUid && refUid !== firebaseUser.uid) {
+              try {
+                await setDoc(doc(db, 'referrals', firebaseUser.uid), {
+                  id: firebaseUser.uid,
+                  referrerUid: refUid,
+                  createdAt: new Date().toISOString(),
+                  status: 'registered'
+                });
+                localStorage.removeItem('smart_khulna_referral_uid'); // Clean up after registration
+              } catch (e) {
+                console.warn("Could not save referral document:", e);
+              }
+            }
           }
         } catch (e: unknown) {
           console.warn("Firestore user sync encountered issue:", e);
@@ -1775,6 +1811,13 @@ export default function App() {
 
     try {
       await setDoc(doc(db, 'services', newId), newService);
+      notificationService.broadcastRealtimeNotification({
+        title: 'নতুন নাগরিক সেবা যুক্ত হয়েছে',
+        body: `"${newServiceName}" সেবাটি ডিরেক্টরিতে যুক্ত করা হয়েছে।`,
+        category: 'service',
+        priority: 'medium',
+        deepLink: `/services`
+      }).catch(err => console.warn("Error broadcasting service add notification:", err));
     } catch (e) {
       console.warn("Firestore service submission fallback:", e);
     }
@@ -1837,6 +1880,54 @@ export default function App() {
       navigator.clipboard.writeText(shareText);
       alert('শেয়ার করার জন্য তথ্য ক্লিপবোর্ডে কপি করা হয়েছে!');
     }
+  };
+
+  // Call / Consume Service Directory Item
+  const handleCallService = async (service: Service) => {
+    const consumerName = currentUser?.displayName || 'একজন সম্মানিত নাগরিক';
+    const notifTitle = `সেবা গ্রহণ ও যোগাযোগ`;
+    const notifBody = `${consumerName} "${service.name}" সেবাটির সাথে সরাসরি ফোনে যোগাযোগ করেছেন।`;
+
+    // 1. Notify service owner
+    const ownerUid = service.owner_id || service.created_by;
+    if (ownerUid && ownerUid !== currentUser?.uid && !ownerUid.startsWith('guest_')) {
+      notificationService.notifyUser({
+        targetUid: ownerUid,
+        title: notifTitle,
+        body: notifBody,
+        category: 'service',
+        priority: 'medium',
+        deepLink: `/services`
+      }).catch(err => console.warn("Error notifying owner of service call:", err));
+    }
+
+    // 2. Broadcast to all users/admins about active citizen engagement
+    notificationService.broadcastRealtimeNotification({
+      title: `সেবা গ্রহণ: ${service.name}`,
+      body: `${consumerName} সরাসরি সেবাটির সেবাগ্রহীতা হিসেবে যোগাযোগ করেছেন।`,
+      category: 'notice',
+      priority: 'low',
+      deepLink: `/services`
+    }).catch(err => console.warn("Error broadcasting service call notification:", err));
+
+    // Execute Native Call link
+    window.location.href = `tel:${service.phone}`;
+  };
+
+  // Call / Consume Emergency Service on Home page
+  const handleCallEmergencyService = async (serviceName: string, phone: string) => {
+    const consumerName = currentUser?.displayName || 'একজন সম্মানিত নাগরিক';
+    
+    // Broadcast active citizen engagement to all users in real-time
+    notificationService.broadcastRealtimeNotification({
+      title: `জরুরি সেবা যোগাযোগ: ${serviceName}`,
+      body: `${consumerName} সরাসরি জাতীয় বা স্থানীয় জরুরি নম্বর "${serviceName}" (${phone})-এ যোগাযোগ করেছেন।`,
+      category: 'emergency',
+      priority: 'high',
+      deepLink: `/`
+    }).catch(err => console.warn("Error broadcasting emergency call notification:", err));
+
+    window.location.href = `tel:${phone}`;
   };
 
   // Dynamic calculations for districts available service counts
@@ -1923,20 +2014,14 @@ export default function App() {
     // Send notification to user
     const recipientUid = sub.created_by || sub.owner_id;
     if (recipientUid && recipientUid !== 'guest') {
-      const notifId = 'notif_' + Date.now();
-      const notif = {
-        id: notifId,
-        recipientUid,
+      await notificationService.notifyUser({
+        targetUid: recipientUid,
         title: 'সেবা অনুমোদিত হয়েছে',
-        message: `আপনার সেবা "${sub.name}" অনুমোদিত হয়েছে এবং এখন Smart Khulna-তে দেখা যাচ্ছে।`,
-        read: false,
-        createdAt: new Date().toISOString()
-      };
-      try {
-        await setDoc(doc(db, 'notifications', notifId), notif);
-      } catch (e) {
-        console.warn("Notification sync fallback:", e);
-      }
+        body: `আপনার সেবা "${sub.name}" অনুমোদিত হয়েছে এবং এখন Smart Khulna-তে দেখা যাচ্ছে।`,
+        category: 'service',
+        priority: 'medium',
+        deepLink: `/services`
+      });
     }
 
     await logAction('অনুমোদন ও প্রকাশ', `অ্যাডমিন "${sub.name}" সেবাটি অনুমোদন করে ওয়েবসাইটে প্রকাশ করেছেন`);
@@ -1965,20 +2050,14 @@ export default function App() {
     // Send notification to user
     const recipientUid = sub.created_by || sub.owner_id;
     if (recipientUid && recipientUid !== 'guest') {
-      const notifId = 'notif_' + Date.now();
-      const notif = {
-        id: notifId,
-        recipientUid,
+      await notificationService.notifyUser({
+        targetUid: recipientUid,
         title: 'সেবা অনুমোদিত হয়নি',
-        message: `আপনার সেবা "${sub.name}" অনুমোদিত হয়নি। কারণ: ${reason}`,
-        read: false,
-        createdAt: new Date().toISOString()
-      };
-      try {
-        await setDoc(doc(db, 'notifications', notifId), notif);
-      } catch (e) {
-        console.warn("Notification sync fallback:", e);
-      }
+        body: `আপনার সেবা "${sub.name}" অনুমোদিত হয়নি। কারণ: ${reason}`,
+        category: 'service',
+        priority: 'high',
+        deepLink: `/services`
+      });
     }
 
     await logAction('প্রত্যাখ্যান', `অ্যাডমিন "${sub.name}" সেবাটি প্রত্যাখ্যান করেছেন। কারণ: ${reason}`);
@@ -2053,6 +2132,13 @@ export default function App() {
     setServices(prev => [fullSvc, ...prev]);
     try {
       await setDoc(doc(db, 'services', fullSvc.id), fullSvc);
+      notificationService.broadcastRealtimeNotification({
+        title: 'নতুন নাগরিক সেবা যুক্ত হয়েছে',
+        body: `"${fullSvc.name}" সেবাটি ডিরেক্টরিতে যুক্ত করা হয়েছে।`,
+        category: 'service',
+        priority: 'medium',
+        deepLink: `/services`
+      }).catch(err => console.warn("Error broadcasting admin service notification:", err));
     } catch (e) {
       console.warn("Firestore service add fallback:", e);
     }
@@ -2596,22 +2682,15 @@ export default function App() {
         if (postSnap.exists()) {
           const postAuthorId = postSnap.data().authorId;
           if (postAuthorId && postAuthorId !== currentUser.uid) {
-            const newNotifId = 'notif_' + Date.now();
-            const newNotif: CommunityNotification = {
-              id: newNotifId,
-              recipientUid: postAuthorId,
-              actorUid: currentUser.uid,
-              actorName: currentUser.displayName || 'ব্যবহারকারী',
-              actorAvatar: currentUser.photoURL || '',
-              type: 'post_like',
+            const actorName = currentUser.displayName || 'একজন ব্যবহারকারী';
+            await notificationService.notifyUser({
+              targetUid: postAuthorId,
               title: 'আপনার পোস্টে লাইক পড়েছে',
-              message: `${currentUser.displayName || 'ব্যবহারকারী'} আপনার পোস্টে লাইক দিয়েছেন`,
-              targetId: postId,
-              targetType: 'post',
-              isRead: false,
-              createdAt: new Date().toISOString()
-            };
-            await setDoc(doc(db, 'notifications', newNotifId), newNotif);
+              body: `${actorName} আপনার পোস্টে লাইক দিয়েছেন।`,
+              category: 'notice',
+              priority: 'medium',
+              deepLink: `/community`
+            });
           }
         }
       } catch (e) {
@@ -2654,21 +2733,15 @@ export default function App() {
     setCommunityPosts(prev => prev.map(p => {
       if (p.id === postId) {
         if (p.authorId !== currentUser.uid) {
-          const newNotif: CommunityNotification = {
-            id: 'notif_' + Date.now(),
-            recipientUid: p.authorId,
-            actorUid: currentUser.uid,
-            actorName: currentUser.displayName || 'ব্যবহারকারী',
-            actorAvatar: currentUser.photoURL || userProfile?.avatar || '',
-            type: 'post_comment',
+          const actorName = currentUser.displayName || 'একজন ব্যবহারকারী';
+          notificationService.notifyUser({
+            targetUid: p.authorId,
             title: 'নতুন মন্তব্য',
-            message: `${currentUser.displayName || 'ব্যবহারকারী'} আপনার পোস্টে মন্তব্য করেছেন: "${text.substring(0, 30)}..."`,
-            targetId: postId,
-            targetType: 'post',
-            isRead: false,
-            createdAt: new Date().toISOString()
-          };
-          setCommunityNotifications(n => [newNotif, ...n]);
+            body: `${actorName} আপনার পোস্টে মন্তব্য করেছেন: "${text.substring(0, 30)}..."`,
+            category: 'notice',
+            priority: 'medium',
+            deepLink: `/community`
+          }).catch(err => console.warn("Error sending comment notification:", err));
         }
         return { ...p, commentsCount: (p.commentsCount || 0) + 1 };
       }
@@ -2853,6 +2926,18 @@ export default function App() {
         updatePayload['unreadCounts.' + otherUid] = (conv.unreadCounts?.[otherUid] || 0) + 1;
       }
       await updateDoc(convRef, updatePayload);
+
+      // Send Real-time notification to the receiver
+      if (otherUid) {
+        notificationService.notifyUser({
+          targetUid: otherUid,
+          title: `${newMsg.senderName} থেকে নতুন মেসেজ`,
+          body: newMsg.text || 'একটি ছবি বা ফাইল পাঠিয়েছেন।',
+          category: 'notice',
+          priority: 'medium',
+          deepLink: `/messages`
+        }).catch(err => console.warn("Error sending message notification:", err));
+      }
       
       // 3. Update Local State (as before)
       setMessagesMap(prev => ({
@@ -3934,48 +4019,48 @@ export default function App() {
                   {/* 4 Emergency Services Compact Shortcut Grid */}
                   <div className="grid grid-cols-4 gap-2 pt-1">
                     {/* Police */}
-                    <a
-                      href={`tel:${localEmergencies.find(e => e.iconName === 'Shield' || (e.name && e.name.includes('পুলিশ')))?.phone || '01713-373265'}`}
-                      className="bg-white hover:bg-sky-50/50 border border-slate-100 hover:border-sky-200 rounded-xl p-2 flex flex-col items-center justify-center text-center transition cursor-pointer group aspect-square shadow-xs"
+                    <button
+                      onClick={() => handleCallEmergencyService('পুলিশ', localEmergencies.find(e => e.iconName === 'Shield' || (e.name && e.name.includes('পুলিশ')))?.phone || '01713-373265')}
+                      className="bg-white hover:bg-sky-50/50 border border-slate-100 hover:border-sky-200 rounded-xl p-2 flex flex-col items-center justify-center text-center transition cursor-pointer group aspect-square shadow-xs w-full"
                     >
                       <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center mb-1 group-hover:scale-105 transition shrink-0">
                         <Shield size={18} />
                       </div>
                       <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 leading-tight">পুলিশ</span>
-                    </a>
+                    </button>
 
                     {/* Ambulance */}
-                    <a
-                      href={`tel:${localEmergencies.find(e => e.iconName === 'Ambulance' || (e.name && e.name.includes('অ্যাম্বুলেন্স')))?.phone || '01711-295328'}`}
-                      className="bg-white hover:bg-rose-50/50 border border-slate-100 hover:border-rose-200 rounded-xl p-2 flex flex-col items-center justify-center text-center transition cursor-pointer group aspect-square shadow-xs"
+                    <button
+                      onClick={() => handleCallEmergencyService('অ্যাম্বুলেন্স', localEmergencies.find(e => e.iconName === 'Ambulance' || (e.name && e.name.includes('অ্যাম্বুলেন্স')))?.phone || '01711-295328')}
+                      className="bg-white hover:bg-rose-50/50 border border-slate-100 hover:border-rose-200 rounded-xl p-2 flex flex-col items-center justify-center text-center transition cursor-pointer group aspect-square shadow-xs w-full"
                     >
                       <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mb-1 group-hover:scale-105 transition shrink-0">
                         <Ambulance size={18} />
                       </div>
                       <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 leading-tight">অ্যাম্বুলেন্স</span>
-                    </a>
+                    </button>
 
                     {/* Fire Service */}
-                    <a
-                      href={`tel:${localEmergencies.find(e => e.iconName === 'Flame' || (e.name && (e.name.includes('ফায়ার') || e.name.includes('ফায়ার'))))?.phone || '02-477722222'}`}
-                      className="bg-white hover:bg-amber-50/50 border border-slate-100 hover:border-amber-200 rounded-xl p-2 flex flex-col items-center justify-center text-center transition cursor-pointer group aspect-square shadow-xs"
+                    <button
+                      onClick={() => handleCallEmergencyService('ফায়ার সার্ভিস', localEmergencies.find(e => e.iconName === 'Flame' || (e.name && (e.name.includes('ফায়ার') || e.name.includes('ফায়ার'))))?.phone || '02-477722222')}
+                      className="bg-white hover:bg-amber-50/50 border border-slate-100 hover:border-amber-200 rounded-xl p-2 flex flex-col items-center justify-center text-center transition cursor-pointer group aspect-square shadow-xs w-full"
                     >
                       <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-1 group-hover:scale-105 transition shrink-0">
                         <Flame size={18} />
                       </div>
                       <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 leading-tight">ফায়ার সার্ভিস</span>
-                    </a>
+                    </button>
 
                     {/* National Helpline */}
-                    <a
-                      href={`tel:${emergencyContacts.find(e => e.id === 'nat-999')?.phone || '999'}`}
-                      className="bg-white hover:bg-emerald-50/50 border border-slate-100 hover:border-emerald-200 rounded-xl p-2 flex flex-col items-center justify-center text-center transition cursor-pointer group aspect-square shadow-xs"
+                    <button
+                      onClick={() => handleCallEmergencyService('জাতীয় হেল্পলাইন (৯৯৯)', emergencyContacts.find(e => e.id === 'nat-999')?.phone || '999')}
+                      className="bg-white hover:bg-emerald-50/50 border border-slate-100 hover:border-emerald-200 rounded-xl p-2 flex flex-col items-center justify-center text-center transition cursor-pointer group aspect-square shadow-xs w-full"
                     >
                       <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center mb-1 group-hover:scale-105 transition shrink-0">
                         <PhoneCall size={18} />
                       </div>
                       <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 leading-tight">জাতীয় হেল্পলাইন</span>
-                    </a>
+                    </button>
                   </div>
                 </section>
 
@@ -5797,13 +5882,13 @@ export default function App() {
 
               {/* Functional CTA Buttons based on available properties */}
               <div className="grid grid-cols-2 gap-2 text-center">
-                <a
-                  href={`tel:${selectedService.phone}`}
-                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 transition"
+                <button
+                  onClick={() => handleCallService(selectedService)}
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
                 >
                   <Phone size={13} />
                   সরাসরি কল
-                </a>
+                </button>
                 <button
                   onClick={() => handleShareService(selectedService)}
                   className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
