@@ -146,17 +146,15 @@ export const GetVerifiedSection: React.FC<GetVerifiedSectionProps> = ({
   const isStreakDone = postingStreak >= 7;
   const isServicesDone = servicesCount >= 3;
   const isPhotoPostsDone = photoPostsCount >= 3;
-  const isEmergencyDone = emergencyPostsCount >= 1;
   const isBehaviorDone = behaviorValid;
 
-  const totalRequirements = 7;
+  const totalRequirements = 6;
   const completedCount = 
     (isProfileDone ? 1 : 0) +
     (isInvitesDone ? 1 : 0) +
     (isStreakDone ? 1 : 0) +
     (isServicesDone ? 1 : 0) +
     (isPhotoPostsDone ? 1 : 0) +
-    (isEmergencyDone ? 1 : 0) +
     (isBehaviorDone ? 1 : 0);
 
   const overallProgressPercent = Math.round((completedCount / totalRequirements) * 100);
@@ -322,18 +320,6 @@ export const GetVerifiedSection: React.FC<GetVerifiedSectionProps> = ({
                 </div>
               </div>
               <span className="font-bold text-[10px]">{photoPostsCount} / 3</span>
-            </div>
-
-            {/* Emergency Post */}
-            <div className="flex items-start justify-between text-xs gap-3">
-              <div className="flex items-start gap-2.5">
-                <span className="mt-0.5">{isEmergencyDone ? '✅' : '⏳'}</span>
-                <div>
-                  <h4 className={`font-bold ${isEmergencyDone ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>১টি জরুরি / জনস্বার্থমূলক পোস্ট করা</h4>
-                  <p className="text-[10px] text-slate-500">দুর্যোগ, রক্তদান বা জনসচেতনতামূলক অন্তত ১টি জরুরি পোস্ট করুন।</p>
-                </div>
-              </div>
-              <span className="font-bold text-[10px]">{emergencyPostsCount} / 1</span>
             </div>
 
             {/* Behavior status */}

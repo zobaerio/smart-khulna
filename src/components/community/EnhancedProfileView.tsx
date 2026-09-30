@@ -2098,32 +2098,20 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                 const photoPostsCount = userPosts.filter(p => p.images && p.images.length > 0).length;
                 const isPhotoPostsComplete = photoPostsCount >= 3;
 
-                // Dynamic emergency posts count
-                const emergencyPostsCount = userPosts.filter(p => p.type === 'local_info' && (
-                  p.title?.toLowerCase().includes('emergency') || 
-                  p.content.toLowerCase().includes('emergency') || 
-                  p.title?.includes('জরুরি') || 
-                  p.content.includes('জরুরি') || 
-                  p.hashtags?.includes('#emergency') || 
-                  p.hashtags?.includes('#জরুরি')
-                )).length;
-                const isEmergencyComplete = emergencyPostsCount >= 1;
-
                 // Dynamic community behavior check (no resolved reports/penalties against user)
                 const isBehaviorGood = true; // default safe or check status
 
                 // Calculate complete total progress percentage out of 100%
                 let totalProgressPct = 0;
-                totalProgressPct += (profileCompletePct / 100) * 15; // Profile completed: 15%
-                totalProgressPct += (Math.min(invitesCount, 5) / 5) * 15; // 5 invites: 15%
+                totalProgressPct += (profileCompletePct / 100) * 20; // Profile completed: 20%
+                totalProgressPct += (Math.min(invitesCount, 5) / 5) * 20; // 5 invites: 20%
                 totalProgressPct += (Math.min(streakCount, 7) / 7) * 15; // 7-day challenge: 15%
                 totalProgressPct += (Math.min(addedServicesCount, 3) / 3) * 15; // 3 services added: 15%
                 totalProgressPct += (Math.min(photoPostsCount, 3) / 3) * 15; // 3 photo posts: 15%
-                totalProgressPct += (Math.min(emergencyPostsCount, 1) / 1) * 15; // 1 emergency post: 15%
-                totalProgressPct += isBehaviorGood ? 10 : 0; // behavior: 10%
+                totalProgressPct += isBehaviorGood ? 15 : 0; // behavior: 15%
                 
                 const roundedProgress = Math.min(100, Math.round(totalProgressPct));
-                const allTasksCompleted = profileCompletePct >= 100 && invitesCount >= 5 && streakCount >= 7 && addedServicesCount >= 3 && photoPostsCount >= 3 && emergencyPostsCount >= 1 && isBehaviorGood;
+                const allTasksCompleted = profileCompletePct >= 100 && invitesCount >= 5 && streakCount >= 7 && addedServicesCount >= 3 && photoPostsCount >= 3 && isBehaviorGood;
 
                 const curStatus = profile.verification_status || 'unverified';
 
@@ -2242,18 +2230,7 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                           </span>
                         </div>
 
-                        {/* 6. Emergency Post */}
-                        <div className="py-2.5 flex items-start justify-between gap-3 text-xs font-serif">
-                          <div className="space-y-0.5">
-                            <h5 className="font-bold text-slate-800 dark:text-slate-200">১টি জরুরি বা জনসেবামূলক পোস্ট (Emergency Post)</h5>
-                            <p className="text-[10px] text-slate-500">জরুরি সাহায্য, সচেতনতা বা সতর্কতা বিষয়ক কমপক্ষে ১টি পোস্ট প্রকাশ করুন। (বর্তমান: {emergencyPostsCount} / ১টি)</p>
-                          </div>
-                          <span className={`shrink-0 text-xs font-bold ${isEmergencyComplete ? 'text-emerald-600' : 'text-slate-400'}`}>
-                            {isEmergencyComplete ? '✅ সম্পন্ন' : '⏳ চলমান'}
-                          </span>
-                        </div>
-
-                        {/* 7. Behavior Check */}
+                        {/* 6. Behavior Check */}
                         <div className="py-2.5 flex items-start justify-between gap-3 text-xs font-serif">
                           <div className="space-y-0.5">
                             <h5 className="font-bold text-slate-800 dark:text-slate-200">উত্তম আচরণ বজায় রাখা (Good Behavior)</h5>

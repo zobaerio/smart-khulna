@@ -3396,25 +3396,14 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                     // 5. Photo Posts
                     const photoPostsCount = userPosts.filter(p => p.images && p.images.length > 0).length;
 
-                    // 6. Emergency Posts
-                    const emergencyPostsCount = userPosts.filter(p => p.type === 'local_info' && (
-                      p.title?.toLowerCase().includes('emergency') || 
-                      p.content.toLowerCase().includes('emergency') || 
-                      p.title?.includes('জরুরি') || 
-                      p.content.includes('জরুরি') || 
-                      p.hashtags?.includes('#emergency') || 
-                      p.hashtags?.includes('#জরুরি')
-                    )).length;
-
                     // Calculate Progress percentage
                     let totalProgressPct = 0;
-                    totalProgressPct += (profileCompletePct / 100) * 15;
-                    totalProgressPct += (Math.min(invitedCount, 5) / 5) * 15;
+                    totalProgressPct += (profileCompletePct / 100) * 20;
+                    totalProgressPct += (Math.min(invitedCount, 5) / 5) * 20;
                     totalProgressPct += (Math.min(streakCount, 7) / 7) * 15;
                     totalProgressPct += (Math.min(addedServicesCount, 3) / 3) * 15;
                     totalProgressPct += (Math.min(photoPostsCount, 3) / 3) * 15;
-                    totalProgressPct += (Math.min(emergencyPostsCount, 1) / 1) * 15;
-                    totalProgressPct += 10; // Default behavior check
+                    totalProgressPct += 15; // Default behavior check
                     const calculatedProgress = Math.min(100, Math.round(totalProgressPct));
 
                     const status = user.verification_status || 'unverified';
@@ -3462,7 +3451,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                         </div>
 
                         {/* Middle Activity breakdown row */}
-                        <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 text-[10px] bg-slate-50 p-3 rounded-xl border">
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[10px] bg-slate-50 p-3 rounded-xl border">
                           <div>
                             <span className="text-slate-400 block font-serif">প্রোফাইল সম্পন্নতা:</span>
                             <strong className="text-slate-800 font-serif">{profileCompletePct}%</strong>
@@ -3482,10 +3471,6 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                           <div>
                             <span className="text-slate-400 block font-serif">ছবিযুক্ত পোস্ট:</span>
                             <strong className="text-slate-800 font-serif">{photoPostsCount} / ৩টি</strong>
-                          </div>
-                          <div>
-                            <span className="text-slate-400 block font-serif">জরুরি পোস্ট:</span>
-                            <strong className="text-slate-800 font-serif">{emergencyPostsCount} / ১টি</strong>
                           </div>
                         </div>
 
