@@ -133,7 +133,6 @@ import { ServiceReviewModal } from './components/features/ServiceReviewModal';
 import { getLocalReviews, computeServiceRatingStats, fetchAllServiceReviews, subscribeAllServiceReviews } from './services/reviewService';
 import { ServiceQR } from './components/ServiceQR';
 import { InstallPromptBanner } from './components/InstallPromptBanner';
-import { SplashScreen } from './components/SplashScreen';
 import { DownloadPage } from './components/DownloadPage';
 import { AdminDownloadsCMS } from './components/AdminDownloadsCMS';
 import { AdminPanelComplete } from './components/AdminPanelComplete';
@@ -316,7 +315,6 @@ export default function App() {
     }
   };
   const { isInstallable, isInstalled, installPWA, isOnline, wasOffline, resetWasOffline, platform } = usePWA();
-  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     if (darkMode) {
@@ -3542,16 +3540,6 @@ export default function App() {
 
   return (
     <div className="h-full max-h-full w-full overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-800 flex flex-col items-center font-sans">
-      {/* Animated Branded Launch Screen on cold start */}
-      {showSplash && (
-        <SplashScreen
-          onComplete={() => {
-            sessionStorage.setItem('smart_khulna_splash_shown', 'true');
-            setShowSplash(false);
-          }}
-        />
-      )}
-
       {/* Account Reactivation Modal overlay */}
       {showReactivateModal && (
         <div className="fixed inset-0 z-[100] bg-slate-900/85 backdrop-blur-md flex items-center justify-center p-4">
