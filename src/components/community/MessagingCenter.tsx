@@ -848,10 +848,10 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                       )}
 
                       <div
-                        className={`max-w-[85%] sm:max-w-[72%] p-2.5 sm:p-3 text-xs sm:text-[13px] leading-relaxed shadow-xs relative group break-words select-text ${
+                        className={`max-w-[85%] sm:max-w-[72%] p-3 sm:p-4 text-xs sm:text-[14px] leading-relaxed shadow-sm relative group break-words select-text ${
                           isMine
-                            ? `${activeTheme.myBubble} rounded-2xl ${isSameSender ? 'rounded-tr-md' : 'rounded-tr-xs'}`
-                            : `${activeTheme.otherBubble} rounded-2xl ${isSameSender ? 'rounded-tl-md' : 'rounded-tl-xs'}`
+                            ? `${activeTheme.myBubble} rounded-3xl ${isSameSender ? 'rounded-tr-md' : 'rounded-tr-xs'}`
+                            : `${activeTheme.otherBubble} rounded-3xl ${isSameSender ? 'rounded-tl-md' : 'rounded-tl-xs'}`
                         }`}
                       >
                         {/* ATTACHED IMAGES */}
@@ -928,7 +928,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
 
                         {/* TIME & READ STATUS */}
                         <div
-                          className={`mt-1 flex items-center gap-1.5 text-[9px] select-none ${
+                          className={`mt-1 flex items-center gap-1.5 text-[10px] font-medium select-none ${
                             isMine ? `${activeTheme.textMy} justify-end` : `${activeTheme.textOther} justify-end`
                           }`}
                         >
