@@ -516,14 +516,14 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
               const isActive = conv.id === activeConversationId;
 
               return (
-                <button
+                <div
                   key={conv.id}
                   id={`conversation-item-${conv.id}`}
                   onClick={() => {
                     onSelectConversation(conv.id);
                     setMobileShowChat(true);
                   }}
-                  className={`w-full p-3.5 flex items-start gap-3 text-left transition cursor-pointer hover:bg-slate-100/70 dark:hover:bg-slate-800/60 touch-pan-y ${
+                  className={`group w-full p-3.5 flex items-center gap-3 text-left transition cursor-pointer hover:bg-slate-100/70 dark:hover:bg-slate-800/60 touch-pan-y ${
                     isActive ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-r-4 border-emerald-700 dark:border-emerald-500' : ''
                   }`}
                 >
@@ -565,7 +565,34 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                       )}
                     </div>
                   </div>
-                </button>
+
+                  {/* Delete Conversation Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm('আপনি কি এই কথোপকথনটি মুছে ফেলতে চান?')) {
+                        onDeleteConversation(conv.id);
+                      }
+                    }}
+                    className="p-1.5 opacity-0 group-hover:opacity-100 transition text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg cursor-pointer shrink-0"
+                    title="কথোপকথনটি মুছে ফেলুন"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                  {/* Block User Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (otherUid && confirm('আপনি কি এই ব্যবহারকারীকে ব্লক করতে চান?')) {
+                        onBlockUser(otherUid);
+                      }
+                    }}
+                    className="p-1.5 opacity-0 group-hover:opacity-100 transition text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg cursor-pointer shrink-0"
+                    title="ব্যবহারকারীকে ব্লক করুন"
+                  >
+                    <Ban size={16} />
+                  </button>
+                </div>
               );
             })
           )}
