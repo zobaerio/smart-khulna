@@ -28,6 +28,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { SmartKhulnaVerifiedBadge } from './common/SmartKhulnaVerifiedBadge';
 import { Service, District, Category, initialDistricts, initialCategories } from '../dbData';
 import { CommunityPost, PublicUserProfile } from '../types/community';
 
@@ -606,7 +607,12 @@ const MobilePostCard = ({ post, onSelect, onSave, isSaved }: { post: CommunityPo
             {post.authorName ? post.authorName.charAt(0) : 'U'}
           </div>
           <div>
-            <h5 className="text-xs font-bold text-slate-900 dark:text-white leading-none">{post.authorName}</h5>
+            <div className="flex items-center gap-1">
+              <h5 className="text-xs font-bold text-slate-900 dark:text-white leading-none">{post.authorName}</h5>
+              {(post.authorVerificationStatus === 'verified' || post.authorBadge === 'verified_citizen') && (
+                <SmartKhulnaVerifiedBadge size={13} className="shrink-0" />
+              )}
+            </div>
             <p className="text-[9px] text-slate-400 mt-0.5">{new Date(post.createdAt).toLocaleDateString('bn-BD')}</p>
           </div>
         </div>

@@ -27,6 +27,7 @@ import {
 } from '../../types/community';
 import { District, Category } from '../../dbData';
 import { getSafeAvatarUrl } from '../../lib/avatarHelper';
+import { SmartKhulnaVerifiedBadge } from '../common/SmartKhulnaVerifiedBadge';
 
 interface CommunityModerationDashboardProps {
   currentUserRole: 'super_admin' | 'sub_admin';
@@ -297,8 +298,11 @@ export const CommunityModerationDashboard: React.FC<CommunityModerationDashboard
               className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3"
             >
               <div className="space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="font-bold text-slate-900">{post.authorName}</span>
+                  {(post.authorVerificationStatus === 'verified' || post.authorBadge === 'verified_citizen') && (
+                    <SmartKhulnaVerifiedBadge size={13} className="shrink-0" />
+                  )}
                   <span className="text-[10px] text-slate-400">
                     ({post.districtId || 'খুলনা'})
                   </span>

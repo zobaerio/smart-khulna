@@ -100,7 +100,7 @@ export const SmartKhulnaAiChat: React.FC<SmartKhulnaAiChatProps> = ({
   const handleToggleVoiceInput = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert('আপনার ব্রাউজার ভয়েস রিকগনিশন সমর্থন করে না। দয়া করে গুগল ক্রোম ব্রাউজার ব্যবহার করুন।');
+      console.warn('Speech recognition not supported in this browser.');
       return;
     }
 
@@ -141,7 +141,7 @@ export const SmartKhulnaAiChat: React.FC<SmartKhulnaAiChatProps> = ({
   };
 
   /**
-   * Text-to-Speech Voice Playback
+   * Text-to-Speech Voice Playback with browser fallback
    */
   const handlePlayAudio = async (msgId: string, text: string) => {
     if (playingMsgId === msgId) {
@@ -150,6 +150,9 @@ export const SmartKhulnaAiChat: React.FC<SmartKhulnaAiChatProps> = ({
         audioPlayerRef.current.pause();
         audioPlayerRef.current = null;
       }
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
       setPlayingMsgId(null);
       return;
     }
@@ -157,32 +160,63 @@ export const SmartKhulnaAiChat: React.FC<SmartKhulnaAiChatProps> = ({
     try {
       if (audioPlayerRef.current) {
         audioPlayerRef.current.pause();
+        audioPlayerRef.current = null;
+      }
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
       }
 
       setIsSynthesizing(true);
       setLoadingMsgId(msgId); // temporary loading state
 
-      const res = await AiAssistantService.synthesizeSpeech(text, 'Kore');
-      if (res.audioUrl) {
-        const audio = new Audio(res.audioUrl);
-        audioPlayerRef.current = audio;
+      let audioPlayed = false;
+
+      // Try server AI TTS first
+      try {
+        const res = await AiAssistantService.synthesizeSpeech(text, 'Kore');
+        if (res && res.audioUrl) {
+          const audio = new Audio(res.audioUrl);
+          audioPlayerRef.current = audio;
+          setPlayingMsgId(msgId);
+
+          audio.onended = () => {
+            setPlayingMsgId(null);
+            audioPlayerRef.current = null;
+          };
+
+          audio.onerror = () => {
+            setPlayingMsgId(null);
+            audioPlayerRef.current = null;
+          };
+
+          await audio.play();
+          audioPlayed = true;
+        }
+      } catch (backendErr) {
+        console.warn('Backend TTS failed, using browser speech synthesis fallback:', backendErr);
+      }
+
+      // If backend TTS failed or didn't return audio, fallback to browser native SpeechSynthesis
+      if (!audioPlayed && 'speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'bn-BD';
+        utterance.onend = () => {
+          setPlayingMsgId(null);
+        };
+        utterance.onerror = () => {
+          setPlayingMsgId(null);
+        };
         setPlayingMsgId(msgId);
+        window.speechSynthesis.speak(utterance);
+        audioPlayed = true;
+      }
 
-        audio.onended = () => {
-          setPlayingMsgId(null);
-          audioPlayerRef.current = null;
-        };
-
-        audio.onerror = () => {
-          setPlayingMsgId(null);
-          audioPlayerRef.current = null;
-        };
-
-        await audio.play();
+      if (!audioPlayed) {
+        console.warn('Voice playback unavailable on this browser/device.');
+        setPlayingMsgId(null);
       }
     } catch (err) {
       console.error('TTS playback error:', err);
-      alert('ভয়েস প্লেব্যাক করতে সমস্যা হয়েছে।');
       setPlayingMsgId(null);
     } finally {
       setIsSynthesizing(false);
