@@ -1,8 +1,20 @@
 User-agent: *
 Allow: /
+Allow: /services
+Allow: /emergency
+Allow: /blood-bank
+Allow: /sundarbans
+Allow: /community
+Allow: /jobs
+Allow: /tolet
+Allow: /tide
+Allow: /ai-assistant
+
 Disallow: /admin
 Disallow: /dashboard
 Disallow: /login
 Disallow: /profile
 
-Sitemap: https://ais-dev-maygmb54fixmmk56jdfgol-62469897869.asia-southeast1.run.app/sitemap.xml
+# Search Engine Sitemaps
+Sitemap: https://smartkhulna.vercel.app/sitemap.xml
+Sitemap: /sitemap.xml

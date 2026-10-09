@@ -1,63 +1,75 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://ais-dev-maygmb54fixmmk56jdfgol-62469897869.asia-southeast1.run.app/</loc>
-    <lastmod>2026-09-25</lastmod>
+    <loc>https://smartkhulna.vercel.app/</loc>
+    <lastmod>2026-10-09</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://ais-dev-maygmb54fixmmk56jdfgol-62469897869.asia-southeast1.run.app/services</loc>
-    <lastmod>2026-09-25</lastmod>
+    <loc>https://smartkhulna.vercel.app/services</loc>
+    <lastmod>2026-10-09</lastmod>
     <changefreq>hourly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://ais-dev-maygmb54fixmmk56jdfgol-62469897869.asia-southeast1.run.app/emergency</loc>
-    <lastmod>2026-09-25</lastmod>
+    <loc>https://smartkhulna.vercel.app/emergency</loc>
+    <lastmod>2026-10-09</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://ais-dev-maygmb54fixmmk56jdfgol-62469897869.asia-southeast1.run.app/blood-bank</loc>
-    <lastmod>2026-09-25</lastmod>
+    <loc>https://smartkhulna.vercel.app/blood-bank</loc>
+    <lastmod>2026-10-09</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://ais-dev-maygmb54fixmmk56jdfgol-62469897869.asia-southeast1.run.app/sundarbans</loc>
-    <lastmod>2026-09-25</lastmod>
+    <loc>https://smartkhulna.vercel.app/hospitals</loc>
+    <lastmod>2026-10-09</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://smartkhulna.vercel.app/sundarbans</loc>
+    <lastmod>2026-10-09</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://ais-dev-maygmb54fixmmk56jdfgol-62469897869.asia-southeast1.run.app/community</loc>
-    <lastmod>2026-09-25</lastmod>
+    <loc>https://smartkhulna.vercel.app/community</loc>
+    <lastmod>2026-10-09</lastmod>
     <changefreq>hourly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://ais-dev-maygmb54fixmmk56jdfgol-62469897869.asia-southeast1.run.app/jobs</loc>
-    <lastmod>2026-09-25</lastmod>
+    <loc>https://smartkhulna.vercel.app/jobs</loc>
+    <lastmod>2026-10-09</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://ais-dev-maygmb54fixmmk56jdfgol-62469897869.asia-southeast1.run.app/tolet</loc>
-    <lastmod>2026-09-25</lastmod>
+    <loc>https://smartkhulna.vercel.app/tolet</loc>
+    <lastmod>2026-10-09</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://ais-dev-maygmb54fixmmk56jdfgol-62469897869.asia-southeast1.run.app/tide</loc>
-    <lastmod>2026-09-25</lastmod>
+    <loc>https://smartkhulna.vercel.app/tide</loc>
+    <lastmod>2026-10-09</lastmod>
     <changefreq>daily</changefreq>
-    <priority>0.7</priority>
+    <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://ais-dev-maygmb54fixmmk56jdfgol-62469897869.asia-southeast1.run.app/ai-assistant</loc>
-    <lastmod>2026-09-25</lastmod>
+    <loc>https://smartkhulna.vercel.app/ai-assistant</loc>
+    <lastmod>2026-10-09</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://smartkhulna.vercel.app/get-verified</loc>
+    <lastmod>2026-10-09</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
   </url>
 </urlset>

@@ -1,6 +1,6 @@
 {
   "name": "Smart Khulna",
-  "description": "A professional Bangladesh local-service discovery and information platform for Khulna Division.",
+  "description": "Smart Khulna (স্মার্ট খুলনা) – খুলনা বিভাগের ১০টি জেলার সরকারি ও নাগরিক সেবা, জরুরি হটলাইন, স্বাস্থ্যসেবা, রক্তদান, সুন্দরবন ভ্রমণ, মেস ও চাকরির তথ্য পোর্টাল।",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

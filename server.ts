@@ -294,6 +294,27 @@ async function startServer() {
     res.json({ status: 'ok' });
   });
 
+  // Dynamic SEO Sitemap endpoint for Search Engines
+  app.get('/sitemap.xml', (req, res) => {
+    try {
+      const sitemapPath = path.join(process.cwd(), 'public', 'sitemap.xml');
+      if (fs.existsSync(sitemapPath)) {
+        let content = fs.readFileSync(sitemapPath, 'utf8');
+        const host = req.get('host');
+        const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+        if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+          const currentBase = `${protocol}://${host}`;
+          content = content.replace(/https:\/\/smartkhulna\.vercel\.app/g, currentBase);
+        }
+        res.header('Content-Type', 'application/xml');
+        return res.send(content);
+      }
+    } catch (e) {
+      console.warn('Sitemap serving error:', e);
+    }
+    res.status(404).send('Not Found');
+  });
+
   // Explicitly return 404 for /file_* requests inside the container so that
   // the platform's reverse proxy can intercept them rather than receiving index.html (SPA fallback)
   app.get('/file_*', (req, res) => {
