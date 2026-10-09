@@ -57,8 +57,12 @@ export function handleFirestoreError(
 // Test Firestore connection on boot as specified in the Firebase integration skill
 export async function testConnection(): Promise<void> {
   try {
-    await getDocFromServer(doc(db, 'settings', 'release_config'));
+    await getDocFromServer(doc(db, 'test', 'connection'));
   } catch (error) {
-    console.warn('Firestore boot connection test notice:', error);
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.warn('Firestore client operates in offline mode until network connection resolves.');
+    } else {
+      console.warn('Firestore boot connection test notice:', error);
+    }
   }
 }

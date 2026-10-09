@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore, getFirestore } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp({
@@ -14,10 +14,18 @@ const app = initializeApp({
   measurementId: firebaseConfig.measurementId
 });
 
+// Configure Firestore with long-polling transport to prevent proxy buffering 10s connection timeout
+try {
+  initializeFirestore(app, {
+    experimentalForceLongPolling: true,
+    ignoreUndefinedProperties: true
+  }, firebaseConfig.firestoreDatabaseId);
+} catch {
+  // If already initialized, safely proceed
+}
+
 // Initialize Firestore with default or custom database
-export const db = firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
-  ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
-  : getFirestore(app);
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();

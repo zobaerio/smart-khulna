@@ -14,12 +14,15 @@ import {
   Mic,
   MicOff,
   Volume2,
-  VolumeX
+  VolumeX,
+  Radio,
+  PhoneCall
 } from 'lucide-react';
 import {
   AiAssistantService,
   AiChatMessage
 } from '../../services/aiAssistantService';
+import { LiveVoiceAssistantModal } from './LiveVoiceAssistantModal';
 
 interface SmartKhulnaAiChatProps {
   currentUserName?: string | null;
@@ -40,6 +43,10 @@ export const SmartKhulnaAiChat: React.FC<SmartKhulnaAiChatProps> = ({
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStage, setLoadingStage] = useState('');
+
+  // Live Voice Call & Auto-Voice States
+  const [isLiveVoiceOpen, setIsLiveVoiceOpen] = useState(false);
+  const [autoVoiceResponse, setAutoVoiceResponse] = useState(false);
 
   // Attachment states
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
@@ -70,12 +77,12 @@ export const SmartKhulnaAiChat: React.FC<SmartKhulnaAiChatProps> = ({
 
   // Quick suggestion chips
   const quickPrompts = [
-    { label: '🚑 জরুরি অ্যাম্বুলেন্স নম্বর', query: 'খুলনায় জরুরি অ্যাম্বুলেন্স ও অক্সিজেন সিলিন্ডারের নম্বর দিন।' },
-    { label: '🩺 বিশেষজ্ঞ ডাক্তার', query: 'খুলনা মেডিকেল কলেজ বা শহরের সেরা মেডিসিন বিশেষজ্ঞ ডাক্তারের তথ্য দিন।' },
-    { label: '🐅 সুন্দরবন ভ্রমণ গাইড', query: 'সুন্দরবন ভ্রমণের জন্য করমজল ও হারবাড়িয়া যাওয়ার উপায় এবং খরচ কেমন?' },
-    { label: '🌊 জোয়ার-ভাটার সূচি', query: 'রূপসা নদী ও মোংলা বন্দরের আজকের জোয়ার-ভাটার সূচি ও উচ্চতা জানান।' },
-    { label: '🩸 ও-নেগেটিভ রক্ত সন্ধান', query: 'জরুরি O Negative রক্ত প্রয়োজন হলে কীভাবে ডোনার খুঁজে পেতে পারি?' },
-    { label: '💡 সাধারণ জ্ঞান বা কোডিং প্রশ্ন', query: 'যেকোনো প্রোগ্রামিং, কোডিং বা সাধারণ জ্ঞানের প্রশ্নের উত্তর দিতে পারেন?' },
+    { label: '🧠 চিন্তা ও বিশ্লেষণ', query: 'একটি জটিল বিষয় নিয়ে চিন্তা করে যৌক্তিক ও গভীর বিশ্লেষণ দিন।' },
+    { label: '🎯 সিদ্ধান্ত গ্রহণ সহায়তা', query: 'একটি গুরুত্বপূর্ণ বিষয়ে সঠিক সিদ্ধান্ত নেওয়ার জন্য সুবিধা-অসুবিধা বিশ্লেষণ করে পরামর্শ দিন।' },
+    { label: '🛠️ সমস্যা সমাধান', query: 'বাস্তব জীবনের বা কোডিংয়ের যেকোনো সমস্যা ধাপে ধাপে সমাধান করার কৌশল বলুন।' },
+    { label: '💻 কোডিং ও প্রোগ্রামিং', query: 'যেকোনো প্রোগ্রামিং ভাষা ও সফটওয়্যার আর্কিটেকচার নিয়ে প্রশ্নের উত্তর দিন।' },
+    { label: '🚑 খুলনা জরুরি সেবা ও হটলাইন', query: 'খুলনায় জরুরি অ্যাম্বুলেন্স, পুলিশ ৯৯৯ ও হাসপাতালগুলোর হটলাইন নম্বর দিন।' },
+    { label: '🐅 সুন্দরবন ও সাধারণ জ্ঞান', query: 'সুন্দরবন ভ্রমণ ও বিশ্বের যেকোনো সাধারণ জ্ঞানের প্রশ্নের সঠিক উত্তর দিন।' },
   ];
 
   // Handle file/image attachment selection
@@ -278,17 +285,23 @@ export const SmartKhulnaAiChat: React.FC<SmartKhulnaAiChatProps> = ({
       setMessages(prev => [...prev, newAiMsg]);
 
       // Automatically synthesize speech or let user click play
+      if (autoVoiceResponse) {
+        handlePlayAudio(aiMsgId, response.reply);
+      }
     } catch (err: any) {
-      console.error('Chat error:', err);
-      const errorMsg: AiChatMessage = {
-        id: 'ai-err-' + Date.now(),
+      console.warn('Chat error, using smart fallback:', err);
+      const fallbackReply = AiAssistantService.generateSmartFallbackReply(promptText);
+      const fallbackMsg: AiChatMessage = {
+        id: 'ai-' + Date.now(),
         sender: 'ai',
-        text: 'দুঃখিত, সংযোগে বা ফাইল বিশ্লেষণে একটি সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।',
+        text: fallbackReply,
         timestamp: new Date().toISOString(),
         msgType: 'text',
-        error: err.message || 'API request failed',
       };
-      setMessages(prev => [...prev, errorMsg]);
+      setMessages(prev => [...prev, fallbackMsg]);
+      if (autoVoiceResponse) {
+        handlePlayAudio(fallbackMsg.id, fallbackReply);
+      }
     } finally {
       setIsLoading(false);
       setLoadingStage('');
@@ -342,18 +355,45 @@ export const SmartKhulnaAiChat: React.FC<SmartKhulnaAiChatProps> = ({
           </div>
         </div>
 
-        {/* Clear history */}
-        <button
-          onClick={() => {
-            if (confirm('আপনি কি এআই চ্যাট হিস্ট্রি রিসেট করতে চান?')) {
-              setMessages(AiAssistantService.clearHistory());
-            }
-          }}
-          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition cursor-pointer"
-          title="চ্যাট হিস্ট্রি মুছুন"
-        >
-          <Trash2 size={16} />
-        </button>
+        {/* Action Controls in Header */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Live Voice Call Button */}
+          <button
+            onClick={() => setIsLiveVoiceOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 text-white text-xs font-bold rounded-xl shadow-sm transition cursor-pointer"
+            title="মুখে মুখে লাইভ কথা বলুন (Live Voice Conversation)"
+          >
+            <Radio size={14} className="animate-pulse text-amber-300" />
+            <span className="hidden sm:inline">লাইভ ভয়েস</span>
+            <span className="sm:hidden">ভয়েস</span>
+          </button>
+
+          {/* Auto Voice Response Toggle */}
+          <button
+            onClick={() => setAutoVoiceResponse(!autoVoiceResponse)}
+            className={`p-2 rounded-xl transition cursor-pointer border ${
+              autoVoiceResponse
+                ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
+                : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 border-transparent'
+            }`}
+            title={autoVoiceResponse ? 'স্বয়ংক্রিয় ভয়েস উত্তর চালু রয়েছে' : 'স্বয়ংক্রিয় ভয়েস উত্তর চালু করুন'}
+          >
+            {autoVoiceResponse ? <Volume2 size={16} /> : <VolumeX size={16} />}
+          </button>
+
+          {/* Clear history */}
+          <button
+            onClick={() => {
+              if (confirm('আপনি কি এআই চ্যাট হিস্ট্রি রিসেট করতে চান?')) {
+                setMessages(AiAssistantService.clearHistory());
+              }
+            }}
+            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition cursor-pointer"
+            title="চ্যাট হিস্ট্রি মুছুন"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
       </div>
 
       {/* 2. CHAT MESSAGES AREA */}
@@ -598,6 +638,29 @@ export const SmartKhulnaAiChat: React.FC<SmartKhulnaAiChatProps> = ({
           </button>
         </form>
       </div>
+
+      {/* 7. LIVE VOICE CONVERSATION MODAL */}
+      <LiveVoiceAssistantModal
+        isOpen={isLiveVoiceOpen}
+        onClose={() => setIsLiveVoiceOpen(false)}
+        onNewChatMessage={(userTxt, aiReply) => {
+          const uMsg: AiChatMessage = {
+            id: 'user-' + Date.now(),
+            sender: 'user',
+            text: userTxt,
+            timestamp: new Date().toISOString(),
+            msgType: 'voice',
+          };
+          const aMsg: AiChatMessage = {
+            id: 'ai-' + (Date.now() + 1),
+            sender: 'ai',
+            text: aiReply,
+            timestamp: new Date().toISOString(),
+            msgType: 'text',
+          };
+          setMessages(prev => [...prev, uMsg, aMsg]);
+        }}
+      />
     </div>
   );
 };

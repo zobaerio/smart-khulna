@@ -228,6 +228,13 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // 20. Join Requests (Volunteer/Team applications)
+    match /joinRequests/{requestId} {
+      allow read: if isSuperAdmin() || (isAuthenticated() && resource.data.uid == request.auth.uid);
+      allow create: if true;
+      allow update, delete: if isSuperAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

@@ -309,9 +309,29 @@
         "createdAt": { "type": "string" }
       },
       "required": ["id", "title", "isActive"]
+    },
+    "JoinRequest": {
+      "title": "JoinRequest",
+      "description": "Citizen application to join the Smart Khulna volunteer or administrative team",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "district": { "type": "string" },
+        "role": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["fullName", "status", "createdAt"]
     }
   },
   "firestore": {
+    "/joinRequests/{requestId}": {
+      "schema": "JoinRequest",
+      "description": "Citizen applications to join the volunteer or administrative team"
+    },
     "/notices/{noticeId}": {
       "schema": "Notice",
       "description": "Official public notices created and managed by administrators"
