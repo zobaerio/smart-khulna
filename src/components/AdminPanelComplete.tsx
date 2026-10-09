@@ -48,7 +48,8 @@ import {
   TrendingUp,
   BarChart3,
   PieChart,
-  ShieldCheck
+  ShieldCheck,
+  Check
 } from 'lucide-react';
 import { ServiceReview, fetchAllServiceReviews, subscribeAllServiceReviews, deleteServiceReview, computeServiceRatingStats } from '../services/reviewService';
 import { compressImage } from '../lib/imageCompressor';
@@ -62,6 +63,7 @@ import { AdminBannersCMS } from './AdminBannersCMS';
 import { SubAdminPolicyView } from './SubAdminPolicyView';
 import { AIVerificationTool } from './AIVerificationTool';
 import { AdminBroadcastCenter } from './notifications/AdminBroadcastCenter';
+import { SmartKhulnaVerifiedBadge } from './common/SmartKhulnaVerifiedBadge';
 
 interface AdminPanelCompleteProps {
   currentUserRole: 'super_admin' | 'sub_admin' | 'moderator';
@@ -216,6 +218,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
 
   // State for Sub-Admin & Moderator tab filter
   const [subAdminRoleFilter, setSubAdminRoleFilter] = useState<'all' | 'sub_admin' | 'moderator'>('all');
+  const [verificationSearchQuery, setVerificationSearchQuery] = useState('');
 
   // State for Service Management
   const [serviceSearchQuery, setServiceSearchQuery] = useState('');
@@ -528,6 +531,51 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
       alert(`ইউজারের অ্যাকাউন্ট সফলভাবে ${isCurrentlySuspended ? 'সক্রিয়' : 'স্থগিত'} করা হয়েছে!`);
     } catch (err: any) {
       alert('স্ট্যাটাস পরিবর্তনে সমস্যা হয়েছে: ' + (err.message || err));
+    }
+  };
+
+  // Super Admin direct verification toggle for any user
+  const handleToggleUserVerification = async (targetUser: UserProfile) => {
+    if (!isSuperAdmin) {
+      alert('শুধুমাত্র সুপার এডমিন সরাসরি ভেরিফিকেশন প্রদান করতে পারেন।');
+      return;
+    }
+    const isCurrentlyVerified = targetUser.verification_status === 'verified' || (targetUser as any).badge === 'verified_citizen';
+    const nextStatus = isCurrentlyVerified ? 'unverified' : 'verified';
+    const nextBadge = isCurrentlyVerified ? 'none' : 'verified_citizen';
+
+    try {
+      const userRef = doc(db, 'profiles', targetUser.uid);
+      await updateDoc(userRef, {
+        verification_status: nextStatus,
+        badge: nextBadge,
+        verified_at: isCurrentlyVerified ? null : new Date().toISOString(),
+        verified_by: currentUserEmail || 'super_admin',
+        verification_reason: isCurrentlyVerified 
+          ? 'সুপার এডমিন কর্তৃক ভেরিফিকেশন প্রত্যাহার' 
+          : 'সুপার এডমিন কর্তৃক সরাসরি স্মার্ট খুলনা ভেরিফাইড ব্যাজ প্রদান',
+        verification_reviewed_at: new Date().toISOString()
+      });
+
+      setUsersList(prev =>
+        prev.map(u =>
+          u.uid === targetUser.uid
+            ? { ...u, verification_status: nextStatus, badge: nextBadge as any }
+            : u
+        )
+      );
+
+      if (selectedUser && selectedUser.uid === targetUser.uid) {
+        setSelectedUser(prev => prev ? { ...prev, verification_status: nextStatus, badge: nextBadge as any } : null);
+      }
+
+      alert(isCurrentlyVerified 
+        ? `'${targetUser.name}' এর ভেরিফিকেশন সফলভাবে প্রত্যাহার করা হয়েছে!`
+        : `অভিনন্দন! '${targetUser.name}' কে সফলভাবে Smart Khulna Verified টিক প্রদান করা হয়েছে!`
+      );
+    } catch (err: any) {
+      console.error('Error toggling verification:', err);
+      alert('ভেরিফিকেশন স্ট্যাটাস পরিবর্তন করতে সমস্যা হয়েছে: ' + (err.message || err));
     }
   };
 
@@ -1050,6 +1098,7 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                   <th className="p-3">ইমেইল</th>
                   <th className="p-3">রোল (Role)</th>
                   <th className="p-3">জেলা</th>
+                  <th className="p-3">ভেরিফিকেশন</th>
                   <th className="p-3">স্ট্যাটাস</th>
                   <th className="p-3 text-right">পদক্ষেপ</th>
                 </tr>
@@ -1057,13 +1106,14 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
               <tbody className="divide-y divide-slate-100">
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-6 text-center text-slate-400">
+                    <td colSpan={7} className="p-6 text-center text-slate-400">
                       কোনো ইউজার পাওয়া যায়নি।
                     </td>
                   </tr>
                 ) : (
                   filteredUsers.map(u => {
                     const isSuspended = u.status === 'suspended' || u.isBanned;
+                    const isVerified = u.verification_status === 'verified' || (u as any).badge === 'verified_citizen';
                     const districtName = districts.find(d => d.id === u.selectedDistrict)?.name || 'খুলনা';
                     return (
                       <tr key={u.uid} className="hover:bg-slate-50 transition">
@@ -1078,7 +1128,10 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                             referrerPolicy="no-referrer"
                           />
                           <div>
-                            <span className="font-bold text-slate-900 block">{u.name || 'নামবিহীন'}</span>
+                            <div className="flex items-center gap-1 font-bold text-slate-900">
+                              <span>{u.name || 'নামবিহীন'}</span>
+                              {isVerified && <SmartKhulnaVerifiedBadge size={13} />}
+                            </div>
                             <span className="text-[10px] text-slate-400 font-mono">UID: {u.uid.slice(0, 8)}...</span>
                           </div>
                         </td>
@@ -1103,6 +1156,37 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                           )}
                         </td>
                         <td className="p-3 text-slate-600">{districtName}</td>
+                        <td className="p-3">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {isVerified ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded-full text-[10px] border border-emerald-300">
+                                <SmartKhulnaVerifiedBadge size={12} />
+                                <span>ভেরিফাইড</span>
+                              </span>
+                            ) : u.verification_status === 'pending' ? (
+                              <span className="px-2 py-0.5 bg-amber-100 text-amber-800 font-bold rounded-full text-[10px] border border-amber-300">
+                                পেন্ডিং
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 bg-slate-100 text-slate-500 font-medium rounded-full text-[10px]">
+                                সাধারণ
+                              </span>
+                            )}
+                            {isSuperAdmin && (
+                              <button
+                                onClick={() => handleToggleUserVerification(u)}
+                                className={`px-2 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer shadow-2xs ${
+                                  isVerified
+                                    ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
+                                    : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                }`}
+                                title={isVerified ? 'ভেরিফিকেশন প্রত্যাহার করুন' : 'সরাসরি ভেরিফাইড টিক দিন'}
+                              >
+                                {isVerified ? 'টিক বাতিল' : 'টিক দিন'}
+                              </button>
+                            )}
+                          </div>
+                        </td>
                         <td className="p-3">
                           {isSuspended ? (
                             <span className="px-2 py-0.5 bg-red-100 text-red-700 font-bold rounded-full text-[10px]">
@@ -1307,6 +1391,45 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                       </div>
                     </div>
                   )}
+
+                  {/* Verification Status Control */}
+                  <div className="pt-2 border-t border-slate-100">
+                    <label className="block font-bold text-slate-700 mb-1 flex items-center justify-between">
+                      <span>স্মার্ট খুলনা ভেরিফিকেশন স্ট্যাটাস:</span>
+                      <span className="text-[10px] text-emerald-700 font-bold">এডমিন সরাসরি নিয়ন্ত্রণ</span>
+                    </label>
+                    <div className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                      <div className="flex items-center gap-2">
+                        <SmartKhulnaVerifiedBadge size={16} />
+                        <div>
+                          <span className="text-xs font-bold text-slate-800 block">
+                            {selectedUser.verification_status === 'verified' || selectedUser.badge === 'verified_citizen'
+                              ? 'ভেরিফাইড নাগরিক (Verified)'
+                              : 'সাধারণ নাগরিক (Unverified)'}
+                          </span>
+                          <span className="text-[10px] text-slate-500">
+                            {selectedUser.verification_status === 'verified'
+                              ? 'প্রোফাইলে সবুজ-লাল টিক ব্যাজ সক্রিয় আছে'
+                              : 'এডমিন চাইলে এখনই টিক মার্ক দিতে পারেন'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleUserVerification(selectedUser)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer shadow-xs ${
+                          selectedUser.verification_status === 'verified' || selectedUser.badge === 'verified_citizen'
+                            ? 'bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300'
+                            : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        }`}
+                      >
+                        {selectedUser.verification_status === 'verified' || selectedUser.badge === 'verified_citizen'
+                          ? 'টিক বাতিল করুন'
+                          : 'ভেরিফাইড টিক দিন'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
@@ -3316,6 +3439,85 @@ export const AdminPanelComplete: React.FC<AdminPanelCompleteProps> = ({
                   {usersList.filter(u => u.verification_status && u.verification_status !== 'unverified').length} জন
                 </p>
               </div>
+            </div>
+
+            {/* Direct Verification Tool: Grant Verification to ANY Citizen */}
+            <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-lime-50 border border-emerald-200 rounded-3xl p-4 sm:p-5 text-xs space-y-3 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h4 className="text-xs sm:text-sm font-extrabold text-emerald-950 flex items-center gap-1.5 font-serif">
+                    <ShieldCheck size={16} className="text-emerald-700" />
+                    <span>যেকোনো নাগরিককে সরাসরি ভেরিফাইড টিক দিন (Direct Verification by Admin)</span>
+                  </h4>
+                  <p className="text-[11px] text-emerald-800 font-serif">
+                    এডমিন চাইলে যেকোনো নাগরিককে কোনো আবেদন ছাড়াই সরাসরি সম্মানিত 'Smart Khulna Verified' ব্যাজ প্রদান করতে পারেন।
+                  </p>
+                </div>
+              </div>
+
+              {/* Citizen Search Input */}
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-2.5 text-emerald-600" />
+                <input
+                  type="text"
+                  placeholder="নাগরিকের নাম, ইমেইল অথবা ফোন নম্বর দিয়ে খুঁজুন..."
+                  value={verificationSearchQuery}
+                  onChange={e => setVerificationSearchQuery(e.target.value)}
+                  className="w-full bg-white border border-emerald-300 rounded-2xl pl-8.5 pr-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs"
+                />
+              </div>
+
+              {/* Instant Search Results */}
+              {verificationSearchQuery.trim() && (
+                <div className="bg-white border border-emerald-200 rounded-2xl p-2 max-h-60 overflow-y-auto space-y-1.5 shadow-sm">
+                  {usersList
+                    .filter(u => 
+                      u.name?.toLowerCase().includes(verificationSearchQuery.toLowerCase()) ||
+                      u.email?.toLowerCase().includes(verificationSearchQuery.toLowerCase()) ||
+                      u.phone?.includes(verificationSearchQuery)
+                    )
+                    .slice(0, 10)
+                    .map(u => {
+                      const isV = u.verification_status === 'verified' || (u as any).badge === 'verified_citizen';
+                      return (
+                        <div key={u.uid} className="flex items-center justify-between p-2 rounded-xl hover:bg-emerald-50/60 transition border border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={getSafeAvatarUrl(u.avatar, u.name, u.uid)}
+                              alt={u.name}
+                              className="w-7 h-7 rounded-full object-cover border border-slate-200"
+                            />
+                            <div>
+                              <div className="flex items-center gap-1 font-bold text-slate-900">
+                                <span>{u.name}</span>
+                                {isV && <SmartKhulnaVerifiedBadge size={13} />}
+                              </div>
+                              <span className="text-[10px] text-slate-400">{u.email}</span>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => handleToggleUserVerification(u)}
+                            className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition flex items-center gap-1 cursor-pointer shadow-2xs ${
+                              isV
+                                ? 'bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300'
+                                : 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                            }`}
+                          >
+                            {isV ? (
+                              <span>❌ টিক প্রত্যাহার করুন</span>
+                            ) : (
+                              <>
+                                <Check size={12} className="stroke-[3]" />
+                                <span>✅ ভেরিফাইড টিক দিন</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
             </div>
 
             {/* List of Applications */}

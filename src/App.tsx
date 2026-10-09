@@ -185,6 +185,7 @@ import { getSafeAvatarUrl } from './lib/avatarHelper';
 import { SmartKhulnaHeader } from './components/common/SmartKhulnaHeader';
 import { SmartKhulnaLogo } from './components/common/SmartKhulnaLogo';
 import { DiscoverySearch } from './components/DiscoverySearch';
+import { KhulnaDistrictDensityMap } from './components/home/KhulnaDistrictDensityMap';
 
 // Category Color Scheme Mapping for Compact Visual Cards with 3D Gradients & Glossy Glow
 const getCategoryStyle = (catId: string) => {
@@ -602,13 +603,33 @@ export default function App() {
           const params = new URLSearchParams(window.location.search);
           code = params.get('ref')?.trim() || params.get('invite')?.trim() || '';
         }
+        if (!code && window.location.hash) {
+          const hash = window.location.hash;
+          if (hash.includes('/invite/')) {
+            code = hash.split('/invite/')[1]?.split('?')[0]?.split('/')[0]?.trim();
+          } else if (hash.includes('ref=')) {
+            const hashParams = new URLSearchParams(hash.split('?')[1] || '');
+            code = hashParams.get('ref')?.trim() || hashParams.get('invite')?.trim() || '';
+          }
+        }
 
         if (code) {
           console.log('[Referral] Detected referral code from URL:', code);
-          localStorage.setItem('smart_khulna_referral_code', code);
+          const cleanCode = code.toLowerCase().trim();
+          localStorage.setItem('smart_khulna_referral_code', cleanCode);
+
+          // Immediately show Welcome Modal with initial pleasant state so no blank screen occurs
+          setReferralWelcomeData({
+            code: cleanCode,
+            inviter: {
+              uid: cleanCode,
+              name: 'সম্মানিত খুলনা নাগরিক',
+              district: 'খুলনা'
+            }
+          });
+          setShowReferralWelcomeModal(true);
 
           let resolvedUid = '';
-          const cleanCode = code.toLowerCase();
 
           // If code is full UID (>20 chars), store directly as referrerUid
           if (code.length > 20) {
@@ -623,7 +644,6 @@ export default function App() {
               if (codeSnap.exists() && codeSnap.data()?.uid) {
                 resolvedUid = codeSnap.data().uid;
                 localStorage.setItem('smart_khulna_referral_uid', resolvedUid);
-                console.log('[Referral] Resolved short code to referrer UID via referral_codes:', resolvedUid);
               } else {
                 // 2. Query profiles collection where referralCode == cleanCode
                 const q = query(collection(db, 'profiles'), where('referralCode', '==', cleanCode));
@@ -631,27 +651,29 @@ export default function App() {
                 if (!qSnap.empty) {
                   resolvedUid = qSnap.docs[0].id;
                   localStorage.setItem('smart_khulna_referral_uid', resolvedUid);
-                  console.log('[Referral] Resolved short code to referrer UID via profiles query:', resolvedUid);
                 } else {
-                  // 3. Fallback: match UID prefix
-                  const allSnap = await getDocs(query(collection(db, 'profiles'), limit(100)));
-                  const matched = allSnap.docs.find(d => d.id.toLowerCase().startsWith(cleanCode));
+                  // 3. Fallback: match UID prefix or all profiles scan
+                  const allSnap = await getDocs(collection(db, 'profiles'));
+                  const matched = allSnap.docs.find(d => {
+                    const dId = d.id.toLowerCase();
+                    const dCode = (d.data()?.referralCode || '').toLowerCase();
+                    return dId.startsWith(cleanCode) || dCode === cleanCode || dId === cleanCode;
+                  });
                   if (matched) {
                     resolvedUid = matched.id;
                     localStorage.setItem('smart_khulna_referral_uid', matched.id);
-                    console.log('[Referral] Resolved short code to referrer UID via prefix match:', matched.id);
                   } else {
-                    localStorage.setItem('smart_khulna_referral_uid', code);
+                    localStorage.setItem('smart_khulna_referral_uid', cleanCode);
                   }
                 }
               }
             } catch (err) {
               console.warn('[Referral] Error resolving referral short code:', err);
-              localStorage.setItem('smart_khulna_referral_uid', code);
+              localStorage.setItem('smart_khulna_referral_uid', cleanCode);
             }
           }
 
-          // Fetch inviter profile to show welcome dialog if not logged in
+          // Fetch inviter profile to show enriched welcome details
           if (resolvedUid) {
             try {
               const inviterSnap = await getDoc(doc(db, 'profiles', resolvedUid));
@@ -666,17 +688,7 @@ export default function App() {
                     district: iData.district || iData.selectedDistrict || 'খুলনা',
                     upazila: iData.upazila || '',
                     profession: iData.profession || '',
-                    isVerified: iData.verification_status === 'verified'
-                  }
-                });
-                setShowReferralWelcomeModal(true);
-              } else {
-                setReferralWelcomeData({
-                  code: cleanCode,
-                  inviter: {
-                    uid: resolvedUid,
-                    name: 'একজন নাগরিক',
-                    district: 'খুলনা'
+                    isVerified: iData.verification_status === 'verified' || iData.badge === 'verified_citizen'
                   }
                 });
                 setShowReferralWelcomeModal(true);
@@ -4062,6 +4074,21 @@ export default function App() {
             {/* TAB VIEW - HOME */}
             {activeTab === 'home' && !viewingDistrictId && (
               <>
+                {/* Interactive D3 Khulna District Density Map */}
+                <KhulnaDistrictDensityMap
+                  districts={initialDistricts}
+                  services={services}
+                  selectedDistrict={selectedDistrict}
+                  onSelectDistrict={(distId) => {
+                    if (distId === 'all') {
+                      setSelectedDistrict('');
+                    } else {
+                      setSelectedDistrict(distId);
+                    }
+                  }}
+                  className="w-full"
+                />
+
                 {/* 1. DISTRICT SELECTOR (Required top of the page) */}
                 <div className="bg-gradient-to-br from-emerald-50 to-lime-50/50 dark:from-slate-850 dark:to-emerald-950/20 p-3 sm:p-4 sm:rounded-2xl border-y sm:border border-emerald-100 dark:border-slate-800 shadow-sm relative w-full">
                   <div className="flex items-center justify-between mb-2.5">
@@ -5770,6 +5797,8 @@ export default function App() {
                         isFollowing: false
                       }}
                       currentUserUid={currentUser?.uid}
+                      currentUserEmail={currentUser?.email || ''}
+                      currentUserRole={userProfile?.role}
                       isOwnProfile={currentUser?.uid === (targetProfile?.uid || 'guest')}
                       onEdit={() => {
                         if (!targetProfile) return;

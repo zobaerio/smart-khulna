@@ -81,6 +81,8 @@ import { PostComment } from '../../types/community';
 interface EnhancedProfileViewProps {
   profile: PublicUserProfile;
   currentUserUid?: string;
+  currentUserEmail?: string;
+  currentUserRole?: string;
   isOwnProfile: boolean;
   onEdit: () => void;
   onMessage: (uid: string, name: string, avatar?: string) => void;
@@ -125,6 +127,8 @@ type ProfileTab = 'posts' | 'about' | 'photos' | 'services' | 'followers' | 'ref
 export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
   profile,
   currentUserUid,
+  currentUserEmail,
+  currentUserRole,
   isOwnProfile,
   onEdit,
   onMessage,
@@ -295,42 +299,54 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
   useEffect(() => {
     if (!profile.uid || profile.uid === 'guest') return;
 
-    const shortCode = getShortReferralCode(profile);
-    const qByUid = query(collection(db, 'referrals'), where('referrerUid', '==', profile.uid));
+    const shortCode = getShortReferralCode(profile).toLowerCase();
+    const myUid = profile.uid.toLowerCase();
+    const myReferralCode = (profile.referralCode || '').toLowerCase();
 
-    const unsub = onSnapshot(qByUid, async (snapshot) => {
-      const list: any[] = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+    // Listen to entire referrals collection in real time
+    const refCol = collection(db, 'referrals');
+    const unsub = onSnapshot(refCol, (snapshot) => {
+      const list: any[] = [];
+      snapshot.docs.forEach(docSnap => {
+        const data = docSnap.data();
+        const rUid = (data.referrerUid || '').toLowerCase();
+        const rCode = (data.referrerCode || data.referrerShortCode || '').toLowerCase();
 
-      // Also fetch by shortCode
-      if (shortCode && shortCode !== 'khulna') {
-        try {
-          const qByCode = query(collection(db, 'referrals'), where('referrerCode', '==', shortCode));
-          const snapCode = await getDocs(qByCode);
-          snapCode.docs.forEach(d => {
-            if (!list.some(item => item.id === d.id)) {
-              list.push({ id: d.id, ...d.data() });
-            }
-          });
+        const isMatch = (
+          rUid === myUid ||
+          (shortCode && rUid === shortCode) ||
+          (myReferralCode && rUid === myReferralCode) ||
+          (shortCode && rCode === shortCode) ||
+          (myReferralCode && rCode === myReferralCode) ||
+          (shortCode && shortCode.length >= 4 && myUid.startsWith(rUid)) ||
+          (rUid && rUid.length >= 4 && myUid.startsWith(rUid))
+        );
 
-          const qByUidAsCode = query(collection(db, 'referrals'), where('referrerUid', '==', shortCode));
-          const snapUidAsCode = await getDocs(qByUidAsCode);
-          snapUidAsCode.docs.forEach(d => {
-            if (!list.some(item => item.id === d.id)) {
-              list.push({ id: d.id, ...d.data() });
-            }
-          });
-        } catch (e) {
-          console.warn('Error fetching referrals by code in profile:', e);
+        if (isMatch) {
+          list.push({ id: docSnap.id, ...data });
+
+          // Self-heal: ensure referrerUid in DB is the full UID
+          if (data.referrerUid !== profile.uid && profile.uid) {
+            updateDoc(doc(db, 'referrals', docSnap.id), {
+              referrerUid: profile.uid
+            }).catch(() => {});
+          }
         }
-      }
+      });
 
       list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
       setReferralsList(list);
+
+      // Self-heal profile count in DB if needed
+      const curProfileCount = (profile as any).referralsCount || 0;
+      if (list.length > curProfileCount && profile.uid) {
+        updateDoc(doc(db, 'profiles', profile.uid), {
+          referralsCount: list.length,
+          total_referrals: list.length
+        }).catch(() => {});
+      }
     }, (err) => {
-      console.warn('Referrals snapshot listener warning:', err);
+      console.warn('Referrals snapshot listener error:', err);
     });
 
     return () => unsub();
@@ -906,6 +922,111 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
               <p className="mt-3 text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-2xl whitespace-pre-line">
                 {profile.bio}
               </p>
+            )}
+
+            {/* Referral Code & Copy Referral Link button next to it */}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-xs">
+                <span className="text-[11px] font-medium text-emerald-800 dark:text-emerald-300">রেফারেল কোড:</span>
+                <code className="font-mono font-black text-emerald-950 dark:text-emerald-200 text-xs tracking-wider">
+                  {getShortReferralCode(profile)}
+                </code>
+              </div>
+
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  const link = buildReferralLink(profile);
+                  navigator.clipboard.writeText(link);
+                  setCopiedReferralLink(true);
+                  setTimeout(() => setCopiedReferralLink(false), 2500);
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                  copiedReferralLink
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200 dark:hover:bg-emerald-900/70 border border-emerald-300 dark:border-emerald-700'
+                }`}
+                title="রেফারেল লিংক কপি করুন"
+              >
+                <AnimatePresence mode="wait">
+                  {copiedReferralLink ? (
+                    <motion.span
+                      key="copied"
+                      initial={{ scale: 0.6, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.6, opacity: 0 }}
+                      className="flex items-center gap-1 text-white"
+                    >
+                      <Check size={14} className="stroke-[3]" />
+                      <span>Copied! (কপি হয়েছে)</span>
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="copy"
+                      initial={{ scale: 0.6, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.6, opacity: 0 }}
+                      className="flex items-center gap-1"
+                    >
+                      <Copy size={13} />
+                      <span>Copy Referral Link</span>
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </motion.button>
+
+              <button
+                onClick={() => setShowReferralShareModal(true)}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white transition flex items-center gap-1 cursor-pointer shadow-xs"
+              >
+                <Share2 size={13} />
+                <span>শেয়ার</span>
+              </button>
+            </div>
+
+            {/* Super Admin Direct Verification Action on Profile */}
+            {((currentUserEmail && ['zobaerhasan431@gmail.com', 'zobaerio24@gmail.com'].includes(currentUserEmail.toLowerCase())) || currentUserRole === 'super_admin') && !isOwnProfile && (
+              <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-2xl flex flex-wrap items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck size={17} className="text-amber-600 dark:text-amber-400" />
+                  <div>
+                    <span className="text-xs font-bold text-amber-950 dark:text-amber-200 block">
+                      সুপার এডমিন কন্ট্রোল: ভেরিফিকেশন টিক
+                    </span>
+                    <span className="text-[10px] text-amber-800 dark:text-amber-300">
+                      বর্তমান স্ট্যাটাস: {profile.verification_status === 'verified' || profile.badge === 'verified_citizen' ? '🟢 ভেরিফাইড (টিক মার্ক সক্রিয়)' : '⚪ আন-ভেরিফাইড'}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={async () => {
+                    const isVerifiedNow = profile.verification_status === 'verified' || profile.badge === 'verified_citizen';
+                    const nextSt = isVerifiedNow ? 'unverified' : 'verified';
+                    const nextBd = isVerifiedNow ? 'none' : 'verified_citizen';
+                    try {
+                      await updateDoc(doc(db, 'profiles', profile.uid), {
+                        verification_status: nextSt,
+                        badge: nextBd,
+                        verified_at: isVerifiedNow ? null : new Date().toISOString(),
+                        verified_by: currentUserEmail || 'super_admin',
+                        verification_reason: isVerifiedNow ? 'সুপার এডমিন প্রত্যাহার' : 'সুপার এডমিন কর্তৃক সরাসরি প্রোফাইল ভেরিফিকেশন প্রদান',
+                        verification_reviewed_at: new Date().toISOString()
+                      });
+                      alert(isVerifiedNow ? 'ভেরিফিকেশন প্রত্যাহার করা হয়েছে!' : 'অভিনন্দন! ইউজারকে সফলভাবে ভেরিফাইড টিক দেওয়া হয়েছে!');
+                    } catch (e: any) {
+                      alert('ভেরিফিকেশন পরিবর্তন করতে ব্যর্থ: ' + (e.message || e));
+                    }
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold text-white transition cursor-pointer shadow-xs ${
+                    profile.verification_status === 'verified' || profile.badge === 'verified_citizen'
+                      ? 'bg-rose-600 hover:bg-rose-700'
+                      : 'bg-emerald-600 hover:bg-emerald-700'
+                  }`}
+                >
+                  {profile.verification_status === 'verified' || profile.badge === 'verified_citizen' ? '❌ ভেরিফিকেশন টিক প্রত্যাহার করুন' : '✅ ভেরিফাইড টিক দিন'}
+                </button>
+              </div>
             )}
 
             {/* Stats Bar */}

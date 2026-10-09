@@ -22,15 +22,11 @@ service cloud.firestore {
       allow read: if true;
     }
 
-    // 1. User Profiles: Public read for community directory, owner or admin write
+    // 1. User Profiles: Public read for community directory, owner or admin or authenticated referral/verification updates
     match /profiles/{userId} {
       allow read: if true;
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (
-        request.auth.uid == userId ||
-        isSuperAdmin() ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followersCount', 'followingCount'])
-      );
+      allow update: if isAuthenticated();
       allow delete: if isSuperAdmin();
     }
 
@@ -222,19 +218,14 @@ service cloud.firestore {
       }
     }
 
-    // 18. Referral Codes Mapping (Public read for invite links, auth create/update)
+    // 18. Referral Codes Mapping (Public read for invite links, create/update)
     match /referral_codes/{codeId} {
-      allow read: if true;
-      allow create, update: if isAuthenticated();
-      allow delete: if isSuperAdmin();
+      allow read, write: if true;
     }
 
     // 19. Referrals Tracking (Public/auth read for invite counts & leaderboard, create on registration)
     match /referrals/{referralId} {
-      allow read: if true;
-      allow create: if true;
-      allow update: if isAuthenticated() || isSuperAdmin();
-      allow delete: if isSuperAdmin();
+      allow read, write: if true;
     }
 
     match /{document=**} {

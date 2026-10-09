@@ -11,11 +11,13 @@ import {
   Compass,
   Bookmark,
   FileText,
-  Edit3
+  Edit3,
+  Trophy
 } from 'lucide-react';
 import { CommunityPost, PostComment } from '../../types/community';
 import { District, Category } from '../../dbData';
 import { PostCard } from './PostCard';
+import { TopReferrersLeaderboard } from '../common/TopReferrersLeaderboard';
 
 interface CommunityFeedProps {
   posts: CommunityPost[];
@@ -45,7 +47,7 @@ interface CommunityFeedProps {
   onStartMessage: (authorId: string, authorName: string, authorEmail: string, authorAvatar?: string) => void;
 }
 
-type FeedFilterType = 'all' | 'my_posts' | 'my_district' | 'following' | 'popular' | 'recent' | 'saved';
+type FeedFilterType = 'all' | 'top_referrers' | 'my_posts' | 'my_district' | 'following' | 'popular' | 'recent' | 'saved';
 
 export const CommunityFeed: React.FC<CommunityFeedProps> = ({
   posts,
@@ -240,6 +242,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
           <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 pt-0.5 scrollbar-none no-scrollbar text-xs">
             {[
               { id: 'all', label: 'সবার পোস্ট', icon: Compass },
+              { id: 'top_referrers', label: '🏆 শীর্ষ রেফারার', icon: Trophy },
               ...(currentUserId ? [{ id: 'my_posts', label: 'আমার পোস্ট', icon: FileText }] : []),
               { id: 'my_district', label: 'আমার জেলার পোস্ট', icon: MapPin },
               { id: 'following', label: 'আমি যাদের Follow করি', icon: Users },
@@ -288,9 +291,16 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({
         </div>
       </div>
 
-      {/* 4. POSTS STREAM */}
+      {/* 4. POSTS STREAM OR TOP REFERRERS LEADERBOARD */}
       <div className="space-y-3">
-        {filteredPosts.length === 0 ? (
+        {activeFilter === 'top_referrers' ? (
+          <div className="space-y-3">
+            <TopReferrersLeaderboard
+              currentUserUid={currentUserId}
+              onUserClick={(uid) => onViewProfile(uid, '', '', '')}
+            />
+          </div>
+        ) : filteredPosts.length === 0 ? (
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200/90 dark:border-slate-800 text-center space-y-3">
             <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 flex items-center justify-center mx-auto">
               <FileText size={22} />
