@@ -46,6 +46,7 @@ export const SmartKhulnaAiChat: React.FC<SmartKhulnaAiChatProps> = ({
   // Live Voice Call & Auto-Voice States
   const [isLiveVoiceOpen, setIsLiveVoiceOpen] = useState(false);
   const [autoVoiceResponse, setAutoVoiceResponse] = useState(false);
+  const [persona, setPersona] = useState<'girlfriend' | 'boyfriend'>(() => AiAssistantService.getActivePersona());
 
   // Attachment states
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
@@ -175,7 +176,7 @@ export const SmartKhulnaAiChat: React.FC<SmartKhulnaAiChatProps> = ({
 
       // Try server AI TTS first
       try {
-        const res = await AiAssistantService.synthesizeSpeech(text, 'Kore');
+        const res = await AiAssistantService.synthesizeSpeech(text, undefined, persona);
         if (res && res.audioUrl) {
           const audio = new Audio(res.audioUrl);
           audioPlayerRef.current = audio;
@@ -261,7 +262,8 @@ export const SmartKhulnaAiChat: React.FC<SmartKhulnaAiChatProps> = ({
         promptText,
         [...messages, newUserMsg],
         currentImageToSend || undefined,
-        currentMimeToSend || undefined
+        currentMimeToSend || undefined,
+        persona
       );
 
       const aiMsgId = 'ai-' + Date.now();
@@ -348,6 +350,28 @@ export const SmartKhulnaAiChat: React.FC<SmartKhulnaAiChatProps> = ({
 
         {/* Action Controls in Header */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Persona Switcher Toggle */}
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700">
+            <button
+              onClick={() => {
+                  setPersona('girlfriend');
+                  AiAssistantService.setActivePersona('girlfriend');
+              }}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${persona === 'girlfriend' ? 'bg-white dark:bg-slate-700 text-emerald-700 shadow-sm' : 'text-slate-500'}`}
+            >
+              👧 গার্লফ্রেন্ড
+            </button>
+            <button
+              onClick={() => {
+                  setPersona('boyfriend');
+                  AiAssistantService.setActivePersona('boyfriend');
+              }}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${persona === 'boyfriend' ? 'bg-white dark:bg-slate-700 text-emerald-700 shadow-sm' : 'text-slate-500'}`}
+            >
+              👦 বয়ফ্রেন্ড
+            </button>
+          </div>
+
           {/* Live Voice Call Button */}
           <button
             onClick={() => setIsLiveVoiceOpen(true)}

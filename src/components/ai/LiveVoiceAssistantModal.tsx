@@ -15,6 +15,7 @@ export const LiveVoiceAssistantModal: React.FC<LiveVoiceAssistantModalProps> = (
   onClose,
   onNewChatMessage
 }) => {
+  const [persona, setPersona] = useState<'girlfriend' | 'boyfriend'>(() => AiAssistantService.getActivePersona());
   const [status, setStatus] = useState<LiveVoiceStatus>('listening');
   const [transcript, setTranscript] = useState<string>('');
   const [lastUserSpeech, setLastUserSpeech] = useState<string>('');
@@ -38,9 +39,10 @@ export const LiveVoiceAssistantModal: React.FC<LiveVoiceAssistantModalProps> = (
     };
   }, []);
 
-  // When modal opens, start live session
+  // When modal opens, sync persona and start live session
   useEffect(() => {
     if (isOpen) {
+      setPersona(AiAssistantService.getActivePersona());
       setErrorMessage(null);
       setStatus('listening');
       startListening();
@@ -179,8 +181,10 @@ export const LiveVoiceAssistantModal: React.FC<LiveVoiceAssistantModalProps> = (
     }
 
     try {
-      const response = await AiAssistantService.sendMessage(spokenText);
-      const reply = response.reply || 'আমি আপনার কথা বুঝতে পেরেছি। আপনার আর কী জানার আছে বলুন?';
+      const response = await AiAssistantService.sendMessage(spokenText, [], undefined, undefined, persona);
+      const reply = response.reply || (persona === 'boyfriend'
+        ? 'আমি তো তোমার কথাই শুনছিলাম জানু! বলো আর কী বলবে? ❤️'
+        : 'আমি তো তোমার কথাই শুনছিলাম সোনা! বলো আর কী বলবে? 🥰');
 
       setCurrentAiResponse(reply);
       setConversationHistory(prev => [...prev.slice(-4), { user: spokenText, ai: reply }]);
@@ -205,7 +209,9 @@ export const LiveVoiceAssistantModal: React.FC<LiveVoiceAssistantModalProps> = (
       }
     } catch (err: any) {
       console.error('[LiveVoice] Chat query failed:', err);
-      const fallbackReply = 'আমি আপনার কথা শুনেছি। কোনো সংযোগ ত্রুটির কারণে আবার স্পষ্টভাবে বলুন।';
+      const fallbackReply = persona === 'boyfriend'
+        ? 'আমি তোমার পাশেই আছি পরী! কথাটি আর একবার বলবে সোনা? ❤️'
+        : 'আমি তোমার সাথেই আছি বাবু! আর একবার মিষ্টি করে বলো তো? 🥰';
       setCurrentAiResponse(fallbackReply);
       speakAiResponse(fallbackReply);
     }
@@ -245,8 +251,9 @@ export const LiveVoiceAssistantModal: React.FC<LiveVoiceAssistantModalProps> = (
     };
 
     // 1. First attempt high-quality server TTS
+    const targetVoice = persona === 'boyfriend' ? 'Puck' : 'Kore';
     try {
-      const res = await AiAssistantService.synthesizeSpeech(cleanSpeech, 'Kore');
+      const res = await AiAssistantService.synthesizeSpeech(cleanSpeech, targetVoice, persona);
       if (res && res.audioUrl && isComponentMounted.current) {
         const audio = new Audio(res.audioUrl);
         audioPlayerRef.current = audio;
@@ -260,7 +267,7 @@ export const LiveVoiceAssistantModal: React.FC<LiveVoiceAssistantModalProps> = (
           audioPlayerRef.current = null;
           // Fallback to client browser synthesis if audio fails
           if (isComponentMounted.current) {
-            AiAssistantService.speakVoice(cleanSpeech, onFinishSpeaking, onFinishSpeaking);
+            AiAssistantService.speakVoice(cleanSpeech, onFinishSpeaking, onFinishSpeaking, persona);
           }
         };
 
@@ -273,7 +280,7 @@ export const LiveVoiceAssistantModal: React.FC<LiveVoiceAssistantModalProps> = (
 
     // 2. Fallback to browser SpeechSynthesis with sequential sentence chunking & keep-alive
     if (isComponentMounted.current) {
-      AiAssistantService.speakVoice(cleanSpeech, onFinishSpeaking, onFinishSpeaking);
+      AiAssistantService.speakVoice(cleanSpeech, onFinishSpeaking, onFinishSpeaking, persona);
     }
   };
 
