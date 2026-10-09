@@ -80,7 +80,8 @@ import {
   Moon,
   Menu,
   Star,
-  Award
+  Award,
+  Train
 } from 'lucide-react';
 import { EnhancedProfileView } from './components/community/EnhancedProfileView';
 import { PostCard } from './components/community/PostCard';
@@ -179,11 +180,15 @@ import { CitizenFeedbackHub } from './components/features/CitizenFeedbackHub';
 import { LocalJobsHub } from './components/features/LocalJobsHub';
 import { ToLetHub } from './components/features/ToLetHub';
 import { PMPresentationHub } from './components/features/PMPresentationHub';
+import { TransportHub } from './components/features/TransportHub';
+import { AmbulanceEmergencyHub } from './components/features/AmbulanceEmergencyHub';
+import { GetVerifiedSection } from './components/features/GetVerifiedSection';
 import { EditProfileModal } from './components/community/EditProfileModal';
 import { ProfileSettingsModal } from './components/community/ProfileSettingsModal';
 import { getSafeAvatarUrl } from './lib/avatarHelper';
 import { SmartKhulnaHeader } from './components/common/SmartKhulnaHeader';
 import { SmartKhulnaLogo } from './components/common/SmartKhulnaLogo';
+import { SmartKhulnaVerifiedBadge } from './components/common/SmartKhulnaVerifiedBadge';
 import { DiscoverySearch } from './components/DiscoverySearch';
 
 // Category Color Scheme Mapping for Compact Visual Cards with 3D Gradients & Glossy Glow
@@ -296,7 +301,7 @@ export default function App() {
   });
   const [viewingDistrictId, setViewingDistrictId] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
-  const [activeFeatureHub, setActiveFeatureHub] = useState<'blood-bank' | 'tourism' | 'doctors' | 'weather' | 'complaints' | 'jobs' | 'tolet' | 'presentation' | null>(null);
+  const [activeFeatureHub, setActiveFeatureHub] = useState<'blood-bank' | 'tourism' | 'doctors' | 'weather' | 'complaints' | 'jobs' | 'tolet' | 'presentation' | 'transport' | 'ambulance' | null>(null);
   const [adminView, setAdminView] = useState<string | null>(null);
   const [releaseConfig, setReleaseConfig] = useState<AppReleaseConfig>(() => getLocalData('release_config', defaultReleaseConfig));
   const districtScrollRef = useRef<HTMLDivElement>(null);
@@ -374,6 +379,17 @@ export default function App() {
   const [selectedProfileUser, setSelectedProfileUser] = useState<PublicUserProfile | null>(null);
   const [showUserProfileModal, setShowUserProfileModal] = useState(false);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+  const [showVerificationGuideModal, setShowVerificationGuideModal] = useState(false);
+
+  useEffect(() => {
+    const handleOpenVerification = () => {
+      setShowVerificationGuideModal(true);
+    };
+    window.addEventListener('open-verification-guide', handleOpenVerification as EventListener);
+    return () => {
+      window.removeEventListener('open-verification-guide', handleOpenVerification as EventListener);
+    };
+  }, []);
   const [userLiveNotifications, setUserLiveNotifications] = useState<UserNotificationItem[]>([]);
   const [activeForegroundNotification, setActiveForegroundNotification] = useState<UserNotificationItem | null>(null);
   const [reportModalState, setReportModalState] = useState<{
@@ -3743,6 +3759,18 @@ export default function App() {
                   <Home size={15} className="text-blue-400" /> বাড়ি ভাড়া ও মেস (To-Let)
                 </button>
                 <button
+                  onClick={() => { setActiveFeatureHub('transport'); setIsDrawerOpen(false); }}
+                  className="w-full text-left px-3.5 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 flex items-center gap-2.5 cursor-pointer"
+                >
+                  <Train size={15} className="text-emerald-400" /> ট্রেন ও বাস শিডিউল
+                </button>
+                <button
+                  onClick={() => { setActiveFeatureHub('ambulance'); setIsDrawerOpen(false); }}
+                  className="w-full text-left px-3.5 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 flex items-center gap-2.5 cursor-pointer"
+                >
+                  <Ambulance size={15} className="text-red-400" /> জরুরি অ্যাম্বুলেন্স নেটওয়ার্ক
+                </button>
+                <button
                   onClick={() => { setActiveFeatureHub('presentation'); setIsDrawerOpen(false); }}
                   className="w-full text-left px-3.5 py-2 rounded-xl text-xs font-bold text-amber-200 bg-amber-950/20 hover:bg-amber-950/40 border border-amber-500/20 flex items-center gap-2.5 cursor-pointer"
                 >
@@ -6356,6 +6384,8 @@ export default function App() {
       {activeFeatureHub === 'jobs' && <LocalJobsHub onClose={() => setActiveFeatureHub(null)} />}
       {activeFeatureHub === 'tolet' && <ToLetHub onClose={() => setActiveFeatureHub(null)} />}
       {activeFeatureHub === 'presentation' && <PMPresentationHub onClose={() => setActiveFeatureHub(null)} />}
+      {activeFeatureHub === 'transport' && <TransportHub onClose={() => setActiveFeatureHub(null)} />}
+      {activeFeatureHub === 'ambulance' && <AmbulanceEmergencyHub onClose={() => setActiveFeatureHub(null)} />}
 
       {/* 24/7 OFFLINE SOS EMERGENCY DIRECTORY MODAL */}
       <OfflineSOSDirectoryModal
@@ -6400,6 +6430,29 @@ export default function App() {
           setActiveTab('profile');
         }}
       />
+
+      {/* VERIFICATION GUIDE MODAL */}
+      {showVerificationGuideModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200">
+            <div className="p-4 bg-emerald-800 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <SmartKhulnaVerifiedBadge size={22} />
+                <h3 className="font-serif font-bold text-base sm:text-lg">Smart Khulna ভেরিফিকেশন গাইড</h3>
+              </div>
+              <button 
+                onClick={() => setShowVerificationGuideModal(false)}
+                className="p-1.5 bg-black/20 hover:bg-black/40 rounded-full text-white transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4 sm:p-6 overflow-y-auto">
+              <GetVerifiedSection currentUserProfile={userProfile || ({ uid: currentUser?.uid || 'guest', name: currentUser?.displayName || 'অতিথি ইউজার', email: currentUser?.email || '', district: selectedDistrict, role: 'citizen' } as any)} />
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -3,23 +3,31 @@ import React, { useState } from 'react';
 interface SmartKhulnaVerifiedBadgeProps {
   size?: number;
   className?: string;
+  onClick?: () => void;
 }
 
 export const SmartKhulnaVerifiedBadge: React.FC<SmartKhulnaVerifiedBadgeProps> = ({ 
   size = 14, 
-  className = "" 
+  className = "",
+  onClick
 }) => {
   const [showTooltip, setShowTooltip] = useState(false);
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onClick) {
+      onClick();
+    } else {
+      window.dispatchEvent(new CustomEvent('open-verification-guide'));
+    }
+  };
 
   return (
     <div 
       className={`relative inline-flex items-center justify-center select-none cursor-pointer ${className}`}
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
-      onClick={(e) => {
-        e.stopPropagation();
-        setShowTooltip(prev => !prev);
-      }}
+      onClick={handleClick}
     >
       <svg
         width={size}
@@ -48,8 +56,11 @@ export const SmartKhulnaVerifiedBadge: React.FC<SmartKhulnaVerifiedBadgeProps> =
 
       {showTooltip && (
         <div 
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 p-3 bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-xl shadow-xl z-50 text-center font-serif border border-slate-700 dark:border-slate-200 animate-in fade-in slide-in-from-bottom-1 duration-150 pointer-events-none"
-          onClick={(e) => e.stopPropagation()}
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-xl shadow-xl z-50 text-center font-serif border border-slate-700 dark:border-slate-200 animate-in fade-in slide-in-from-bottom-1 duration-150"
+          onClick={(e) => {
+            e.stopPropagation();
+            window.dispatchEvent(new CustomEvent('open-verification-guide'));
+          }}
         >
           <div className="flex items-center justify-center gap-1.5 mb-1.5">
             <span className="relative flex h-2 w-2 items-center justify-center">
@@ -60,9 +71,12 @@ export const SmartKhulnaVerifiedBadge: React.FC<SmartKhulnaVerifiedBadgeProps> =
               Smart Khulna Verified
             </span>
           </div>
-          <p className="text-[10px] leading-relaxed text-slate-300 dark:text-slate-600 font-sans font-medium">
-            এই প্রোফাইলটি Smart Khulna কর্তৃক যাচাইকৃত।
+          <p className="text-[10px] leading-relaxed text-slate-300 dark:text-slate-600 font-sans font-medium mb-2">
+            এই প্রোফাইলটি Smart Khulna কর্তৃক যাচাইকৃত। ভেরিফিকেশন পেতে ক্লিক করুন।
           </p>
+          <div className="w-full py-1 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 shadow-xs cursor-pointer">
+            <span>ভেরিফিকেশন গাইড দেখুন</span>
+          </div>
           <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900 dark:border-t-white" />
         </div>
       )}

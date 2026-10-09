@@ -18,6 +18,7 @@ import {
 import { PublicUserProfile, CommunityPost, VerifiedBadgeType } from '../../types/community';
 import { District } from '../../dbData';
 import { getSafeAvatarUrl } from '../../lib/avatarHelper';
+import { SmartKhulnaVerifiedBadge } from '../common/SmartKhulnaVerifiedBadge';
 
 interface UserProfileModalProps {
   user: PublicUserProfile | null;
@@ -186,8 +187,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           {/* NAME, BADGES & FOLLOW/UNFOLLOW BUTTON */}
           <div>
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 font-serif">
-                {user.name}
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 font-serif flex items-center gap-1.5">
+                <span>{user.name}</span>
+                {(user.verification_status === 'verified' || user.badge === 'verified_citizen' || (user as any).isVerified) && (
+                  <SmartKhulnaVerifiedBadge size={16} />
+                )}
               </h2>
               {renderBadge(user.badge)}
 
