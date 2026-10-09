@@ -61,8 +61,9 @@ import { PublicUserProfile, CommunityPost, VerifiedBadgeType } from '../../types
 import { Service, District, Category } from '../../dbData';
 import { IconComponent } from './IconComponent';
 import { db } from '../../firebase';
-import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc, getDoc, setDoc, getDocs, where } from 'firebase/firestore';
 import { AppUpdateModal } from '../ui/AppUpdateModal';
+import { TopReferrersLeaderboard } from '../common/TopReferrersLeaderboard';
 
 interface ProfileVisitor {
   id: string;
@@ -119,7 +120,7 @@ interface EnhancedProfileViewProps {
   onToggleDarkMode?: () => void;
 }
 
-type ProfileTab = 'posts' | 'about' | 'photos' | 'services' | 'followers' | 'visitors';
+type ProfileTab = 'posts' | 'about' | 'photos' | 'services' | 'followers' | 'referrals' | 'visitors';
 
 export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
   profile,
@@ -287,6 +288,56 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
     };
   }, [isOwnProfile, profile.uid]);
 
+  // Real-time referrals listener for this profile
+  const [referralsList, setReferralsList] = useState<any[]>([]);
+  const [copiedReferralLink, setCopiedReferralLink] = useState(false);
+
+  useEffect(() => {
+    if (!profile.uid || profile.uid === 'guest') return;
+
+    const shortCode = getShortReferralCode(profile);
+    const qByUid = query(collection(db, 'referrals'), where('referrerUid', '==', profile.uid));
+
+    const unsub = onSnapshot(qByUid, async (snapshot) => {
+      const list: any[] = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      // Also fetch by shortCode
+      if (shortCode && shortCode !== 'khulna') {
+        try {
+          const qByCode = query(collection(db, 'referrals'), where('referrerCode', '==', shortCode));
+          const snapCode = await getDocs(qByCode);
+          snapCode.docs.forEach(d => {
+            if (!list.some(item => item.id === d.id)) {
+              list.push({ id: d.id, ...d.data() });
+            }
+          });
+
+          const qByUidAsCode = query(collection(db, 'referrals'), where('referrerUid', '==', shortCode));
+          const snapUidAsCode = await getDocs(qByUidAsCode);
+          snapUidAsCode.docs.forEach(d => {
+            if (!list.some(item => item.id === d.id)) {
+              list.push({ id: d.id, ...d.data() });
+            }
+          });
+        } catch (e) {
+          console.warn('Error fetching referrals by code in profile:', e);
+        }
+      }
+
+      list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      setReferralsList(list);
+    }, (err) => {
+      console.warn('Referrals snapshot listener warning:', err);
+    });
+
+    return () => unsub();
+  }, [profile.uid, profile.referralCode]);
+
+  const dynamicInvitesCount = Math.max(referralsList.length, (profile as any).referralsCount || (profile as any).total_referrals || 0);
+
   const handleSimulateVisitor = async () => {
     // Disabled simulation as we want real data now
     alert('রিয়েল-টাইম প্রোফাইল ভিজিটর সিস্টেম সক্রিয় আছে।');
@@ -313,7 +364,10 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
     { label: 'ফলোয়ার', value: profile.followersCount || followers.length, tab: 'followers' as ProfileTab },
     { label: 'ফলোয়িং', value: profile.followingCount || following.length, tab: 'followers' as ProfileTab },
     { label: 'সেবা', value: services.length, tab: 'services' as ProfileTab },
-    ...(isOwnProfile ? [{ label: 'ভিজিটর', value: visitors.length, tab: 'visitors' as ProfileTab }] : [])
+    ...(isOwnProfile ? [
+      { label: 'রেফারেল', value: dynamicInvitesCount, tab: 'referrals' as ProfileTab },
+      { label: 'ভিজিটর', value: visitors.length, tab: 'visitors' as ProfileTab }
+    ] : [])
   ];
 
   const handleCoverFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -873,14 +927,17 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
 
       {/* Tabs Navigation */}
       <div className="border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 sticky top-[52px] z-20">
-        <div className="flex px-2 max-w-screen-xl mx-auto">
+        <div className="flex px-2 max-w-screen-xl mx-auto overflow-x-auto no-scrollbar">
           {[
             { id: 'posts', label: 'পোস্ট', icon: <Grid size={18} /> },
             { id: 'about', label: 'তথ্য', icon: <Info size={18} /> },
             { id: 'photos', label: 'ছবি', icon: <ImageIcon size={18} /> },
             { id: 'services', label: 'সেবা', icon: <Award size={18} /> },
             { id: 'followers', label: 'ফলোয়ার', icon: <Users size={18} /> },
-            ...(isOwnProfile ? [{ id: 'visitors', label: `ভিজিটর (${visitors.length})`, icon: <Eye size={18} /> }] : [])
+            ...(isOwnProfile ? [
+              { id: 'referrals', label: `রেফারেল (${dynamicInvitesCount})`, icon: <Share2 size={18} /> },
+              { id: 'visitors', label: `ভিজিটর (${visitors.length})`, icon: <Eye size={18} /> }
+            ] : [])
           ].map(tab => (
             <button
               key={tab.id}
@@ -1500,6 +1557,194 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
             </motion.div>
           )}
 
+          {/* DEDICATED REFERRALS TAB CONTENT */}
+          {activeTab === 'referrals' && isOwnProfile && (
+            <motion.div 
+              key="referrals"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-5 max-w-2xl mx-auto"
+            >
+              {/* Referrals Banner */}
+              <div className="bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-700 text-white rounded-3xl p-5 sm:p-6 shadow-md relative overflow-hidden text-left">
+                <div className="relative z-10 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider bg-white/20 backdrop-blur-xs px-2.5 py-0.5 rounded-full">
+                      নাগরিক রেফারেল প্রোগ্রাম
+                    </span>
+                    <span className="text-xs font-mono font-extrabold bg-emerald-950/60 text-emerald-200 px-3 py-1 rounded-full border border-emerald-400/30">
+                      কোড: {getShortReferralCode(profile)}
+                    </span>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-black">
+                      আপনার আমন্ত্রণে স্মার্ট খুলনায় যুক্ত সদস্য
+                    </h3>
+                    <p className="text-xs text-emerald-100 font-serif leading-relaxed mt-1">
+                      বন্ধুদের স্মার্ট খুলনায় আমন্ত্রণ জানান। ৫ জন নাগরিক নিবন্ধন করলেই পেয়ে যান ভেরিফাইড নাগরিক ব্যাজ ও বিশেষ স্বীকৃতি!
+                    </p>
+                  </div>
+
+                  {/* Metrics Row */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2">
+                    <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3 border border-white/15">
+                      <span className="text-[10px] text-emerald-100 block">মোট সফল রেফারেল</span>
+                      <span className="text-xl sm:text-2xl font-black font-mono">{dynamicInvitesCount}</span>
+                      <span className="text-[10px] text-emerald-200 ml-1">জন নাগরিক</span>
+                    </div>
+
+                    <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3 border border-white/15">
+                      <span className="text-[10px] text-emerald-100 block">ভেরিফিকেশন লক্ষ্যমাত্রা</span>
+                      <span className="text-xl sm:text-2xl font-black font-mono">
+                        {Math.min(dynamicInvitesCount, 5)}/5
+                      </span>
+                      <span className="text-[10px] text-emerald-200 ml-1">
+                        {dynamicInvitesCount >= 5 ? '✅ সম্পন্ন' : `বাকি ${5 - dynamicInvitesCount} জন`}
+                      </span>
+                    </div>
+
+                    <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3 border border-white/15 col-span-2 sm:col-span-1">
+                      <span className="text-[10px] text-emerald-100 block">সিটিজেন স্ট্যাটাস</span>
+                      <span className="text-sm font-extrabold flex items-center gap-1 mt-1">
+                        {dynamicInvitesCount >= 5 ? (
+                          <>
+                            <SmartKhulnaVerifiedBadge size={16} />
+                            <span>ভেরিফাইড অ্যাম্বাসেডর</span>
+                          </>
+                        ) : (
+                          <span>অ্যাক্টিভ রেফারার</span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Referral Link & Sharing Box */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xs space-y-3 text-left">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <Share2 size={15} className="text-emerald-600" />
+                    <span>আপনার ব্যক্তিগত আমন্ত্রণ লিংক (Referral Link)</span>
+                  </h4>
+                  <span className="text-[10px] text-slate-400 font-serif">
+                    ক্লিক করে শেয়ার করুন
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 bg-slate-50 dark:bg-slate-950 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 items-stretch sm:items-center justify-between">
+                  <code className="text-xs truncate select-all text-emerald-700 dark:text-emerald-400 font-mono px-2 py-1">
+                    {buildReferralLink(profile)}
+                  </code>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(buildReferralLink(profile));
+                        setCopiedReferralLink(true);
+                        setTimeout(() => setCopiedReferralLink(false), 2500);
+                      }}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                        copiedReferralLink 
+                          ? 'bg-emerald-600 text-white' 
+                          : 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                      }`}
+                    >
+                      {copiedReferralLink ? <Check size={14} /> : <Copy size={14} />}
+                      <span>{copiedReferralLink ? 'কপি হয়েছে! (Copied)' : 'লিংক কপি'}</span>
+                    </button>
+                    <button
+                      onClick={() => setShowReferralShareModal(true)}
+                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Share2 size={14} />
+                      <span>শেয়ার</span>
+                    </button>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-slate-500 font-serif leading-relaxed">
+                  💡 কোনো নাগরিক যখন আপনার এই লিংকে ক্লিক করে অ্যাপে অ্যাকাউন্ট খুলবেন, তখন আপনার রেফারেল সংখ্যা স্বয়ংক্রিয়ভাবে বৃদ্ধি পাবে।
+                </p>
+              </div>
+
+              {/* Invited Citizens List */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-xs space-y-3 text-left">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Users size={16} className="text-emerald-600" />
+                    <span>আমার আমন্ত্রিত নাগরিকদের তালিকা ({dynamicInvitesCount})</span>
+                  </h4>
+                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                    {dynamicInvitesCount} জন সফল
+                  </span>
+                </div>
+
+                {referralsList.length === 0 ? (
+                  <div className="py-8 text-center space-y-2">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
+                      <Users size={22} />
+                    </div>
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      এখনও কোনো নাগরিক আপনার লিংকে নিবন্ধন করেননি
+                    </p>
+                    <p className="text-[11px] text-slate-400 font-serif max-w-sm mx-auto">
+                      আপনার আমন্ত্রণ লিংকটি ফেসবুক, হোয়াটসঅ্যাপ বা টেলিগ্রামে বন্ধুদের সাথে শেয়ার করুন। ৫ জন যুক্ত হলেই ভেরিফাইড নাগরিক হতে পারবেন!
+                    </p>
+                    <button
+                      onClick={() => setShowReferralShareModal(true)}
+                      className="mt-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition"
+                    >
+                      এখনই বন্ধুদের সাথে শেয়ার করুন
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {referralsList.map((refItem, idx) => (
+                      <div 
+                        key={refItem.id || idx}
+                        className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-850/60 rounded-2xl border border-slate-100 dark:border-slate-800"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
+                            {refItem.referredAvatar ? (
+                              <img src={refItem.referredAvatar} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              (refItem.referredName || 'নাগরিক').charAt(0)
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                              {refItem.referredName || 'সম্মানিত নাগরিক'}
+                            </p>
+                            <span className="text-[10px] text-slate-400 font-serif block">
+                              {refItem.createdAt ? new Date(refItem.createdAt).toLocaleDateString('bn-BD', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric'
+                              }) : 'সম্প্রতি যুক্ত'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <span className="px-2.5 py-1 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300/50 shrink-0">
+                          ✅ সফল নিবন্ধন
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Top Referrers Leaderboard */}
+              <TopReferrersLeaderboard 
+                currentUserUid={profile.uid}
+                onUserClick={(uid) => onUserClick && onUserClick(uid, '', '')}
+              />
+            </motion.div>
+          )}
+
           {activeTab === 'visitors' && isOwnProfile && (
             <motion.div 
               key="visitors"
@@ -2037,8 +2282,8 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                 if (profile.district && profile.upazila && profile.address) profilePoints += 10;
                 const profileCompletePct = profilePoints;
 
-                // Dynamic Invites count from referrals state
-                const invitesCount = visitors.length > 5 ? 5 : visitors.length; // Fallback or dynamic tracking
+                // Dynamic Invites count from real referrals state
+                const invitesCount = dynamicInvitesCount;
                 const isInvitesComplete = invitesCount >= 5;
 
                 // Dynamic 7-day challenge streak calculation from posts
@@ -2244,7 +2489,7 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                     </div>
 
                     {/* Referral Link copy & share card */}
-                    <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 rounded-2xl text-left space-y-2">
+                    <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 rounded-2xl text-left space-y-2.5">
                       <div className="flex items-center justify-between">
                         <h4 className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
                           আপনার সংক্ষিপ্ত আমন্ত্রণ লিংক (Referral Link):
@@ -2253,6 +2498,14 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                           কোড: {getShortReferralCode(profile)}
                         </span>
                       </div>
+
+                      <div className="flex items-center justify-between text-xs font-bold py-1 px-2.5 bg-emerald-100/60 dark:bg-emerald-900/30 rounded-xl">
+                        <span className="text-emerald-900 dark:text-emerald-200">বর্তমান সফল আমন্ত্রণ:</span>
+                        <span className="font-mono text-emerald-800 dark:text-emerald-300 font-black">
+                          {dynamicInvitesCount} / ৫ জন
+                        </span>
+                      </div>
+
                       <p className="text-[10px] text-slate-500 leading-relaxed font-serif">
                         আমন্ত্রণ লিংকের মাধ্যমে নিবন্ধিত ব্যবহারকারীগণ সফলভাবে যুক্ত হলেই কেবল আমন্ত্রণের সংখ্যা যুক্ত হবে।
                       </p>
@@ -2264,13 +2517,16 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                           <button
                             onClick={() => {
                               navigator.clipboard.writeText(buildReferralLink(profile));
-                              alert('আমন্ত্রণ লিংক সফলভাবে কপি হয়েছে!');
+                              setCopiedReferralLink(true);
+                              setTimeout(() => setCopiedReferralLink(false), 2500);
                             }}
-                            className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer ${
+                              copiedReferralLink ? 'bg-emerald-600 text-white' : 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                            }`}
                             title="লিংক কপি করুন"
                           >
-                            <Copy size={12} />
-                            <span>লিংক কপি</span>
+                            {copiedReferralLink ? <Check size={12} /> : <Copy size={12} />}
+                            <span>{copiedReferralLink ? 'কপি হয়েছে!' : 'লিংক কপি'}</span>
                           </button>
                           <button
                             onClick={() => setShowReferralShareModal(true)}

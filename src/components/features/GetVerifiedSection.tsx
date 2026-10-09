@@ -58,9 +58,28 @@ export const GetVerifiedSection: React.FC<GetVerifiedSectionProps> = ({
       setProfilePercent(computedProfilePercent);
 
       // 2. Fetch Invites Count from Firestore 'referrals' collection
-      const refQuery = query(collection(db, 'referrals'), where('referrerUid', '==', uid));
-      const refSnap = await getDocs(refQuery);
-      setInvitesCount(refSnap.size);
+      let totalInvites = 0;
+      try {
+        const refQuery = query(collection(db, 'referrals'), where('referrerUid', '==', uid));
+        const refSnap = await getDocs(refQuery);
+        const refSet = new Set(refSnap.docs.map(d => d.id));
+
+        const userCode = getShortReferralCode(currentUserProfile);
+        if (userCode && userCode !== 'khulna') {
+          const codeQuery = query(collection(db, 'referrals'), where('referrerCode', '==', userCode));
+          const codeSnap = await getDocs(codeQuery);
+          codeSnap.docs.forEach(d => refSet.add(d.id));
+
+          const uidAsCodeQuery = query(collection(db, 'referrals'), where('referrerUid', '==', userCode));
+          const uidAsCodeSnap = await getDocs(uidAsCodeQuery);
+          uidAsCodeSnap.docs.forEach(d => refSet.add(d.id));
+        }
+        totalInvites = Math.max(refSet.size, (currentUserProfile as any).referralsCount || (currentUserProfile as any).total_referrals || 0);
+      } catch (refErr) {
+        console.warn('Error fetching invites count in GetVerifiedSection:', refErr);
+        totalInvites = (currentUserProfile as any).referralsCount || (currentUserProfile as any).total_referrals || 0;
+      }
+      setInvitesCount(totalInvites);
 
       // 3. Fetch user's community posts for Streak & Photo Posts & Emergency Posts
       const postsQuery = query(collection(db, 'posts'), where('authorId', '==', uid));

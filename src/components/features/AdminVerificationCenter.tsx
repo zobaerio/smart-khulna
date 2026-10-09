@@ -7,6 +7,7 @@ import { db } from '../../firebase';
 import { collection, getDocs, updateDoc, doc, query, where, limit, setDoc } from 'firebase/firestore';
 import { UserProfile } from '../../dbData';
 import { SmartKhulnaVerifiedBadge } from '../common/SmartKhulnaVerifiedBadge';
+import { getShortReferralCode } from '../../utils/referral';
 
 interface AdminVerificationCenterProps {
   currentUserProfile: UserProfile;
@@ -39,9 +40,27 @@ export const AdminVerificationCenter: React.FC<AdminVerificationCenterProps> = (
 
         // Fetch user stats dynamically to display in Admin Center
         // A. Invites Count
-        const refQuery = query(collection(db, 'referrals'), where('referrerUid', '==', uid));
-        const refSnap = await getDocs(refQuery);
-        const invitesCount = refSnap.size;
+        let invitesCount = 0;
+        try {
+          const refQuery = query(collection(db, 'referrals'), where('referrerUid', '==', uid));
+          const refSnap = await getDocs(refQuery);
+          const refSet = new Set(refSnap.docs.map(d => d.id));
+
+          const userCode = profile.referralCode || getShortReferralCode(uid);
+          if (userCode && userCode !== 'khulna') {
+            const codeQuery = query(collection(db, 'referrals'), where('referrerCode', '==', userCode));
+            const codeSnap = await getDocs(codeQuery);
+            codeSnap.docs.forEach(d => refSet.add(d.id));
+
+            const uidAsCodeQuery = query(collection(db, 'referrals'), where('referrerUid', '==', userCode));
+            const uidAsCodeSnap = await getDocs(uidAsCodeQuery);
+            uidAsCodeSnap.docs.forEach(d => refSet.add(d.id));
+          }
+          invitesCount = Math.max(refSet.size, (profile as any).referralsCount || (profile as any).total_referrals || 0);
+        } catch (refErr) {
+          console.warn('Error fetching invites in AdminVerificationCenter:', refErr);
+          invitesCount = (profile as any).referralsCount || (profile as any).total_referrals || 0;
+        }
 
         // B. Posts streak, photo posts, emergency posts
         const postsQuery = query(collection(db, 'posts'), where('authorId', '==', uid));

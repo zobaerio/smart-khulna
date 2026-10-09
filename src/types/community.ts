@@ -254,6 +254,9 @@ export interface PublicUserProfile {
   isOnline?: boolean;
   isLocked?: boolean;
   showActiveStatus?: boolean;
+  referralCode?: string;
+  referralsCount?: number;
+  total_referrals?: number;
 }
 
 export interface ModerationAction {

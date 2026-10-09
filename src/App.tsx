@@ -105,6 +105,7 @@ import {
   limit
 } from 'firebase/firestore';
 import { getShortReferralCode, buildReferralLink } from './utils/referral';
+import { ReferralWelcomeModal } from './components/common/ReferralWelcomeModal';
 import {
   initialDistricts,
   initialCategories,
@@ -470,6 +471,11 @@ export default function App() {
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authName, setAuthName] = useState('');
+  const [showReferralWelcomeModal, setShowReferralWelcomeModal] = useState(false);
+  const [referralWelcomeData, setReferralWelcomeData] = useState<{
+    code: string;
+    inviter: any;
+  }>({ code: '', inviter: null });
 
   // Gemini AI Grounding States
   const [isGroundingLoading, setIsGroundingLoading] = useState(false);
@@ -601,33 +607,37 @@ export default function App() {
           console.log('[Referral] Detected referral code from URL:', code);
           localStorage.setItem('smart_khulna_referral_code', code);
 
+          let resolvedUid = '';
+          const cleanCode = code.toLowerCase();
+
           // If code is full UID (>20 chars), store directly as referrerUid
           if (code.length > 20) {
+            resolvedUid = code;
             localStorage.setItem('smart_khulna_referral_uid', code);
           } else {
             // Resolve short code (e.g. 'iowct') to referrer UID
-            const cleanCode = code.toLowerCase();
             try {
               // 1. Direct check in 'referral_codes' collection
               const codeDocRef = doc(db, 'referral_codes', cleanCode);
               const codeSnap = await getDoc(codeDocRef);
               if (codeSnap.exists() && codeSnap.data()?.uid) {
-                const targetUid = codeSnap.data().uid;
-                localStorage.setItem('smart_khulna_referral_uid', targetUid);
-                console.log('[Referral] Resolved short code to referrer UID via referral_codes:', targetUid);
+                resolvedUid = codeSnap.data().uid;
+                localStorage.setItem('smart_khulna_referral_uid', resolvedUid);
+                console.log('[Referral] Resolved short code to referrer UID via referral_codes:', resolvedUid);
               } else {
                 // 2. Query profiles collection where referralCode == cleanCode
                 const q = query(collection(db, 'profiles'), where('referralCode', '==', cleanCode));
                 const qSnap = await getDocs(q);
                 if (!qSnap.empty) {
-                  const targetUid = qSnap.docs[0].id;
-                  localStorage.setItem('smart_khulna_referral_uid', targetUid);
-                  console.log('[Referral] Resolved short code to referrer UID via profiles query:', targetUid);
+                  resolvedUid = qSnap.docs[0].id;
+                  localStorage.setItem('smart_khulna_referral_uid', resolvedUid);
+                  console.log('[Referral] Resolved short code to referrer UID via profiles query:', resolvedUid);
                 } else {
                   // 3. Fallback: match UID prefix
                   const allSnap = await getDocs(query(collection(db, 'profiles'), limit(100)));
                   const matched = allSnap.docs.find(d => d.id.toLowerCase().startsWith(cleanCode));
                   if (matched) {
+                    resolvedUid = matched.id;
                     localStorage.setItem('smart_khulna_referral_uid', matched.id);
                     console.log('[Referral] Resolved short code to referrer UID via prefix match:', matched.id);
                   } else {
@@ -638,6 +648,41 @@ export default function App() {
             } catch (err) {
               console.warn('[Referral] Error resolving referral short code:', err);
               localStorage.setItem('smart_khulna_referral_uid', code);
+            }
+          }
+
+          // Fetch inviter profile to show welcome dialog if not logged in
+          if (resolvedUid) {
+            try {
+              const inviterSnap = await getDoc(doc(db, 'profiles', resolvedUid));
+              if (inviterSnap.exists()) {
+                const iData = inviterSnap.data();
+                setReferralWelcomeData({
+                  code: cleanCode,
+                  inviter: {
+                    uid: resolvedUid,
+                    name: iData.name || 'সম্মানিত নাগরিক',
+                    avatar: iData.avatar || '',
+                    district: iData.district || iData.selectedDistrict || 'খুলনা',
+                    upazila: iData.upazila || '',
+                    profession: iData.profession || '',
+                    isVerified: iData.verification_status === 'verified'
+                  }
+                });
+                setShowReferralWelcomeModal(true);
+              } else {
+                setReferralWelcomeData({
+                  code: cleanCode,
+                  inviter: {
+                    uid: resolvedUid,
+                    name: 'একজন নাগরিক',
+                    district: 'খুলনা'
+                  }
+                });
+                setShowReferralWelcomeModal(true);
+              }
+            } catch (eInviter) {
+              console.warn('[Referral] Error fetching inviter profile:', eInviter);
             }
           }
 
@@ -815,6 +860,135 @@ export default function App() {
     }
   };
 
+  // Helper to safely process pending referral credit in Firestore
+  const processPendingReferral = async (
+    newUserUid: string,
+    newUserName: string,
+    newUserAvatar?: string,
+    newUserEmail?: string
+  ) => {
+    try {
+      const pendingUid = localStorage.getItem('smart_khulna_referral_uid');
+      const pendingCode = localStorage.getItem('smart_khulna_referral_code');
+
+      if (!pendingUid && !pendingCode) return;
+      if (pendingUid === newUserUid) {
+        localStorage.removeItem('smart_khulna_referral_uid');
+        localStorage.removeItem('smart_khulna_referral_code');
+        return;
+      }
+
+      // Check if a referral has already been recorded for this new user
+      const existingRefSnap = await getDoc(doc(db, 'referrals', newUserUid));
+      if (existingRefSnap.exists()) {
+        localStorage.removeItem('smart_khulna_referral_uid');
+        localStorage.removeItem('smart_khulna_referral_code');
+        return;
+      }
+
+      let resolvedReferrerUid = '';
+      const cleanCode = (pendingCode || pendingUid || '').toLowerCase().trim();
+
+      // 1. If pendingUid is full UID (>15 chars) and different from current user
+      if (pendingUid && pendingUid.length > 15 && pendingUid !== newUserUid) {
+        resolvedReferrerUid = pendingUid;
+      }
+
+      // 2. Lookup in referral_codes collection
+      if (!resolvedReferrerUid && cleanCode) {
+        try {
+          const codeSnap = await getDoc(doc(db, 'referral_codes', cleanCode));
+          if (codeSnap.exists() && codeSnap.data()?.uid) {
+            resolvedReferrerUid = codeSnap.data().uid;
+          }
+        } catch (e) {
+          console.warn('[Referral] Error looking up referral_codes:', e);
+        }
+      }
+
+      // 3. Lookup in profiles collection where referralCode == cleanCode
+      if (!resolvedReferrerUid && cleanCode) {
+        try {
+          const q = query(collection(db, 'profiles'), where('referralCode', '==', cleanCode));
+          const qSnap = await getDocs(q);
+          if (!qSnap.empty) {
+            resolvedReferrerUid = qSnap.docs[0].id;
+          }
+        } catch (e) {
+          console.warn('[Referral] Error querying profiles by referralCode:', e);
+        }
+      }
+
+      // 4. Fallback UID prefix match
+      if (!resolvedReferrerUid && cleanCode && cleanCode.length >= 4) {
+        try {
+          const allSnap = await getDocs(query(collection(db, 'profiles'), limit(100)));
+          const match = allSnap.docs.find(d => d.id.toLowerCase().startsWith(cleanCode));
+          if (match) {
+            resolvedReferrerUid = match.id;
+          }
+        } catch (e) {
+          console.warn('[Referral] Error matching UID prefix:', e);
+        }
+      }
+
+      const finalReferrerUid = resolvedReferrerUid || pendingUid || pendingCode || '';
+      if (finalReferrerUid && finalReferrerUid !== newUserUid) {
+        // Record in referrals collection
+        await setDoc(doc(db, 'referrals', newUserUid), {
+          id: newUserUid,
+          referrerUid: finalReferrerUid,
+          referrerCode: cleanCode || '',
+          referredUid: newUserUid,
+          referredName: newUserName || 'নতুন নাগরিক',
+          referredAvatar: newUserAvatar || '',
+          referredEmail: newUserEmail || '',
+          createdAt: new Date().toISOString(),
+          status: 'registered'
+        }, { merge: true });
+
+        console.log(`[Referral] Credited referral to ${finalReferrerUid} for new user ${newUserUid}`);
+
+        // Update referrer's profile count
+        try {
+          const refProfileRef = doc(db, 'profiles', finalReferrerUid);
+          const refProfileSnap = await getDoc(refProfileRef);
+          if (refProfileSnap.exists()) {
+            const curCount = refProfileSnap.data()?.referralsCount || refProfileSnap.data()?.total_referrals || 0;
+            await setDoc(refProfileRef, {
+              referralsCount: curCount + 1,
+              total_referrals: curCount + 1
+            }, { merge: true });
+          }
+        } catch (errProfile) {
+          console.warn('[Referral] Error updating referrer profile count:', errProfile);
+        }
+
+        // Notification for referrer
+        try {
+          const notifId = `ref_${Date.now()}_${newUserUid.slice(0, 5)}`;
+          await setDoc(doc(db, 'notifications', notifId), {
+            id: notifId,
+            userId: finalReferrerUid,
+            recipientUid: finalReferrerUid,
+            type: 'referral_registered',
+            title: '🎉 নতুন নাগরিক আমন্ত্রণ সফল!',
+            message: `${newUserName || 'একজন নতুন নাগরিক'} আপনার আমন্ত্রণ লিংকের মাধ্যমে সফলভাবে নিবন্ধিত হয়েছেন।`,
+            createdAt: new Date().toISOString(),
+            isRead: false
+          });
+        } catch (errNotif) {
+          console.warn('[Referral] Error creating notification for referrer:', errNotif);
+        }
+
+        localStorage.removeItem('smart_khulna_referral_uid');
+        localStorage.removeItem('smart_khulna_referral_code');
+      }
+    } catch (err) {
+      console.warn('[Referral] processPendingReferral encountered issue:', err);
+    }
+  };
+
   // Auth & Roles Sync with Firestore
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -895,6 +1069,14 @@ export default function App() {
             } catch (errCode) {
               console.warn("Could not register referral_codes doc:", errCode);
             }
+
+            // Check and process any pending referral for this user
+            await processPendingReferral(
+              firebaseUser.uid,
+              updatedProfile.name || displayName || 'সম্মানিত নাগরিক',
+              updatedProfile.avatar || photoURL || '',
+              email
+            );
             
             if (data.isDeleted) {
               setShowReactivateModal(true);
@@ -992,21 +1174,13 @@ export default function App() {
               console.warn("Could not register referral_codes doc:", errCode);
             }
 
-            // Register referral in Firestore
-            if (refUid && refUid !== firebaseUser.uid) {
-              try {
-                await setDoc(doc(db, 'referrals', firebaseUser.uid), {
-                  id: firebaseUser.uid,
-                  referrerUid: refUid,
-                  createdAt: new Date().toISOString(),
-                  status: 'registered'
-                });
-                localStorage.removeItem('smart_khulna_referral_uid'); // Clean up after registration
-                localStorage.removeItem('smart_khulna_referral_code');
-              } catch (e) {
-                console.warn("Could not save referral document:", e);
-              }
-            }
+            // Register and credit referral in Firestore
+            await processPendingReferral(
+              firebaseUser.uid,
+              newProfile.name || displayName || 'নতুন নাগরিক',
+              newProfile.avatar || photoURL || '',
+              email
+            );
           }
         } catch (e: unknown) {
           console.warn("Firestore user sync encountered issue:", e);
@@ -6197,6 +6371,20 @@ export default function App() {
           if (reviewingService) {
             handleReviewSubmitted(reviewingService.id, newStats);
           }
+        }}
+      />
+
+      {/* REFERRAL WELCOME & INVITATION MODAL */}
+      <ReferralWelcomeModal
+        isOpen={showReferralWelcomeModal}
+        onClose={() => setShowReferralWelcomeModal(false)}
+        referralCode={referralWelcomeData.code}
+        inviter={referralWelcomeData.inviter}
+        currentUser={currentUser}
+        onOpenAuth={() => {
+          setShowReferralWelcomeModal(false);
+          setEmailAuthMode('register');
+          setActiveTab('profile');
         }}
       />
 

@@ -391,6 +391,14 @@
     "/submissions/{submissionId}": {
       "schema": "ServiceSubmission",
       "description": "User-submitted local services pending review"
+    },
+    "/referral_codes/{codeId}": {
+      "schema": "ReferralCode",
+      "description": "Mapping from short referral codes to user profiles"
+    },
+    "/referrals/{referralId}": {
+      "schema": "Referral",
+      "description": "Recorded referrals tracking invited citizen sign-ups"
     }
   }
 }
