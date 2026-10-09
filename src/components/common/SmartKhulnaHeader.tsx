@@ -11,6 +11,7 @@ export interface SmartKhulnaHeaderProps {
   onOpenSOS?: () => void;
   lang: 'bn' | 'en';
   onToggleLang: () => void;
+  onSetLang?: (lang: 'bn' | 'en') => void;
   isInstallable: boolean;
   onInstallPWA: () => void;
   viewingDistrictId: string | null;
@@ -43,6 +44,7 @@ export const SmartKhulnaHeader: React.FC<SmartKhulnaHeaderProps> = ({
   onNavigateSearch,
   lang,
   onToggleLang,
+  onSetLang,
   isInstallable,
   onInstallPWA,
   viewingDistrictId,
@@ -55,6 +57,13 @@ export const SmartKhulnaHeader: React.FC<SmartKhulnaHeaderProps> = ({
   activeNotice,
   onOpenSOS
 }) => {
+  const handleSelectLang = (selected: 'bn' | 'en') => {
+    if (onSetLang) {
+      onSetLang(selected);
+    } else if (lang !== selected) {
+      onToggleLang();
+    }
+  };
   return (
     <header 
       id="smart-khulna-top-header"
@@ -122,17 +131,42 @@ export const SmartKhulnaHeader: React.FC<SmartKhulnaHeaderProps> = ({
             <Search size={16} strokeWidth={2.3} />
           </button>
 
-          {/* 1. Language Toggle (Globe) */}
-          <button
-            id="header-lang-toggle"
-            onClick={onToggleLang}
-            className="h-8 sm:h-9 text-[11px] sm:text-xs bg-emerald-50/90 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 text-emerald-900 dark:text-emerald-200 border border-emerald-200/80 dark:border-emerald-800/60 font-extrabold px-2 sm:px-3 rounded-full flex items-center gap-1 sm:gap-1.5 transition-all duration-150 active:scale-95 shadow-2xs cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-emerald-500/40"
-            title="ভাষা পরিবর্তন করুন / Switch Language"
-            aria-label="Language Switcher"
+          {/* 1. Language Switcher (Bangla / English Segmented Controls) */}
+          <div 
+            id="header-lang-switcher"
+            className="h-8 sm:h-9 bg-slate-100 dark:bg-slate-850 p-0.5 rounded-full border border-slate-200/80 dark:border-slate-800 flex items-center shadow-2xs"
+            role="group"
+            aria-label="Language Selector"
           >
-            <Globe size={13} className="text-emerald-700 dark:text-emerald-400" />
-            <span className="font-sans font-bold">{lang === 'bn' ? 'EN' : 'বাং'}</span>
-          </button>
+            <button
+              type="button"
+              id="header-lang-btn-bn"
+              onClick={() => handleSelectLang('bn')}
+              className={`h-full px-2 sm:px-2.5 rounded-full text-[10px] sm:text-xs font-black transition-all duration-150 flex items-center gap-1 cursor-pointer ${
+                lang === 'bn'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+              title="বাংলা ভাষা নির্বাচন করুন"
+            >
+              <span>বাং</span>
+              <span className="hidden sm:inline">লা</span>
+            </button>
+            <button
+              type="button"
+              id="header-lang-btn-en"
+              onClick={() => handleSelectLang('en')}
+              className={`h-full px-2 sm:px-2.5 rounded-full text-[10px] sm:text-xs font-black transition-all duration-150 flex items-center gap-1 cursor-pointer font-sans ${
+                lang === 'en'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+              title="Switch to English language"
+            >
+              <span>EN</span>
+              <span className="hidden sm:inline">G</span>
+            </button>
+          </div>
 
           {/* 2. PWA Install Prompt Button (Conditional) */}
           {isInstallable && (

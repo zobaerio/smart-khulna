@@ -162,7 +162,7 @@ export const GetVerifiedSection: React.FC<GetVerifiedSectionProps> = ({
   // Requirements checklist checks
   const isProfileDone = profilePercent >= 100;
   const isInvitesDone = invitesCount >= 5;
-  const isStreakDone = postingStreak >= 7;
+  const isStreakOrTenInvitesDone = postingStreak >= 7 || invitesCount >= 10;
   const isServicesDone = servicesCount >= 3;
   const isPhotoPostsDone = photoPostsCount >= 3;
   const isBehaviorDone = behaviorValid;
@@ -171,7 +171,7 @@ export const GetVerifiedSection: React.FC<GetVerifiedSectionProps> = ({
   const completedCount = 
     (isProfileDone ? 1 : 0) +
     (isInvitesDone ? 1 : 0) +
-    (isStreakDone ? 1 : 0) +
+    (isStreakOrTenInvitesDone ? 1 : 0) +
     (isServicesDone ? 1 : 0) +
     (isPhotoPostsDone ? 1 : 0) +
     (isBehaviorDone ? 1 : 0);
@@ -305,16 +305,29 @@ export const GetVerifiedSection: React.FC<GetVerifiedSectionProps> = ({
               <span className="font-bold text-[10px]">{invitesCount} / 5</span>
             </div>
 
-            {/* 7-Day Posting challenge */}
+            {/* 7-Day Posting challenge OR 10 Invites */}
             <div className="flex items-start justify-between text-xs gap-3">
               <div className="flex items-start gap-2.5">
-                <span className="mt-0.5">{isStreakDone ? '✅' : '⏳'}</span>
+                <span className="mt-0.5">{isStreakOrTenInvitesDone ? '✅' : '⏳'}</span>
                 <div>
-                  <h4 className={`font-bold ${isStreakDone ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>৭ দিন ধারাবাহিক পোস্ট করার চ্যালেঞ্জ</h4>
-                  <p className="text-[10px] text-slate-500">টানা ৭ দিন প্রতিদিন অন্তত ১টি করে তথ্যপূর্ণ কমিউনিটি পোস্ট করুন।</p>
+                  <h4 className={`font-bold ${isStreakOrTenInvitesDone ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>
+                    ৭ দিন পোস্ট স্ট্রিক অথবা মোট ১০ জন নাগরিক আমন্ত্রণ
+                  </h4>
+                  <p className="text-[10px] text-slate-500 leading-relaxed">
+                    টানা ৭ দিন প্রতিদিন অন্তত ১টি করে তথ্যপূর্ণ পোস্ট করুন অথবা ১০ জনকে আমন্ত্রণ জানান। 
+                    <span className="text-emerald-700 dark:text-emerald-400 font-bold block mt-0.5">
+                      (টানা ৭ দিন পোস্ট করতে না পারলে কোনো সমস্যা নেই, সেক্ষেত্রে ৫+৫=১০ জনকে ইনভাইট করলেই শর্ত পূরণ হয়ে যাবে!)
+                    </span>
+                  </p>
                 </div>
               </div>
-              <span className="font-bold text-[10px]">{postingStreak} / 7 দিন</span>
+              <span className="font-bold text-[10px] shrink-0 text-right">
+                {invitesCount >= 10 
+                  ? '১০ জন আমন্ত্রণ ✅' 
+                  : postingStreak >= 7 
+                  ? '৭ দিন স্ট্রিক ✅' 
+                  : `${postingStreak}/৭ দিন বা ${invitesCount}/১০`}
+              </span>
             </div>
 
             {/* Services Added */}

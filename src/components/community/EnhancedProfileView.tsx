@@ -64,6 +64,9 @@ import { db } from '../../firebase';
 import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc, getDoc, setDoc, getDocs, where } from 'firebase/firestore';
 import { AppUpdateModal } from '../ui/AppUpdateModal';
 import { TopReferrersLeaderboard } from '../common/TopReferrersLeaderboard';
+import { calculateUserBadgeLevel } from '../../utils/badgeLevels';
+import { BadgeLevelProgressionCard } from './BadgeLevelProgressionCard';
+import { LevelBadge } from './LevelBadge';
 
 interface ProfileVisitor {
   id: string;
@@ -122,7 +125,7 @@ interface EnhancedProfileViewProps {
   onToggleDarkMode?: () => void;
 }
 
-type ProfileTab = 'posts' | 'about' | 'photos' | 'services' | 'followers' | 'referrals' | 'visitors';
+type ProfileTab = 'posts' | 'about' | 'photos' | 'services' | 'followers' | 'referrals' | 'badges' | 'visitors';
 
 export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
   profile,
@@ -354,6 +357,69 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
 
   const dynamicInvitesCount = Math.max(referralsList.length, (profile as any).referralsCount || (profile as any).total_referrals || 0);
 
+  const userPublishedPosts = useMemo(() => {
+    return posts.filter(p => p.authorId === profile.uid && p.status === 'published');
+  }, [posts, profile.uid]);
+
+  const streakCount = useMemo(() => {
+    const getDhakaDateString = (isoString: string) => {
+      try {
+        const d = new Date(isoString);
+        const utc = d.getTime() + d.getTimezoneOffset() * 60000;
+        const dhakaOffset = 6 * 3600000;
+        const dhakaTime = new Date(utc + dhakaOffset);
+        const yyyy = dhakaTime.getFullYear();
+        const mm = String(dhakaTime.getMonth() + 1).padStart(2, '0');
+        const dd = String(dhakaTime.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+      } catch {
+        return '';
+      }
+    };
+
+    const uniqueDates = Array.from(new Set(userPublishedPosts.map(p => getDhakaDateString(p.createdAt)).filter(Boolean))).sort();
+    if (uniqueDates.length === 0) return 0;
+    let maxStreak = 0;
+    let currentStreak = 0;
+    let lastTime: number | null = null;
+
+    for (const dateStr of uniqueDates) {
+      const currentTime = new Date(dateStr).getTime();
+      if (lastTime === null) {
+        currentStreak = 1;
+      } else {
+        const diffDays = Math.round((currentTime - lastTime) / (1000 * 3600 * 24));
+        if (diffDays === 1) {
+          currentStreak += 1;
+        } else if (diffDays > 1) {
+          if (currentStreak > maxStreak) {
+            maxStreak = currentStreak;
+          }
+          currentStreak = 1;
+        }
+      }
+      lastTime = currentTime;
+    }
+    return Math.max(maxStreak, currentStreak);
+  }, [userPublishedPosts]);
+
+  const addedServicesCount = useMemo(() => {
+    return services.filter(s => s.created_by === profile.uid || s.owner_id === profile.uid).length;
+  }, [services, profile.uid]);
+
+  const photoPostsCount = useMemo(() => {
+    return userPublishedPosts.filter(p => p.images && p.images.length > 0).length;
+  }, [userPublishedPosts]);
+
+  const userLevelProgress = useMemo(() => {
+    return calculateUserBadgeLevel(profile, {
+      referralsCount: dynamicInvitesCount,
+      postsCount: profile.postsCount || posts.length,
+      servicesCount: addedServicesCount,
+      streakCount: streakCount,
+    });
+  }, [profile, dynamicInvitesCount, posts.length, addedServicesCount, streakCount]);
+
   const handleSimulateVisitor = async () => {
     // Disabled simulation as we want real data now
     alert('রিয়েল-টাইম প্রোফাইল ভিজিটর সিস্টেম সক্রিয় আছে।');
@@ -365,10 +431,10 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
 
   const badgeConfig = (badge: VerifiedBadgeType) => {
     switch (badge) {
-      case 'govt_official': return { icon: <ShieldCheck size={14} />, label: 'সরকারি কর্মকর্তা', color: 'bg-blue-500/10 text-blue-600 border-blue-200' };
-      case 'emergency_service': return { icon: <Award size={14} />, label: 'জরুরি সেবা', color: 'bg-red-500/10 text-red-600 border-red-200' };
-      case 'admin': return { icon: <Award size={14} />, label: 'অ্যাডমিন', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200' };
-      case 'verified_citizen': return { icon: <CheckCircle size={14} />, label: 'ভেরিফাইড নাগরিক', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200' };
+      case 'govt_official': return { icon: <ShieldCheck size={14} />, label: lang === 'bn' ? 'সরকারি কর্মকর্তা' : 'Govt Official', color: 'bg-blue-500/10 text-blue-600 border-blue-200' };
+      case 'emergency_service': return { icon: <Award size={14} />, label: lang === 'bn' ? 'জরুরি সেবা' : 'Emergency Service', color: 'bg-red-500/10 text-red-600 border-red-200' };
+      case 'admin': return { icon: <Award size={14} />, label: lang === 'bn' ? 'অ্যাডমিন' : 'Admin', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200' };
+      case 'verified_citizen': return { icon: <CheckCircle size={14} />, label: lang === 'bn' ? 'ভেরিফাইড নাগরিক' : 'Verified Citizen', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200' };
       default: return null;
     }
   };
@@ -376,13 +442,14 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
   const badge = badgeConfig(profile.badge || 'none');
 
   const stats = [
-    { label: 'পোস্ট', value: profile.postsCount || posts.length, tab: 'posts' as ProfileTab },
-    { label: 'ফলোয়ার', value: profile.followersCount || followers.length, tab: 'followers' as ProfileTab },
-    { label: 'ফলোয়িং', value: profile.followingCount || following.length, tab: 'followers' as ProfileTab },
-    { label: 'সেবা', value: services.length, tab: 'services' as ProfileTab },
+    { label: lang === 'bn' ? 'পোস্ট' : 'Posts', value: profile.postsCount || posts.length, tab: 'posts' as ProfileTab },
+    { label: lang === 'bn' ? 'লেভেল' : 'Level', value: `${userLevelProgress.currentTier.icon} Lvl ${userLevelProgress.currentTier.level}`, tab: 'badges' as ProfileTab },
+    { label: lang === 'bn' ? 'ফলোয়ার' : 'Followers', value: profile.followersCount || followers.length, tab: 'followers' as ProfileTab },
+    { label: lang === 'bn' ? 'ফলোয়িং' : 'Following', value: profile.followingCount || following.length, tab: 'followers' as ProfileTab },
+    { label: lang === 'bn' ? 'সেবা' : 'Services', value: services.length, tab: 'services' as ProfileTab },
     ...(isOwnProfile ? [
-      { label: 'রেফারেল', value: dynamicInvitesCount, tab: 'referrals' as ProfileTab },
-      { label: 'ভিজিটর', value: visitors.length, tab: 'visitors' as ProfileTab }
+      { label: lang === 'bn' ? 'রেফারেল' : 'Referrals', value: dynamicInvitesCount, tab: 'referrals' as ProfileTab },
+      { label: lang === 'bn' ? 'ভিজিটর' : 'Visitors', value: visitors.length, tab: 'visitors' as ProfileTab }
     ] : [])
   ];
 
@@ -1050,14 +1117,15 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
       <div className="border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 sticky top-[52px] z-20">
         <div className="flex px-2 max-w-screen-xl mx-auto overflow-x-auto no-scrollbar">
           {[
-            { id: 'posts', label: 'পোস্ট', icon: <Grid size={18} /> },
-            { id: 'about', label: 'তথ্য', icon: <Info size={18} /> },
-            { id: 'photos', label: 'ছবি', icon: <ImageIcon size={18} /> },
-            { id: 'services', label: 'সেবা', icon: <Award size={18} /> },
-            { id: 'followers', label: 'ফলোয়ার', icon: <Users size={18} /> },
+            { id: 'posts', label: lang === 'bn' ? 'পোস্ট' : 'Posts', icon: <Grid size={18} /> },
+            { id: 'about', label: lang === 'bn' ? 'তথ্য' : 'About', icon: <Info size={18} /> },
+            { id: 'photos', label: lang === 'bn' ? 'ছবি' : 'Photos', icon: <ImageIcon size={18} /> },
+            { id: 'services', label: lang === 'bn' ? 'সেবা' : 'Services', icon: <Award size={18} /> },
+            { id: 'badges', label: lang === 'bn' ? `লেভেল (${userLevelProgress.currentTier.level})` : `Level (${userLevelProgress.currentTier.level})`, icon: <Award size={18} className="text-amber-500" /> },
+            { id: 'followers', label: lang === 'bn' ? 'ফলোয়ার' : 'Followers', icon: <Users size={18} /> },
             ...(isOwnProfile ? [
-              { id: 'referrals', label: `রেফারেল (${dynamicInvitesCount})`, icon: <Share2 size={18} /> },
-              { id: 'visitors', label: `ভিজিটর (${visitors.length})`, icon: <Eye size={18} /> }
+              { id: 'referrals', label: lang === 'bn' ? `রেফারেল (${dynamicInvitesCount})` : `Referrals (${dynamicInvitesCount})`, icon: <Share2 size={18} /> },
+              { id: 'visitors', label: lang === 'bn' ? `ভিজিটর (${visitors.length})` : `Visitors (${visitors.length})`, icon: <Eye size={18} /> }
             ] : [])
           ].map(tab => (
             <button
@@ -1866,6 +1934,18 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
             </motion.div>
           )}
 
+          {activeTab === 'badges' && (
+            <motion.div
+              key="badges"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-4 max-w-xl mx-auto"
+            >
+              <BadgeLevelProgressionCard progress={userLevelProgress} lang={lang || 'bn'} />
+            </motion.div>
+          )}
+
           {activeTab === 'visitors' && isOwnProfile && (
             <motion.div 
               key="visitors"
@@ -2455,6 +2535,7 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                 
                 const streakCount = calculateStreak(uniqueDates);
                 const isStreakComplete = streakCount >= 7;
+                const isStreakOrTenInvitesComplete = streakCount >= 7 || invitesCount >= 10;
 
                 // Dynamic local directories added count
                 const addedServicesCount = services.filter(s => s.created_by === profile.uid || s.owner_id === profile.uid).length;
@@ -2471,13 +2552,14 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                 let totalProgressPct = 0;
                 totalProgressPct += (profileCompletePct / 100) * 20; // Profile completed: 20%
                 totalProgressPct += (Math.min(invitesCount, 5) / 5) * 20; // 5 invites: 20%
-                totalProgressPct += (Math.min(streakCount, 7) / 7) * 15; // 7-day challenge: 15%
+                const streakOrInvitesRatio = isStreakOrTenInvitesComplete ? 1 : Math.max(streakCount / 7, invitesCount / 10);
+                totalProgressPct += Math.min(1, streakOrInvitesRatio) * 15; // 7-day challenge or 10 invites: 15%
                 totalProgressPct += (Math.min(addedServicesCount, 3) / 3) * 15; // 3 services added: 15%
                 totalProgressPct += (Math.min(photoPostsCount, 3) / 3) * 15; // 3 photo posts: 15%
                 totalProgressPct += isBehaviorGood ? 15 : 0; // behavior: 15%
                 
                 const roundedProgress = Math.min(100, Math.round(totalProgressPct));
-                const allTasksCompleted = profileCompletePct >= 100 && invitesCount >= 5 && streakCount >= 7 && addedServicesCount >= 3 && photoPostsCount >= 3 && isBehaviorGood;
+                const allTasksCompleted = profileCompletePct >= 100 && invitesCount >= 5 && isStreakOrTenInvitesComplete && addedServicesCount >= 3 && photoPostsCount >= 3 && isBehaviorGood;
 
                 const curStatus = profile.verification_status || 'unverified';
 
@@ -2563,15 +2645,29 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
                           </span>
                         </div>
 
-                        {/* 3. Streak Challenge */}
+                        {/* 3. Streak Challenge OR 10 Invites */}
                         <div className="py-2.5 flex items-start justify-between gap-3 text-xs font-serif">
                           <div className="space-y-0.5">
-                            <h5 className="font-bold text-slate-800 dark:text-slate-200">৭-দিনের অবদান চ্যালেঞ্জ (7-Day Challenge)</h5>
-                            <p className="text-[10px] text-slate-500">টানা ৭ দিন প্রতিদিন কমপক্ষে ১টি করে দরকারী তথ্য সম্বলিত পোস্ট প্রকাশ করুন। (বর্তমান স্ট্রিক: {streakCount} / ৭ দিন)</p>
+                            <h5 className="font-bold text-slate-800 dark:text-slate-200">
+                              ৭-দিনের পোস্ট স্ট্রিক অথবা মোট ১০ জন নাগরিক আমন্ত্রণ
+                            </h5>
+                            <p className="text-[10px] text-slate-500 leading-relaxed">
+                              টানা ৭ দিন প্রতিদিন কমপক্ষে ১টি করে পোস্ট করুন অথবা মোট ১০ জন নাগরিককে আমন্ত্রণ করুন। 
+                              <span className="text-emerald-700 dark:text-emerald-400 font-bold block mt-0.5">
+                                (টানা ৭ দিন পোস্ট করতে না পারলে কোনো সমস্যা নেই, সেক্ষেত্রে ৫+৫=১০ জনকে ইনভাইট করলেই শর্ত পূরণ হয়ে যাবে!)
+                              </span>
+                              (বর্তমান স্ট্রিক: {streakCount} / ৭ দিন · মোট আমন্ত্রণ: {invitesCount} / ১০ জন)
+                            </p>
                           </div>
-                          <span className={`shrink-0 text-xs font-bold ${isStreakComplete ? 'text-emerald-600' : 'text-slate-400'}`}>
-                            {isStreakComplete ? '✅ সম্পন্ন' : '⏳ চলমান'}
-                          </span>
+                          <div className="text-right shrink-0">
+                            <span className={`text-xs font-bold ${isStreakOrTenInvitesComplete ? 'text-emerald-600' : 'text-slate-400'}`}>
+                              {invitesCount >= 10
+                                ? '✅ সম্পন্ন (১০ জন আমন্ত্রণ)'
+                                : isStreakComplete
+                                ? '✅ সম্পন্ন (৭ দিন স্ট্রিক)'
+                                : '⏳ চলমান'}
+                            </span>
+                          </div>
                         </div>
 
                         {/* 4. Local Info Entries */}
