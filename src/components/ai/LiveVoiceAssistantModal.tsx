@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Volume2, VolumeX, X, Sparkles, PhoneOff, Radio, Bot, User, CheckCircle2 } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, X, Sparkles, Radio, Bot, User, CheckCircle2 } from 'lucide-react';
 import { AiAssistantService } from '../../services/aiAssistantService';
 
 interface LiveVoiceAssistantModalProps {
@@ -25,6 +25,7 @@ export const LiveVoiceAssistantModal: React.FC<LiveVoiceAssistantModalProps> = (
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const recognitionRef = useRef<any>(null);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const isComponentMounted = useRef<boolean>(true);
   const isAiProcessing = useRef<boolean>(false);
   const silenceTimerRef = useRef<any>(null);
@@ -49,12 +50,19 @@ export const LiveVoiceAssistantModal: React.FC<LiveVoiceAssistantModalProps> = (
   }, [isOpen]);
 
   const stopAllAudio = () => {
+    if (audioPlayerRef.current) {
+      try {
+        audioPlayerRef.current.pause();
+      } catch {}
+      audioPlayerRef.current = null;
+    }
     if (recognitionRef.current) {
       try {
         recognitionRef.current.abort();
       } catch {}
       recognitionRef.current = null;
     }
+    AiAssistantService.stopVoice();
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
@@ -204,16 +212,16 @@ export const LiveVoiceAssistantModal: React.FC<LiveVoiceAssistantModalProps> = (
   };
 
   /**
-   * Voice synthesis (Speaks response in Bengali)
+   * Voice synthesis: Speaks complete response naturally in Bengali without stopping
    */
-  const speakAiResponse = (text: string) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+  const speakAiResponse = async (text: string) => {
+    if (typeof window === 'undefined') {
       isAiProcessing.current = false;
       startListening();
       return;
     }
 
-    window.speechSynthesis.cancel();
+    stopAllAudio();
     setStatus('speaking');
 
     // Clean markdown characters for pleasant speech flow
@@ -222,22 +230,11 @@ export const LiveVoiceAssistantModal: React.FC<LiveVoiceAssistantModalProps> = (
       .replace(/\*/g, '')
       .replace(/#/g, '')
       .replace(/https?:\/\/[^\s]+/g, '')
-      .replace(/[`_]/g, '')
-      .slice(0, 320); // Speak first couple sentences naturally
+      .replace(/[`_~>]/g, '')
+      .replace(/\n\s*\n/g, ' ')
+      .trim();
 
-    const utterance = new SpeechSynthesisUtterance(cleanSpeech);
-    utterance.lang = 'bn-BD';
-    utterance.rate = 1.0;
-    utterance.pitch = 1.05;
-
-    // Try finding Bengali voice if available
-    const voices = window.speechSynthesis.getVoices();
-    const bnVoice = voices.find(v => v.lang.startsWith('bn') || v.name.includes('Bangla') || v.name.includes('Bengali'));
-    if (bnVoice) {
-      utterance.voice = bnVoice;
-    }
-
-    utterance.onend = () => {
+    const onFinishSpeaking = () => {
       isAiProcessing.current = false;
       if (isComponentMounted.current && !isMicMuted) {
         setStatus('listening');
@@ -247,15 +244,37 @@ export const LiveVoiceAssistantModal: React.FC<LiveVoiceAssistantModalProps> = (
       }
     };
 
-    utterance.onerror = () => {
-      isAiProcessing.current = false;
-      if (isComponentMounted.current && !isMicMuted) {
-        setStatus('listening');
-        startListening();
-      }
-    };
+    // 1. First attempt high-quality server TTS
+    try {
+      const res = await AiAssistantService.synthesizeSpeech(cleanSpeech, 'Kore');
+      if (res && res.audioUrl && isComponentMounted.current) {
+        const audio = new Audio(res.audioUrl);
+        audioPlayerRef.current = audio;
 
-    window.speechSynthesis.speak(utterance);
+        audio.onended = () => {
+          audioPlayerRef.current = null;
+          onFinishSpeaking();
+        };
+
+        audio.onerror = () => {
+          audioPlayerRef.current = null;
+          // Fallback to client browser synthesis if audio fails
+          if (isComponentMounted.current) {
+            AiAssistantService.speakVoice(cleanSpeech, onFinishSpeaking, onFinishSpeaking);
+          }
+        };
+
+        await audio.play();
+        return;
+      }
+    } catch (ttsErr) {
+      console.info('[LiveVoice] Server TTS skipped or failed, using client speech synthesis:', ttsErr);
+    }
+
+    // 2. Fallback to browser SpeechSynthesis with sequential sentence chunking & keep-alive
+    if (isComponentMounted.current) {
+      AiAssistantService.speakVoice(cleanSpeech, onFinishSpeaking, onFinishSpeaking);
+    }
   };
 
   /**
@@ -321,10 +340,10 @@ export const LiveVoiceAssistantModal: React.FC<LiveVoiceAssistantModalProps> = (
                 স্মার্ট খুলনা লাইভ ভয়েস
               </h2>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                LIVE AI CALL
+                LIVE AI VOICE
               </span>
             </div>
-            <p className="text-xs text-slate-400">মুখোমুখি দ্বি-মুখী ভয়েস কথোপকথন</p>
+            <p className="text-xs text-slate-400">মুখোমুখি এআই লাইভ ভয়েস সহকারী</p>
           </div>
         </div>
 
@@ -335,7 +354,7 @@ export const LiveVoiceAssistantModal: React.FC<LiveVoiceAssistantModalProps> = (
             onClose();
           }}
           className="p-2.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white rounded-full transition cursor-pointer border border-slate-700"
-          title="কল শেষ করুন (Close)"
+          title="ভয়েস বন্ধ করুন (Close)"
         >
           <X size={20} />
         </button>
@@ -515,16 +534,16 @@ export const LiveVoiceAssistantModal: React.FC<LiveVoiceAssistantModalProps> = (
             {isSpeakerMuted ? <VolumeX size={22} /> : <Volume2 size={22} />}
           </button>
 
-          {/* End Live Call Button */}
+          {/* End Live Voice Button */}
           <button
             onClick={() => {
               stopAllAudio();
               onClose();
             }}
             className="p-3.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-full transition shadow-lg shadow-rose-600/40 cursor-pointer flex items-center justify-center"
-            title="লাইভ কল শেষ করুন"
+            title="লাইভ ভয়েস বন্ধ করুন"
           >
-            <PhoneOff size={22} />
+            <X size={22} />
           </button>
         </div>
       </div>

@@ -15,8 +15,7 @@ import {
   MicOff,
   Volume2,
   VolumeX,
-  Radio,
-  PhoneCall
+  Radio
 } from 'lucide-react';
 import {
   AiAssistantService,
@@ -157,9 +156,7 @@ export const SmartKhulnaAiChat: React.FC<SmartKhulnaAiChatProps> = ({
         audioPlayerRef.current.pause();
         audioPlayerRef.current = null;
       }
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      AiAssistantService.stopVoice();
       setPlayingMsgId(null);
       return;
     }
@@ -169,9 +166,7 @@ export const SmartKhulnaAiChat: React.FC<SmartKhulnaAiChatProps> = ({
         audioPlayerRef.current.pause();
         audioPlayerRef.current = null;
       }
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      AiAssistantService.stopVoice();
 
       setIsSynthesizing(true);
       setLoadingMsgId(msgId); // temporary loading state
@@ -203,18 +198,14 @@ export const SmartKhulnaAiChat: React.FC<SmartKhulnaAiChatProps> = ({
         console.warn('Backend TTS failed, using browser speech synthesis fallback:', backendErr);
       }
 
-      // If backend TTS failed or didn't return audio, fallback to browser native SpeechSynthesis
-      if (!audioPlayed && 'speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'bn-BD';
-        utterance.onend = () => {
-          setPlayingMsgId(null);
-        };
-        utterance.onerror = () => {
-          setPlayingMsgId(null);
-        };
+      // If backend TTS failed or didn't return audio, fallback to browser native SpeechSynthesis with sequential chunks
+      if (!audioPlayed && typeof window !== 'undefined' && 'speechSynthesis' in window) {
         setPlayingMsgId(msgId);
-        window.speechSynthesis.speak(utterance);
+        AiAssistantService.speakVoice(
+          text,
+          () => setPlayingMsgId(null),
+          () => setPlayingMsgId(null)
+        );
         audioPlayed = true;
       }
 

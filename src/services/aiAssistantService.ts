@@ -206,26 +206,123 @@ export class AiAssistantService {
 • **উপযুক্ত সময়:** অক্টোবর থেকে মার্চ মাস সুন্দরবন ভ্রমণের জন্য সবচেয়ে মনোরম সময়।`;
     }
 
-    // 5. General warm response
-    return `স্মার্ট খুলনা এআই আপনার সেবায় নিয়োজিত। আমি প্রোগ্রামিং, কোডিং সমাধান, দৈনন্দিন তথ্য, খুলনা বিভাগের স্বাস্থ্যসেবা, জরুরি যোগাযোগ এবং পর্যটন সংক্রান্ত যেকোনো প্রশ্নের উত্তর দিতে প্রস্তুত। আপনার সুনির্দিষ্ট প্রশ্নটি লিখুন বা মুখে বলুন!`;
+    // 5. General warm response with universal reasoning and decision-making capabilities
+    return `স্মার্ট খুলনা এআই আপনার সেবায় নিয়োজিত। আমি প্রোগ্রামিং, কোডিং সমাধান, বিজ্ঞান ও গণিত, যুক্তি ও গভীর চিন্তা, সিদ্ধান্ত গ্রহণ সহায়তা, সমস্যা সমাধান এবং খুলনা বিভাগের যেকোনো নাগরিক তথ্য সংক্রান্ত প্রশ্নের পূর্ণাঙ্গ উত্তর দিতে প্রস্তুত। আপনার প্রশ্নটি লিখুন বা সরাসরি মুখে বলুন!`;
+  }
+
+  private static keepAliveTimer: any = null;
+  private static activeUtterance: SpeechSynthesisUtterance | null = null;
+
+  /**
+   * Stop any active voice synthesis and clear keepalive timers
+   */
+  static stopVoice() {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    if (AiAssistantService.keepAliveTimer) {
+      clearInterval(AiAssistantService.keepAliveTimer);
+      AiAssistantService.keepAliveTimer = null;
+    }
+    AiAssistantService.activeUtterance = null;
   }
 
   /**
    * Spoken audio synthesis using browser native Web Speech API
+   * Implements sentence-by-sentence queue and Chrome keep-alive to ensure continuous speech without stopping after 8-10s
    */
   static speakVoice(text: string, onEnd?: () => void, onError?: () => void) {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       if (onEnd) onEnd();
       return;
     }
-    window.speechSynthesis.cancel();
-    const clean = text.replace(/[*#`_]/g, '').slice(0, 320);
-    const utterance = new SpeechSynthesisUtterance(clean);
-    utterance.lang = 'bn-BD';
-    utterance.rate = 1.0;
-    if (onEnd) utterance.onend = onEnd;
-    if (onError) utterance.onerror = onError;
-    window.speechSynthesis.speak(utterance);
+
+    AiAssistantService.stopVoice();
+
+    // Clean markdown characters and links for natural flow
+    const clean = text
+      .replace(/\*\*/g, '')
+      .replace(/\*/g, '')
+      .replace(/https?:\/\/[^\s]+/g, '')
+      .replace(/[#_`~>]/g, '')
+      .replace(/\n\s*\n/g, ' ')
+      .trim();
+
+    if (!clean) {
+      if (onEnd) onEnd();
+      return;
+    }
+
+    // Split text into natural sentence chunks using punctuation (। ? ! . \n)
+    // Short chunks prevent the browser's 10-15s speech timeout and garbage-collection bug
+    const sentenceRegex = /[^।?!.\n]+[।?!.\n]+|[^।?!.\n]+$/g;
+    const rawChunks = clean.match(sentenceRegex) || [clean];
+    const chunks: string[] = [];
+
+    let currentChunk = '';
+    for (const piece of rawChunks) {
+      const trimmed = piece.trim();
+      if (!trimmed) continue;
+      if ((currentChunk + ' ' + trimmed).length > 180) {
+        if (currentChunk) chunks.push(currentChunk.trim());
+        currentChunk = trimmed;
+      } else {
+        currentChunk = currentChunk ? currentChunk + ' ' + trimmed : trimmed;
+      }
+    }
+    if (currentChunk) chunks.push(currentChunk.trim());
+    if (chunks.length === 0) chunks.push(clean);
+
+    let currentIndex = 0;
+
+    // Chrome keep-alive interval: pings pause/resume every 6s to prevent Chrome from pausing long speech
+    AiAssistantService.keepAliveTimer = setInterval(() => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+          window.speechSynthesis.pause();
+          window.speechSynthesis.resume();
+        }
+      }
+    }, 6000);
+
+    const playNextChunk = () => {
+      if (currentIndex >= chunks.length) {
+        AiAssistantService.stopVoice();
+        if (onEnd) onEnd();
+        return;
+      }
+
+      const chunkText = chunks[currentIndex];
+      currentIndex++;
+
+      const utterance = new SpeechSynthesisUtterance(chunkText);
+      utterance.lang = 'bn-BD';
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+
+      const voices = window.speechSynthesis.getVoices();
+      const bnVoice = voices.find(v => v.lang.startsWith('bn') || v.name.includes('Bangla') || v.name.includes('Bengali'));
+      if (bnVoice) utterance.voice = bnVoice;
+
+      utterance.onend = () => {
+        playNextChunk();
+      };
+
+      utterance.onerror = (e) => {
+        console.warn('Speech chunk error:', e);
+        if ((e as any).error !== 'canceled' && (e as any).error !== 'interrupted') {
+          playNextChunk();
+        } else {
+          AiAssistantService.stopVoice();
+          if (onError) onError();
+        }
+      };
+
+      AiAssistantService.activeUtterance = utterance;
+      window.speechSynthesis.speak(utterance);
+    };
+
+    playNextChunk();
   }
 
   /**

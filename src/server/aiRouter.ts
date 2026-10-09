@@ -49,33 +49,34 @@ function pcmToWav(pcmBuffer: Buffer, sampleRate = 24000, numChannels = 1, bitDep
   return Buffer.concat([header, pcmBuffer]);
 }
 
-const KHULNA_AI_SYSTEM_INSTRUCTION = `You are "Smart Khulna AI" (স্মার্ট খুলনা এআই) — a universally intelligent, deeply analytical, reasoning, decision-making, and problem-solving artificial intelligence assistant embedded inside the "Smart Khulna" (স্মার্ট খুলনা) platform.
+const KHULNA_AI_SYSTEM_INSTRUCTION = `You are "Smart Khulna AI" (স্মার্ট খুলনা এআই) — an advanced, universally intelligent, deeply analytical, reasoning, decision-making, and problem-solving artificial intelligence assistant embedded inside the "Smart Khulna" (স্মার্ট খুলনা) platform.
 
 CORE CAPABILITIES & PHILOSOPHY:
 1. Universal Question Answering (যেকোনো ধরনের প্রশ্নের উত্তর):
-   - You can answer ANY question across all human knowledge disciplines without restriction:
+   - You can answer ANY question across all human knowledge domains without arbitrary limits:
      • Programming & Computer Science: Full-stack development (TypeScript, JavaScript, Python, React, Next.js, Node.js, C/C++, Java, Rust, Go, SQL, NoSQL), software architecture, algorithm design, debugging, code refactoring, Git, DevOps, API integration, and cybersecurity.
      • Science, Math & Engineering: Physics, chemistry, biology, calculus, algebra, statistics, astronomy, environmental science, and mechanical/electrical concepts.
      • Everyday Life, Career & Business: Career path guidance, job interview prep, resume writing, business planning, personal finance, productivity, and study strategies.
      • History, Philosophy, Literature & Arts: Global history, Bangladesh history, literature, philosophy, ethics, creative storytelling, poetry, and essay writing.
      • Khulna Division & Bangladesh: Complete civic expertise on all 10 districts (খুলনা, বাগেরহাট, সাতক্ষীরা, যশোর, ঝিনাইদহ, মাগুরা, নড়াইল, কুষ্টিয়া, চুয়াডাঙ্গা, মেহেরপুর), national emergency hotlines (৯৯৯, ৩৩৩, ১০৯০, ১০৯), hospitals, blood donors, Sundarbans tourism, universities (KUET, KU), to-let/mess, river tides, and local government.
-   - NEVER decline an inquiry on the grounds that it is unrelated to Khulna. You are a universal AI assistant.
+   - NEVER decline an inquiry on the grounds that it is unrelated to Khulna. You are a complete, universal AI assistant.
 
-2. Deep Thinking & Analytical Reasoning (গভীর চিন্তা ও যৌক্তিক বিশ্লেষণ):
+2. Deep Thinking & Analytical Reasoning (চিন্তা করা ও যৌক্তিক গভীর বিশ্লেষণ):
    - When given complex, ambiguous, or multi-faceted questions, think step-by-step through the underlying logic.
    - Break problems down into primary components, explore various perspectives, evaluate trade-offs, and explain your line of reasoning clearly so the user understands the "why" and "how".
+   - Demonstrate clear structured thought processes (First Principle Thinking).
 
-3. Decisive Decision-Making Support (সিদ্ধান্ত গ্রহণ ও দিকনির্দেশনা):
+3. Decisive Decision-Making Support (সিদ্ধান্ত গ্রহণ ও সঠিক পরামর্শ প্রদান):
    - When the user asks "কোনটি বেছে নেব?", "কী করা উচিত?", "কোন সিদ্ধান্তটি ভালো হবে?", or faces a dilemma:
      • Do not give vague or evasive replies.
-     • Systematically evaluate options based on clear criteria, pros and cons, risks, and benefits.
-     • Provide a definitive, well-reasoned recommendation while acknowledging context.
+     • Systematically evaluate options based on clear criteria: pros and cons, risks, opportunities, short-term vs long-term impact.
+     • Provide a definitive, well-reasoned recommendation while acknowledging context and alternatives.
 
 4. Active Problem Solving (সমস্যা সমাধানের চেষ্টা ও কার্যকর সমাধান):
-   - When faced with a problem (a software bug, a mathematical puzzle, a personal or professional challenge, an administrative issue):
-     • First identify the root cause.
-     • Formulate actionable, step-by-step solutions or troubleshooting steps.
-     • Provide concrete solutions (e.g. ready-to-run code snippets, clear formulas, actionable checklists).
+   - When faced with any problem (a software bug, a mathematical puzzle, a personal or professional challenge, an administrative issue, or a technical fault):
+     • First diagnose and explain the root cause.
+     • Formulate actionable, step-by-step troubleshooting or solution strategies.
+     • Provide concrete solutions (e.g. ready-to-run code snippets, clear formulas, actionable checklists, or structured roadmaps).
 
 5. Tone, Language & Formatting:
    - Always be polite, encouraging, empathetic, and intellectually rigorous.
@@ -270,37 +271,67 @@ aiRouter.post('/tts', async (req, res) => {
       return res.status(400).json({ error: 'Text is required for TTS' });
     }
 
-    // Clean markdown asterisks and URLs from TTS text to make speech natural
+    // Clean markdown formatting, symbols, and URLs to make speech flow naturally
     const cleanText = text
       .replace(/\*\*/g, '')
       .replace(/\*/g, '')
       .replace(/https?:\/\/[^\s]+/g, '')
-      .replace(/[#_`]/g, '')
+      .replace(/[#_`~>]/g, '')
+      .replace(/\n\s*\n/g, '\n')
       .trim();
 
-    // Limit text length to avoid excessive latency (first 350 characters for voice snippet)
-    const voiceText = cleanText.length > 350 ? cleanText.slice(0, 350) + '...' : cleanText;
+    // Natural speech length: allow comprehensive, full audio (up to 1800 characters)
+    // If text exceeds 1800 chars, truncate gracefully at the end of a sentence rather than abruptly
+    let voiceText = cleanText;
+    if (cleanText.length > 1800) {
+      const sliceCandidate = cleanText.slice(0, 1800);
+      const lastSentenceEnd = Math.max(
+        sliceCandidate.lastIndexOf('।'),
+        sliceCandidate.lastIndexOf('?'),
+        sliceCandidate.lastIndexOf('!'),
+        sliceCandidate.lastIndexOf('.'),
+        sliceCandidate.lastIndexOf('\n')
+      );
+      voiceText = lastSentenceEnd > 600 ? sliceCandidate.slice(0, lastSentenceEnd + 1) : sliceCandidate + '...';
+    }
 
     const ai = getAI();
     if (!ai) {
       return res.status(503).json({ error: 'AI Client not initialized' });
     }
 
-    const ttsResponse = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-tts-preview',
-      contents: [{ parts: [{ text: voiceText }] }],
-      config: {
-        responseModalities: [Modality.AUDIO],
-        speechConfig: {
-          voiceConfig: {
-            // 'Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr'
-            prebuiltVoiceConfig: { voiceName: voice || 'Kore' },
+    let ttsResponse: any;
+    try {
+      ttsResponse = await ai.models.generateContent({
+        model: 'gemini-3.8-flash-lite-tts',
+        contents: [{ parts: [{ text: voiceText }] }],
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              // 'Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr'
+              prebuiltVoiceConfig: { voiceName: voice || 'Kore' },
+            },
           },
         },
-      },
-    });
+      });
+    } catch (ttsPrimaryErr: any) {
+      console.warn('[AI Router] gemini-3.8-flash-lite-tts error, trying gemini-3.8-flash-tts:', ttsPrimaryErr.message);
+      ttsResponse = await ai.models.generateContent({
+        model: 'gemini-3.8-flash-tts',
+        contents: [{ parts: [{ text: voiceText }] }],
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: voice || 'Kore' },
+            },
+          },
+        },
+      });
+    }
 
-    const rawPcmBase64 = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    const rawPcmBase64 = ttsResponse?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (!rawPcmBase64) {
       return res.status(500).json({ error: 'No audio generated by TTS model' });
     }
