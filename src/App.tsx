@@ -4074,21 +4074,6 @@ export default function App() {
             {/* TAB VIEW - HOME */}
             {activeTab === 'home' && !viewingDistrictId && (
               <>
-                {/* Interactive D3 Khulna District Density Map */}
-                <KhulnaDistrictDensityMap
-                  districts={initialDistricts}
-                  services={services}
-                  selectedDistrict={selectedDistrict}
-                  onSelectDistrict={(distId) => {
-                    if (distId === 'all') {
-                      setSelectedDistrict('');
-                    } else {
-                      setSelectedDistrict(distId);
-                    }
-                  }}
-                  className="w-full"
-                />
-
                 {/* 1. DISTRICT SELECTOR (Required top of the page) */}
                 <div className="bg-gradient-to-br from-emerald-50 to-lime-50/50 dark:from-slate-850 dark:to-emerald-950/20 p-3 sm:p-4 sm:rounded-2xl border-y sm:border border-emerald-100 dark:border-slate-800 shadow-sm relative w-full">
                   <div className="flex items-center justify-between mb-2.5">
@@ -4761,6 +4746,21 @@ export default function App() {
                   currentUserEmail={currentUser?.email || userProfile?.email || ''}
                   currentUserPhone={currentUser?.phone || userProfile?.phone || ''}
                   onSubmitApplication={handleJoinTeamApplication}
+                />
+
+                {/* Interactive D3 Khulna District Density Map (Placed at bottom of Home page) */}
+                <KhulnaDistrictDensityMap
+                  districts={initialDistricts}
+                  services={services}
+                  selectedDistrict={selectedDistrict}
+                  onSelectDistrict={(distId) => {
+                    if (distId === 'all') {
+                      setSelectedDistrict('');
+                    } else {
+                      setSelectedDistrict(distId);
+                    }
+                  }}
+                  className="w-full mt-4"
                 />
               </>
             )}

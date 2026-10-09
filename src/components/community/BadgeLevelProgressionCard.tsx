@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Award, ChevronRight, Sparkles, Check, Users, Flame, Star, ShieldCheck, Info, X } from 'lucide-react';
+import { Award, ChevronRight, Sparkles, Check, Users, Flame, Star, ShieldCheck, Info, X, Crown } from 'lucide-react';
 import { BADGE_TIERS, BadgeTier, UserLevelProgress } from '../../utils/badgeLevels';
 import { Language } from '../../utils/translations';
+import confetti from 'canvas-confetti';
 
 interface BadgeLevelProgressionCardProps {
   progress: UserLevelProgress;
@@ -17,13 +18,80 @@ export const BadgeLevelProgressionCard: React.FC<BadgeLevelProgressionCardProps>
   className = '',
 }) => {
   const [showModal, setShowModal] = useState(false);
+  const [showCelebrationBanner, setShowCelebrationBanner] = useState(false);
+  const [celebrationLevel, setCelebrationLevel] = useState<number | null>(null);
+
   const isBn = lang === 'bn';
   const { currentTier, nextTier, progressPercent, referralsCount, streakCount } = progress;
+
+  // Detect level increase and trigger confetti celebration
+  useEffect(() => {
+    try {
+      const storedLevelStr = localStorage.getItem('smart_khulna_user_highest_level');
+      const prevLevel = storedLevelStr ? parseInt(storedLevelStr, 10) : currentTier.level;
+
+      if (currentTier.level > prevLevel) {
+        // Level up detected!
+        setCelebrationLevel(currentTier.level);
+        setShowCelebrationBanner(true);
+        localStorage.setItem('smart_khulna_user_highest_level', currentTier.level.toString());
+
+        // Fire confetti
+        confetti({
+          particleCount: 120,
+          spread: 80,
+          origin: { y: 0.6 },
+          colors: ['#10B981', '#F59E0B', '#3B82F6', '#EC4899', '#8B5CF6'],
+        });
+
+        const timer = setTimeout(() => {
+          setShowCelebrationBanner(false);
+        }, 6000);
+        return () => clearTimeout(timer);
+      } else if (!storedLevelStr) {
+        localStorage.setItem('smart_khulna_user_highest_level', currentTier.level.toString());
+      }
+    } catch {
+      // ignore storage issues
+    }
+  }, [currentTier.level]);
 
   return (
     <div className={`rounded-2xl border ${currentTier.borderColor} ${currentTier.bgGradient} p-4 sm:p-5 relative overflow-hidden shadow-xs ${className}`}>
       {/* Decorative background glow */}
       <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none" />
+
+      {/* Celebration Level-Up Banner */}
+      <AnimatePresence>
+        {showCelebrationBanner && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className="mb-4 p-3 rounded-2xl bg-gradient-to-r from-amber-500 via-emerald-600 to-teal-600 text-white shadow-lg flex items-center justify-between gap-3 relative z-20 border border-white/25"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl shrink-0 animate-bounce">
+                🎉
+              </div>
+              <div>
+                <h4 className="text-xs font-black font-serif">
+                  {isBn ? `অভিনন্দন! লেভেল ${celebrationLevel} এ উন্নীত হয়েছেন!` : `Congratulations! Promoted to Level ${celebrationLevel}!`}
+                </h4>
+                <p className="text-[10px] text-amber-100">
+                  {isBn ? 'আপনার অবদানের স্বীকৃতিস্বরূপ নতুন ব্যাজ ও সুযোগ আনলক হয়েছে।' : 'New civic privileges and tier badge unlocked.'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowCelebrationBanner(false)}
+              className="w-7 h-7 rounded-full bg-black/20 hover:bg-black/40 text-white flex items-center justify-center cursor-pointer shrink-0"
+            >
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Header with Level & Badge Icon */}
       <div className="flex items-start justify-between gap-3 relative z-10">
