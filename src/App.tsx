@@ -185,7 +185,6 @@ import { getSafeAvatarUrl } from './lib/avatarHelper';
 import { SmartKhulnaHeader } from './components/common/SmartKhulnaHeader';
 import { SmartKhulnaLogo } from './components/common/SmartKhulnaLogo';
 import { DiscoverySearch } from './components/DiscoverySearch';
-import { KhulnaDistrictDensityMap } from './components/home/KhulnaDistrictDensityMap';
 
 // Category Color Scheme Mapping for Compact Visual Cards with 3D Gradients & Glossy Glow
 const getCategoryStyle = (catId: string) => {
@@ -4746,21 +4745,6 @@ export default function App() {
                   currentUserEmail={currentUser?.email || userProfile?.email || ''}
                   currentUserPhone={currentUser?.phone || userProfile?.phone || ''}
                   onSubmitApplication={handleJoinTeamApplication}
-                />
-
-                {/* Interactive D3 Khulna District Density Map (Placed at bottom of Home page) */}
-                <KhulnaDistrictDensityMap
-                  districts={initialDistricts}
-                  services={services}
-                  selectedDistrict={selectedDistrict}
-                  onSelectDistrict={(distId) => {
-                    if (distId === 'all') {
-                      setSelectedDistrict('');
-                    } else {
-                      setSelectedDistrict(distId);
-                    }
-                  }}
-                  className="w-full mt-4"
                 />
               </>
             )}
