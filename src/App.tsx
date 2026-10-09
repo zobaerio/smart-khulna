@@ -1540,9 +1540,12 @@ export default function App() {
         });
         msgs.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
         setMessagesMap(prev => {
-          const updated = {
+          const raw = [...(prev[activeConversationId] || []), ...msgs];
+          const unique = raw.filter((m, idx, arr) => arr.findIndex(x => x.id === m.id) === idx);
+          unique.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+          const updated: { [convId: string]: ChatMessage[] } = {
             ...prev,
-            [activeConversationId]: msgs
+            [activeConversationId]: unique
           };
           try {
             localStorage.setItem(`messages_map_${currentUser.uid}`, JSON.stringify(updated));
@@ -3240,10 +3243,15 @@ export default function App() {
       }
       
       // 3. Update Local State (as before)
-      setMessagesMap(prev => ({
-        ...prev,
-        [conversationId]: [...(prev[conversationId] || []), newMsg]
-      }));
+      setMessagesMap(prev => {
+        const raw = [...(prev[conversationId] || []), newMsg];
+        const unique = raw.filter((m, idx, arr) => arr.findIndex(x => x.id === m.id) === idx);
+        const updated: { [convId: string]: ChatMessage[] } = {
+          ...prev,
+          [conversationId]: unique
+        };
+        return updated;
+      });
 
       setConversations(prev => prev.map(c => {
         if (c.id === conversationId) {

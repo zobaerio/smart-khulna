@@ -146,7 +146,8 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const activeConv = conversations.find(c => c.id === activeConversationId);
-  const currentMessages = activeConversationId ? messagesMap[activeConversationId] || [] : [];
+  const rawMessages = activeConversationId ? messagesMap[activeConversationId] || [] : [];
+  const currentMessages = rawMessages.filter((m, idx, arr) => arr.findIndex(x => x.id === m.id) === idx);
   const lastMessageCount = useRef(currentMessages.length);
 
   // Scroll to bottom when conversation changes or new message from self
