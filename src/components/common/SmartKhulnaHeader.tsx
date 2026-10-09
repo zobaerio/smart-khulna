@@ -131,42 +131,23 @@ export const SmartKhulnaHeader: React.FC<SmartKhulnaHeaderProps> = ({
             <Search size={16} strokeWidth={2.3} />
           </button>
 
-          {/* 1. Language Switcher (Bangla / English Segmented Controls) */}
-          <div 
-            id="header-lang-switcher"
-            className="h-8 sm:h-9 bg-slate-100 dark:bg-slate-850 p-0.5 rounded-full border border-slate-200/80 dark:border-slate-800 flex items-center shadow-2xs"
-            role="group"
-            aria-label="Language Selector"
+          {/* 1. Language Switcher (Single Toggle Button) */}
+          <button
+            type="button"
+            id="header-lang-btn"
+            onClick={() => {
+              if (lang === 'bn') {
+                handleSelectLang('en');
+              } else {
+                handleSelectLang('bn');
+              }
+            }}
+            className="h-7 sm:h-8 px-2 sm:px-2.5 bg-slate-100 hover:bg-emerald-50 dark:bg-slate-850 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-full text-[11px] font-bold transition-all duration-150 flex items-center gap-1 cursor-pointer border border-slate-200/80 dark:border-slate-800 shadow-2xs active:scale-95"
+            title={lang === 'bn' ? 'Switch to English' : 'বাংলায় পরিবর্তন করুন'}
           >
-            <button
-              type="button"
-              id="header-lang-btn-bn"
-              onClick={() => handleSelectLang('bn')}
-              className={`h-full px-2 sm:px-2.5 rounded-full text-[10px] sm:text-xs font-black transition-all duration-150 flex items-center gap-1 cursor-pointer ${
-                lang === 'bn'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-              title="বাংলা ভাষা নির্বাচন করুন"
-            >
-              <span>বাং</span>
-              <span className="hidden sm:inline">লা</span>
-            </button>
-            <button
-              type="button"
-              id="header-lang-btn-en"
-              onClick={() => handleSelectLang('en')}
-              className={`h-full px-2 sm:px-2.5 rounded-full text-[10px] sm:text-xs font-black transition-all duration-150 flex items-center gap-1 cursor-pointer font-sans ${
-                lang === 'en'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-              title="Switch to English language"
-            >
-              <span>EN</span>
-              <span className="hidden sm:inline">G</span>
-            </button>
-          </div>
+            <Globe size={13} className="text-emerald-600 dark:text-emerald-400" />
+            <span>{lang === 'bn' ? 'EN' : 'বাংলা'}</span>
+          </button>
 
           {/* 2. PWA Install Prompt Button (Conditional) */}
           {isInstallable && (
