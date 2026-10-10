@@ -59,7 +59,11 @@ export async function testConnection(): Promise<void> {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
+    const isOffline = error instanceof Error && (
+      error.message.includes('the client is offline') || 
+      error.message.includes('unavailable')
+    );
+    if (isOffline) {
       console.warn('Firestore client operates in offline mode until network connection resolves.');
     } else {
       console.warn('Firestore boot connection test notice:', error);

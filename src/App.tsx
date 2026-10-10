@@ -1314,7 +1314,8 @@ export default function App() {
         setCommunityPosts(posts);
       }
     }, (error) => {
-      console.warn("Firestore posts subscription error:", error);
+      console.error("Firestore posts subscription error:", error);
+      handleFirestoreError(error, OperationType.LIST, 'posts');
     });
     return () => unsubscribe();
   }, []);

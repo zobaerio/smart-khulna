@@ -331,21 +331,8 @@ export const SmartKhulnaAiChat: React.FC<SmartKhulnaAiChatProps> = ({
             <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full" />
           </div>
 
-          <div>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white font-serif flex items-center gap-1">
-                স্মার্ট খুলনা এআই
-                <Sparkles size={14} className="text-amber-500 fill-amber-500" />
-              </h3>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                AI সহকারী
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block animate-ping" />
-              ২৪/৭ সক্রিয় • ভয়েস ও ফাইল বিশ্লেষণ সমর্থিত
-            </p>
-          </div>
+          {/* Placeholder or empty div to maintain layout */}
+          <div />
         </div>
 
         {/* Action Controls in Header */}
