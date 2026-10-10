@@ -312,7 +312,7 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
       const list: any[] = [];
       snapshot.docs.forEach(docSnap => {
         const data = docSnap.data();
-        const rUid = (data.referrerUid || '').toLowerCase();
+        const rUid = (data.referrerUid || data.referrer || '').toLowerCase();
         const rCode = (data.referrerCode || data.referrerShortCode || '').toLowerCase();
 
         const isMatch = (
@@ -324,6 +324,7 @@ export const EnhancedProfileView: React.FC<EnhancedProfileViewProps> = ({
           (shortCode && shortCode.length >= 4 && myUid.startsWith(rUid)) ||
           (rUid && rUid.length >= 4 && myUid.startsWith(rUid))
         );
+        console.log('[Referral Match Check]', { isMatch, rUid, rCode, myUid, shortCode, myReferralCode });
 
         if (isMatch) {
           list.push({ id: docSnap.id, ...data });
