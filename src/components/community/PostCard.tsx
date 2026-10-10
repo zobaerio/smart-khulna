@@ -888,12 +888,6 @@ export const PostCard: React.FC<PostCardProps> = ({
               <Heart size={16} className={isLiked ? 'fill-rose-500 text-rose-500' : ''} />
               <span>{post.likesCount || 0}</span>
             </button>
-            <button
-              onClick={() => onAddReaction?.(post.id, '❤️')}
-              className="px-2 py-1 hover:bg-slate-100 rounded-lg"
-            >
-              😊
-            </button>
           </div>
 
           {/* Comments */}
