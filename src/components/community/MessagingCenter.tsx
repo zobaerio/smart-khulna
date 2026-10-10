@@ -575,7 +575,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                         onDeleteConversation(conv.id);
                       }
                     }}
-                    className="p-1.5 transition text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg cursor-pointer shrink-0"
+                    className="p-1.5 transition text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg cursor-pointer shrink-0 opacity-100"
                     title="কথোপকথনটি মুছে ফেলুন"
                   >
                     <Trash2 size={16} />
@@ -588,7 +588,7 @@ export const MessagingCenter: React.FC<MessagingCenterProps> = ({
                         onBlockUser(otherUid);
                       }
                     }}
-                    className="p-1.5 transition text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg cursor-pointer shrink-0"
+                    className="p-1.5 transition text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg cursor-pointer shrink-0 opacity-100"
                     title="ব্যবহারকারীকে ব্লক করুন"
                   >
                     <Ban size={16} />

@@ -960,6 +960,8 @@ export default function App() {
         }
       }
 
+      console.log('[Referral] Debug:', { cleanCode, resolvedReferrerUid, pendingUid, pendingCode });
+
       const finalReferrerUid = resolvedReferrerUid || pendingUid || pendingCode || '';
       if (finalReferrerUid && finalReferrerUid !== newUserUid) {
         // Record in referrals collection

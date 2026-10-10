@@ -438,7 +438,7 @@ export const NotificationCenterView: React.FC<NotificationCenterViewProps> = ({
                     )}
                     <button
                       onClick={(e) => handleDeleteNotification(e, item.id)}
-                      className="p-1 text-slate-400 hover:text-red-500 rounded-md transition cursor-pointer"
+                      className="p-1 text-slate-400 hover:text-red-500 rounded-md transition cursor-pointer opacity-100"
                       title="মুছে ফেলুন"
                     >
                       <Trash2 size={13} />
