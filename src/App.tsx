@@ -893,8 +893,11 @@ export default function App() {
     newUserEmail?: string
   ) => {
     try {
+      const params = new URLSearchParams(window.location.search);
+      const urlCode = params.get('ref') || params.get('invite') || 
+                      (window.location.pathname.startsWith('/invite/') ? window.location.pathname.split('/')[2] : '');
       const pendingUid = localStorage.getItem('smart_khulna_referral_uid');
-      const pendingCode = localStorage.getItem('smart_khulna_referral_code');
+      const pendingCode = localStorage.getItem('smart_khulna_referral_code') || urlCode;
 
       if (!pendingUid && !pendingCode) return;
       if (pendingUid === newUserUid) {

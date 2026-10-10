@@ -47,11 +47,13 @@ interface PostCardProps {
   currentUserEmail?: string;
   currentUserName?: string;
   comments: PostComment[];
+  reactions?: Record<string, string>; // userId -> emoji
   isLiked: boolean;
   isSaved: boolean;
   isFollowing?: boolean;
   onToggleFollow?: (authorId: string) => void;
   onToggleLike: (postId: string) => void;
+  onAddReaction?: (postId: string, emoji: string) => void;
   onToggleSave: (postId: string) => void;
   onAddComment: (postId: string, text: string) => void;
   onAddReply: (postId: string, commentId: string, text: string) => void;
@@ -72,11 +74,13 @@ export const PostCard: React.FC<PostCardProps> = ({
   districts,
   currentUserId,
   comments,
+  reactions = {},
   isLiked,
   isSaved,
   isFollowing = false,
   onToggleFollow,
   onToggleLike,
+  onAddReaction,
   onToggleSave,
   onAddComment,
   onAddReply,
@@ -872,18 +876,25 @@ export const PostCard: React.FC<PostCardProps> = ({
       {/* ACTION BAR (LIKE, COMMENT, SHARE, SAVE) */}
       <div className="px-3 py-2 flex items-center justify-between text-xs text-slate-600 border-t border-slate-100 bg-slate-50/50">
         <div className="flex items-center gap-1 sm:gap-2">
-          {/* Like */}
-          <button
-            onClick={() => onToggleLike(post.id)}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition cursor-pointer font-medium ${
-              isLiked
-                ? 'text-rose-600 bg-rose-50 hover:bg-rose-100 font-bold'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`}
-          >
-            <Heart size={16} className={isLiked ? 'fill-rose-500 text-rose-500' : ''} />
-            <span>{post.likesCount || 0}</span>
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => onToggleLike(post.id)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition cursor-pointer font-medium ${
+                isLiked
+                  ? 'text-rose-600 bg-rose-50 hover:bg-rose-100 font-bold'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <Heart size={16} className={isLiked ? 'fill-rose-500 text-rose-500' : ''} />
+              <span>{post.likesCount || 0}</span>
+            </button>
+            <button
+              onClick={() => onAddReaction?.(post.id, '❤️')}
+              className="px-2 py-1 hover:bg-slate-100 rounded-lg"
+            >
+              😊
+            </button>
+          </div>
 
           {/* Comments */}
           <button

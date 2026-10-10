@@ -52,6 +52,17 @@
       },
       "required": ["id", "authorId", "authorName", "content", "status", "createdAt"]
     },
+    "Reaction": {
+      "title": "Reaction",
+      "description": "User reaction on a community post",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "emoji": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "emoji", "createdAt"]
+    },
     "Conversation": {
       "title": "Conversation",
       "description": "Private 1-to-1 chat between two participants",
@@ -379,6 +390,10 @@
     "/posts/{postId}": {
       "schema": "CommunityPost",
       "description": "Community posts with public read and author/admin write"
+    },
+    "/posts/{postId}/reactions/{userId}": {
+      "schema": "Reaction",
+      "description": "User reactions nested within community posts"
     },
     "/posts/{postId}/comments/{commentId}": {
       "schema": "PostComment",
